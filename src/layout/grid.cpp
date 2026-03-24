@@ -141,10 +141,6 @@ void HTLayoutGrid::on_show(CallbackFun on_complete) {
     if (monitor == nullptr)
         return;
 
-    // HACK: This is needed to recalculate the position of the current workspace,
-    // so we don't start animating from an inactive workspace
-    init_position();
-
     *scale = calculate_ws_box(0, 0, HT_VIEW_OPENED).w / monitor->m_transformedSize.x; // 1 / ROWS
     // Offset for the whole grid of workspaces
     *offset = {0, 0};

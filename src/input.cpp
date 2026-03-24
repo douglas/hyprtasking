@@ -287,7 +287,7 @@ bool HTManager::swipe_end() {
             const float OPEN_DISTANCE = HTConfig::value<Hyprlang::FLOAT>("gestures:open_distance");
             const float swipe_perc = 1.0 - std::clamp(swipe_amt / OPEN_DISTANCE, 0.01f, 1.0f);
             if (swipe_perc >= 0.5) {
-                cursor_view->show();
+                cursor_view->show(false);
             } else {
                 cursor_view->hide(false);
             }

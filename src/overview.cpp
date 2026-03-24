@@ -71,7 +71,7 @@ void HTView::do_exit_behavior(bool exit_on_mouse) {
     monitor->changeWorkspace(workspace);
 }
 
-void HTView::show() {
+void HTView::show(bool recalculate) {
     const PHLMONITOR monitor = get_monitor();
     if (monitor == nullptr)
         return;
@@ -83,6 +83,9 @@ void HTView::show() {
     closing = false;
     navigating = false;
 
+    if (recalculate) {
+        layout->init_position();
+    }
     layout->on_show();
 
     Cursor::overrideController->setOverride("left_ptr", Cursor::CURSOR_OVERRIDE_UNKNOWN);
