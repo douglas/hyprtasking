@@ -96,8 +96,21 @@ hyprctl plugin load "$(realpath libhyprtasking.so)"
 For a quick live smoke check after the plugin is loaded:
 
 ```
-bash scripts/smoke-live.sh
+bash scripts/smoke-live.sh all
 ```
+
+Supported smoke subcommands:
+
+- `all`: unload/load the plugin, wait for dispatcher registration, run toggle/move probes, then reload Hyprland
+- `load-unload`: validate a live unload/load cycle for `build/libhyprtasking.so`
+- `toggle`: validate toggle and directional move dispatchers
+- `reload`: reload Hyprland and wait for the plugin to become ready again
+- `manual`: print the manual compositor checks that still need eyes on the result
+
+Optional environment:
+
+- `HYPRLAND_INSTANCE_SIGNATURE`: target a specific live Hyprland session
+- `PLUGIN_PATH`: override the plugin path used by `load-unload`
 
 ## Usage
 
