@@ -19,7 +19,7 @@ add_project_arguments(
   ],
   language: 'cpp')
 
-globber = run_command('find', '.', '-name', '*.cpp', check: true)
+globber = run_command('find', 'src', '-name', '*.cpp', check: true)
 src = globber.stdout().strip().split('\n')
 
 incdir = []
@@ -45,3 +45,17 @@ shared_module(meson.project_name(), src,
   install: true,
   include_directories: incdir
 )
+
+logic_tests = executable('logic-tests',
+  [
+    'tests/logic_tests.cpp',
+    'src/logic/controller_state.cpp',
+    'src/logic/dispatch_args.cpp',
+    'src/logic/gesture_model.cpp',
+    'src/logic/layout_model.cpp',
+    'src/logic/reload_model.cpp',
+  ],
+  include_directories: include_directories('.'),
+)
+
+test('logic-tests', logic_tests)

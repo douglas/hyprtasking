@@ -1,0 +1,260 @@
+#include <cstdlib>
+#include <iostream>
+#include <string_view>
+#include <vector>
+
+#include "../src/logic/controller_state.hpp"
+#include "../src/logic/dispatch_args.hpp"
+#include "../src/logic/gesture_model.hpp"
+#include "../src/logic/layout_model.hpp"
+#include "../src/logic/reload_model.hpp"
+
+namespace {
+
+void expect(bool condition, std::string_view message) {
+    if (condition)
+        return;
+
+    std::cerr << "test failure: " << message << '\n';
+    std::exit(1);
+}
+
+} // namespace
+
+int main() {
+    using namespace HTLogic;
+
+    {
+        const auto result = parseOffsetArg("12", 3);
+        expect(result.ok && result.value == 12, "absolute offset should parse");
+    }
+    {
+        const auto result = parseOffsetArg(" +4 ", 3);
+        expect(result.ok && result.value == 7, "relative offset should parse");
+    }
+    {
+        const auto result = parseOffsetArg("", 3);
+        expect(!result.ok && result.error == "missing arg", "missing offset arg should fail");
+    }
+    {
+        const auto result = parseOffsetArg("-5", 3);
+        expect(
+            !result.ok && result.error == "offset cannot be negative",
+            "negative resulting offset should fail"
+        );
+    }
+    {
+        const auto result = parseOffsetArg("999999999999999999", 3);
+        expect(!result.ok, "overflowing offset should fail");
+    }
+
+    {
+        const auto result = parseLayerOffsetArg("", 0, 2, 3, 4);
+        expect(
+            result.ok && result.requested_offset == 6 && result.max_offset == 18,
+            "empty layer arg should default to +1 layer"
+        );
+    }
+    {
+        const auto result = parseLayerOffsetArg("+2", 0, 2, 3, 4);
+        expect(result.ok && result.requested_offset == 12, "relative layer arg should parse");
+    }
+    {
+        const auto result = parseLayerOffsetArg("2", 6, 2, 3, 4);
+        expect(result.ok && result.requested_offset == 12, "absolute layer arg should parse");
+    }
+    {
+        const auto result = parseLayerOffsetArg("abc", 0, 2, 3, 4);
+        expect(!result.ok && result.error == "invalid numeric arg", "invalid layer arg should fail");
+    }
+    {
+        const auto result = parseLayerOffsetArg("", 0, 0, 3, 4);
+        expect(!result.ok && result.error == "invalid grid dimensions", "invalid grid dimensions should fail");
+    }
+
+    expect(nextLinearDummyWorkspaceID({}, 0) == 1, "empty workspace list should start at 1");
+    expect(nextLinearDummyWorkspaceID({}, 15) == 15, "empty workspace list should respect large offset");
+    expect(
+        nextLinearDummyWorkspaceID({15, 16}, 15) == 17,
+        "dummy linear workspace should follow the last existing workspace"
+    );
+    expect(
+        nextLinearDummyWorkspaceID({1, 3, 4}, 0) == 5,
+        "dummy linear workspace should skip existing ids"
+    );
+
+    {
+        const auto result = moveGridInDirection(0, 0, "right", 2, 3, false);
+        expect(result.has_value() && result->x == 1 && result->y == 0, "grid move should advance");
+    }
+    {
+        const auto result = moveGridInDirection(0, 0, "left", 2, 3, true);
+        expect(result.has_value() && result->x == 2 && result->y == 0, "grid move should loop");
+    }
+    {
+        const auto result = moveGridInDirection(0, 0, "left", 2, 3, false);
+        expect(!result.has_value(), "grid move should reject out-of-bounds when loop is disabled");
+    }
+    {
+        const auto result = moveGridInDirection(0, 0, "spin", 2, 3, true);
+        expect(!result.has_value(), "grid move should reject invalid directions");
+    }
+    {
+        const auto result = moveGridInDirection(0, 0, "up", 0, 3, true);
+        expect(!result.has_value(), "grid move should reject invalid dimensions");
+    }
+
+    expect(gridWorkspaceID(0, 0, 2, 3, 2, 1) == 6, "grid workspace ids should match the first view");
+    expect(
+        gridWorkspaceID(1, 6, 2, 3, 2, 1) == 24,
+        "grid workspace ids should match offset views"
+    );
+
+    expect(
+        resolveExitWorkspaceID(true, 9, 3) == 9,
+        "exit should prefer the hovered workspace when requested"
+    );
+    expect(
+        resolveExitWorkspaceID(true, -1, 3) == 3,
+        "exit should fall back to the active workspace when hovered is invalid"
+    );
+
+    expect(
+        resolveMoveSourceWorkspace(false, 5, std::optional<long> {7}) == 5,
+        "non-window moves should use the active workspace"
+    );
+    expect(
+        resolveMoveSourceWorkspace(true, 5, std::optional<long> {7}) == 7,
+        "window moves should use the hovered window workspace"
+    );
+    expect(
+        resolveMoveSourceWorkspace(true, 5, std::nullopt) == -1,
+        "window moves should fail without a hovered workspace"
+    );
+
+    expect(shouldMoveHoveredWindow(true, true), "move_window should move hovered windows when present");
+    expect(!shouldMoveHoveredWindow(true, false), "move_window should not move null hovered windows");
+    expect(!shouldMoveHoveredWindow(false, true), "workspace moves should not move hovered windows");
+    expect(shouldFocusMovedWindow(true, true), "move_window should focus moved windows when present");
+    expect(!shouldFocusMovedWindow(true, false), "move_window should not focus null hovered windows");
+
+    {
+        const auto result = resolveDropWorkspace(12, std::optional<long> {7});
+        expect(result.valid, "drop resolution should accept hovered workspaces");
+        expect(result.workspace_id == 12, "drop resolution should use the hovered workspace id");
+        expect(result.create_if_missing, "hovered workspace drops should allow creation");
+        expect(!result.snap_to_workspace, "hovered workspace drops should not snap");
+    }
+    {
+        const auto result = resolveDropWorkspace(-1, std::optional<long> {7});
+        expect(result.valid, "drop resolution should fall back to the dragged workspace");
+        expect(result.workspace_id == 7, "drop resolution should use the dragged workspace id");
+        expect(!result.create_if_missing, "fallback workspace drops should not create new workspaces");
+        expect(result.snap_to_workspace, "fallback workspace drops should snap to the workspace");
+    }
+    {
+        const auto result = resolveDropWorkspace(-1, std::nullopt);
+        expect(!result.valid, "drop resolution should reject missing hovered and dragged workspaces");
+    }
+
+    {
+        const auto result = decideViewReload(false, false, false);
+        expect(result.reinitialize_position, "inactive stable views should reinitialize on reload");
+        expect(!result.hide_view, "inactive stable views should not hide on reload");
+    }
+    {
+        const auto result = decideViewReload(true, false, true);
+        expect(result.hide_view, "active views should hide when close_overview_on_reload is set");
+        expect(!result.change_layout_after_hide, "stable layouts should not change after hide");
+    }
+    {
+        const auto result = decideViewReload(false, true, true);
+        expect(result.hide_view, "active views should hide before changing layout");
+        expect(result.change_layout_after_hide, "active layout changes should apply after hide");
+    }
+    {
+        const auto result = decideViewReload(false, true, false);
+        expect(result.change_layout_now, "inactive layout changes should apply immediately");
+        expect(!result.hide_view, "inactive layout changes should not hide the view");
+    }
+
+    {
+        const auto result = missingMonitorViewIDs({1, 3}, {1, 2, 3, 4});
+        expect(result == std::vector<long>({2, 4}), "missing monitor ids should preserve monitor order");
+    }
+    {
+        const auto result = staleMonitorViewIDs({1, 2, 5}, {2, 3, 4});
+        expect(result == std::vector<long>({1, 5}), "stale monitor ids should preserve view order");
+    }
+
+    expect(
+        detectSwipeDirection(4.0, 1.0) == SwipeDirection::Horizontal,
+        "swipe direction should prefer horizontal deltas"
+    );
+    expect(
+        detectSwipeDirection(1.0, 4.0) == SwipeDirection::Vertical,
+        "swipe direction should prefer vertical deltas"
+    );
+    expect(
+        detectSwipeDirection(2.0, 2.0) == SwipeDirection::None,
+        "swipe direction should reject equal deltas"
+    );
+
+    expect(normalizedOpenDelta(5.0f, true) == 5.0f, "open-positive delta should be unchanged");
+    expect(normalizedOpenDelta(5.0f, false) == -5.0f, "open-negative delta should be inverted");
+    expect(shouldConsumeOpenSwipe(true, false), "active views should consume open swipes");
+    expect(shouldConsumeOpenSwipe(false, true), "existing open swipes should stay consumed");
+    expect(!shouldConsumeOpenSwipe(false, false), "inactive idle views should not consume open swipes");
+    expect(shouldConsumeMoveSwipe(true), "existing move swipes should stay consumed");
+    expect(!shouldConsumeMoveSwipe(false), "idle move swipes should not be consumed");
+
+    expect(
+        resolveOpenSwipeStart(SwipeDirection::Vertical, false, false, -1.0f)
+            == OpenSwipeStartAction::ShowOverview,
+        "vertical negative swipes should open inactive overviews"
+    );
+    expect(
+        resolveOpenSwipeStart(SwipeDirection::Vertical, false, true, 1.0f)
+            == OpenSwipeStartAction::HideOverview,
+        "vertical positive swipes should close active overviews"
+    );
+    expect(
+        resolveOpenSwipeStart(SwipeDirection::Horizontal, false, false, -1.0f)
+            == OpenSwipeStartAction::None,
+        "horizontal swipes should not trigger open gestures"
+    );
+    expect(
+        resolveOpenSwipeStart(SwipeDirection::Vertical, true, true, 1.0f)
+            == OpenSwipeStartAction::None,
+        "closing views should reject new open gestures"
+    );
+    expect(shouldStartMoveSwipe(false), "inactive views should allow move swipes");
+    expect(!shouldStartMoveSwipe(true), "active views should reject move swipes");
+
+    {
+        const auto result = nextSwipeAmount(10.0f, -2.0f, 100.0f);
+        expect(result.has_value() && *result == 8.0f, "swipe amount should accumulate deltas");
+    }
+    {
+        const auto result = nextSwipeAmount(10.0f, -2.0f, 0.0f);
+        expect(!result.has_value(), "swipe amount should reject invalid limits");
+    }
+    {
+        const auto result = openSwipeProgress(50.0f, 100.0f);
+        expect(result.has_value() && *result == 0.5f, "open swipe progress should map distance to progress");
+    }
+    {
+        const auto result = openSwipeProgress(50.0f, 0.0f);
+        expect(!result.has_value(), "open swipe progress should reject invalid distances");
+    }
+    {
+        const auto result = shouldKeepOverviewOpen(20.0f, 100.0f);
+        expect(result.has_value() && *result, "low swipe progress should keep the overview open");
+    }
+    {
+        const auto result = shouldKeepOverviewOpen(80.0f, 100.0f);
+        expect(result.has_value() && !*result, "high swipe progress should close the overview");
+    }
+
+    return 0;
+}
