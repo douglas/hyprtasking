@@ -32,4 +32,5 @@ class HTLayoutGrid: public HTLayoutBase {
     virtual void init_position();
     virtual void build_overview_layout(HTViewStage stage);
     virtual void render();
+    virtual void cancel_animation_callbacks();
 };

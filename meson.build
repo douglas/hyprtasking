@@ -20,6 +20,7 @@ add_project_arguments(
   language: 'cpp')
 
 core_src = [
+  'src/compat/renderer_compat.cpp',
   'src/input.cpp',
   'src/main.cpp',
   'src/manager.cpp',

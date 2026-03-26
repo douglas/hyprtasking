@@ -15,49 +15,107 @@
 #include <hyprland/src/plugins/PluginSystem.hpp>
 #include <hyprland/src/render/Renderer.hpp>
 #include <hyprland/src/event/EventBus.hpp>
+#include <hyprutils/signal/Listener.hpp>
 #include <hyprlang.hpp>
 #include <hyprutils/math/Box.hpp>
 #include <hyprutils/math/Vector2D.hpp>
 
 #include "config.hpp"
+#include "compat/renderer_compat.hpp"
 #include "globals.hpp"
 #include "overview.hpp"
+#include "plugin/guards.hpp"
 #include "types.hpp"
+
+using Hyprutils::Signal::CHyprSignalListener;
+
+namespace {
+
+CHyprSignalListener g_mouse_button_listener;
+CHyprSignalListener g_mouse_move_listener;
+CHyprSignalListener g_mouse_axis_listener;
+CHyprSignalListener g_touch_down_listener;
+CHyprSignalListener g_touch_up_listener;
+CHyprSignalListener g_touch_motion_listener;
+CHyprSignalListener g_swipe_begin_listener;
+CHyprSignalListener g_swipe_update_listener;
+CHyprSignalListener g_swipe_end_listener;
+CHyprSignalListener g_config_reloaded_listener;
+CHyprSignalListener g_monitor_added_listener;
+CHyprSignalListener g_monitor_removed_listener;
+
+uint32_t solitary_blocked_original(void* thisptr, bool full) {
+    return (*(origIsSolitaryBlocked)is_solitary_blocked_hook->m_original)(thisptr, full);
+}
+
+void cleanup_hooks() {
+    auto unhook = [](CFunctionHook*& hook, const char* name) {
+        if (hook == nullptr)
+            return;
+        if (!hook->unhook())
+            Log::logger->log(Log::WARN, "[Hyprtasking] Failed to unhook {}", name);
+        hook = nullptr;
+    };
+
+    unhook(render_workspace_hook, "renderWorkspace");
+    unhook(should_render_window_hook, "shouldRenderWindow");
+    unhook(is_solitary_blocked_hook, "isSolitaryBlocked");
+    render_window = nullptr;
+}
+
+void unregister_callbacks() {
+    g_mouse_button_listener.reset();
+    g_mouse_move_listener.reset();
+    g_mouse_axis_listener.reset();
+    g_touch_down_listener.reset();
+    g_touch_up_listener.reset();
+    g_touch_motion_listener.reset();
+    g_swipe_begin_listener.reset();
+    g_swipe_update_listener.reset();
+    g_swipe_end_listener.reset();
+    g_config_reloaded_listener.reset();
+    g_monitor_added_listener.reset();
+    g_monitor_removed_listener.reset();
+}
+
+} // namespace
 
 APICALL EXPORT std::string PLUGIN_API_VERSION() {
     return HYPRLAND_API_VERSION;
 }
 
 static SDispatchResult dispatch_if(std::string arg, bool is_active) {
-    if (ht_manager == nullptr)
-        return {.passEvent = true, .success = false, .error = "ht_manager is null"};
-    PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
-    if (cursor_view == nullptr)
-        return {.passEvent = true, .success = false, .error = "cursor_view is null"};
-    if (cursor_view->active != is_active)
-        return {.passEvent = true, .success = false, .error = "predicate not met"};
+    return HTPlugin::guardedDispatch("dispatch_if", [&]() -> SDispatchResult {
+        if (ht_manager == nullptr)
+            return {.passEvent = true, .success = false, .error = "ht_manager is null"};
+        PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
+        if (cursor_view == nullptr)
+            return {.passEvent = true, .success = false, .error = "cursor_view is null"};
+        if (cursor_view->active != is_active)
+            return {.passEvent = true, .success = false, .error = "predicate not met"};
 
-    const auto DISPATCHSTR = arg.substr(0, arg.find_first_of(' '));
+        const auto DISPATCHSTR = arg.substr(0, arg.find_first_of(' '));
 
-    auto DISPATCHARG = std::string();
-    if ((int)arg.find_first_of(' ') != -1)
-        DISPATCHARG = arg.substr(arg.find_first_of(' ') + 1);
+        auto DISPATCHARG = std::string();
+        if ((int)arg.find_first_of(' ') != -1)
+            DISPATCHARG = arg.substr(arg.find_first_of(' ') + 1);
 
-    const auto DISPATCHER = g_pKeybindManager->m_dispatchers.find(DISPATCHSTR);
-    if (DISPATCHER == g_pKeybindManager->m_dispatchers.end())
-        return {.success = false, .error = "invalid dispatcher"};
+        const auto DISPATCHER = g_pKeybindManager->m_dispatchers.find(DISPATCHSTR);
+        if (DISPATCHER == g_pKeybindManager->m_dispatchers.end())
+            return {.success = false, .error = "invalid dispatcher"};
 
-    SDispatchResult res = DISPATCHER->second(DISPATCHARG);
+        SDispatchResult res = DISPATCHER->second(DISPATCHARG);
 
-    Log::logger->log(
-        LOG,
-        "[Hyprtasking] passthrough dispatch: {} : {}{}",
-        DISPATCHSTR,
-        DISPATCHARG,
-        res.success ? "" : " -> " + res.error
-    );
+        Log::logger->log(
+            LOG,
+            "[Hyprtasking] passthrough dispatch: {} : {}{}",
+            DISPATCHSTR,
+            DISPATCHARG,
+            res.success ? "" : " -> " + res.error
+        );
 
-    return res;
+        return res;
+    });
 }
 
 static SDispatchResult dispatch_if_not_active(std::string arg) {
@@ -69,59 +127,67 @@ static SDispatchResult dispatch_if_active(std::string arg) {
 }
 
 static SDispatchResult dispatch_toggle_view(std::string arg) {
-    if (ht_manager == nullptr)
-        return {.success = false, .error = "ht_manager is null"};
+    return HTPlugin::guardedDispatch("dispatch_toggle_view", [&]() -> SDispatchResult {
+        if (ht_manager == nullptr)
+            return {.success = false, .error = "ht_manager is null"};
 
-    if (arg == "all") {
-        if (ht_manager->has_active_view())
-            ht_manager->hide_all_views();
-        else
-            ht_manager->show_all_views();
-    } else if (arg == "cursor") {
-        if (ht_manager->cursor_view_active())
-            ht_manager->hide_all_views();
-        else
-            ht_manager->show_cursor_view();
-    } else {
-        return {.success = false, .error = "invalid arg"};
-    }
-    return {};
+        if (arg == "all") {
+            if (ht_manager->has_active_view())
+                ht_manager->hide_all_views();
+            else
+                ht_manager->show_all_views();
+        } else if (arg == "cursor") {
+            if (ht_manager->cursor_view_active())
+                ht_manager->hide_all_views();
+            else
+                ht_manager->show_cursor_view();
+        } else {
+            return {.success = false, .error = "invalid arg"};
+        }
+        return {};
+    });
 }
 
 static SDispatchResult dispatch_move(std::string arg) {
-    if (ht_manager == nullptr)
-        return {.success = false, .error = "ht_manager is null"};
-    const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
-    if (cursor_view == nullptr)
-        return {.success = false, .error = "cursor_view is null"};
-    cursor_view->move(arg, false);
-    return {};
+    return HTPlugin::guardedDispatch("dispatch_move", [&]() -> SDispatchResult {
+        if (ht_manager == nullptr)
+            return {.success = false, .error = "ht_manager is null"};
+        const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
+        if (cursor_view == nullptr)
+            return {.success = false, .error = "cursor_view is null"};
+        cursor_view->move(arg, false);
+        return {};
+    });
 }
 
 static SDispatchResult dispatch_move_window(std::string arg) {
-    if (ht_manager == nullptr)
-        return {.success = false, .error = "ht_manager is null"};
-    const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
-    if (cursor_view == nullptr)
-        return {.success = false, .error = "cursor_view is null"};
-    cursor_view->move(arg, true);
-    return {};
+    return HTPlugin::guardedDispatch("dispatch_move_window", [&]() -> SDispatchResult {
+        if (ht_manager == nullptr)
+            return {.success = false, .error = "ht_manager is null"};
+        const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
+        if (cursor_view == nullptr)
+            return {.success = false, .error = "cursor_view is null"};
+        cursor_view->move(arg, true);
+        return {};
+    });
 }
 
 static SDispatchResult dispatch_kill_hover(std::string arg) {
-    if (ht_manager == nullptr)
-        return {.success = false, .error = "ht_manager is null"};
+    return HTPlugin::guardedDispatch("dispatch_kill_hover", [&]() -> SDispatchResult {
+        if (ht_manager == nullptr)
+            return {.success = false, .error = "ht_manager is null"};
 
-    const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
-    if (cursor_view == nullptr)
-        return {.success = false, .error = "cursor_view is null"};
-    // Only use actually hovered window when overview is active
-    // Use focused otherwise
-    const PHLWINDOW hovered_window = ht_manager->get_window_from_cursor(!cursor_view->active);
-    if (hovered_window == nullptr)
-        return {.success = false, .error = "hovered_window is null"};
-    g_pCompositor->closeWindow(hovered_window);
-    return {};
+        const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
+        if (cursor_view == nullptr)
+            return {.success = false, .error = "cursor_view is null"};
+        // Only use actually hovered window when overview is active
+        // Use focused otherwise
+        const PHLWINDOW hovered_window = ht_manager->get_window_from_cursor(!cursor_view->active);
+        if (hovered_window == nullptr)
+            return {.success = false, .error = "hovered_window is null"};
+        g_pCompositor->closeWindow(hovered_window);
+        return {};
+    });
 }
 
 static void hook_render_workspace(
@@ -131,94 +197,117 @@ static void hook_render_workspace(
    const Time::steady_tp& now,
     const CBox& geometry
 ) {
-    if (ht_manager == nullptr) {
-        ((render_workspace_t)(render_workspace_hook
-                                  ->m_original))(thisptr, monitor, workspace, now, geometry);
-        return;
-    }
-    const PHTVIEW view = ht_manager->get_view_from_monitor(monitor);
-    if ((view != nullptr && view->navigating) || ht_manager->has_active_view()) {
-        view->layout->render();
-    } else {
-        ((render_workspace_t)(render_workspace_hook
-                                  ->m_original))(thisptr, monitor, workspace, now, geometry);
+    try {
+        if (ht_manager == nullptr) {
+            HTCompat::render_workspace_original(thisptr, monitor, workspace, now, geometry);
+            return;
+        }
+
+        const PHTVIEW view = ht_manager->get_view_from_monitor(monitor);
+        if (view != nullptr && (view->navigating || ht_manager->has_active_view())) {
+            view->layout->render();
+            return;
+        }
+
+        HTCompat::render_workspace_original(thisptr, monitor, workspace, now, geometry);
+    } catch (const std::exception& e) {
+        Log::logger->log(Log::ERR, "[Hyprtasking] hook_render_workspace failed: {}", e.what());
+        HTCompat::render_workspace_original(thisptr, monitor, workspace, now, geometry);
+    } catch (...) {
+        Log::logger->log(Log::ERR, "[Hyprtasking] hook_render_workspace failed with unknown exception");
+        HTCompat::render_workspace_original(thisptr, monitor, workspace, now, geometry);
     }
 }
 
 static bool hook_should_render_window(void* thisptr, PHLWINDOW window, PHLMONITOR monitor) {
-    bool ori_result =
-        ((should_render_window_t)(should_render_window_hook->m_original))(thisptr, window, monitor);
-    if (ht_manager == nullptr || !ht_manager->has_active_view())
-        return ori_result;
-    const PHTVIEW view = ht_manager->get_view_from_monitor(monitor);
-    if (view == nullptr)
-        return ori_result;
-    return view->layout->should_render_window(window);
+    const bool ori_result = HTCompat::should_render_window_original(thisptr, window, monitor);
+    return HTPlugin::guardedValue("hook_should_render_window", ori_result, [&] {
+        if (ht_manager == nullptr || !ht_manager->has_active_view())
+            return ori_result;
+        const PHTVIEW view = ht_manager->get_view_from_monitor(monitor);
+        if (view == nullptr)
+            return ori_result;
+        return view->layout->should_render_window(window);
+    });
 }
 
 static uint32_t hook_is_solitary_blocked(void* thisptr, bool full) {
-    PHTVIEW view = ht_manager->get_view_from_cursor();
-    if (view == nullptr) {
-        Log::logger->log(Log::ERR, "[Hyprtasking] View is nullptr in hook_is_solitary_blocked");
-        (*(origIsSolitaryBlocked)is_solitary_blocked_hook->m_original)(thisptr, full);
-    }
+    return HTPlugin::guardedValue("hook_is_solitary_blocked", solitary_blocked_original(thisptr, full), [&] {
+        if (ht_manager == nullptr)
+            return solitary_blocked_original(thisptr, full);
 
-    if (view->active || view->navigating) {
-        return CMonitor::SC_UNKNOWN;
-    }
-    return (*(origIsSolitaryBlocked)is_solitary_blocked_hook->m_original)(thisptr, full);
+        const PHTVIEW view = ht_manager->get_view_from_cursor();
+        if (view == nullptr)
+            return solitary_blocked_original(thisptr, full);
+
+        if (view->active || view->navigating)
+            return static_cast<uint32_t>(CMonitor::SC_UNKNOWN);
+        return solitary_blocked_original(thisptr, full);
+    });
 }
 
 static void on_mouse_button(IPointer::SButtonEvent e, Event::SCallbackInfo& info) {
-    if (ht_manager == nullptr)
-        return;
+    HTPlugin::guardedCallback("on_mouse_button", [&] {
+        if (ht_manager == nullptr)
+            return;
 
-    const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
-    if (cursor_view == nullptr)
-        return;
+        const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
+        if (cursor_view == nullptr)
+            return;
 
-    const bool pressed = e.state == WL_POINTER_BUTTON_STATE_PRESSED;
+        const bool pressed = e.state == WL_POINTER_BUTTON_STATE_PRESSED;
 
-    const unsigned int drag_button = HTConfig::value<Hyprlang::INT>("drag_button");
-    const unsigned int select_button = HTConfig::value<Hyprlang::INT>("select_button");
+        const unsigned int drag_button = HTConfig::value<Hyprlang::INT>("drag_button");
+        const unsigned int select_button = HTConfig::value<Hyprlang::INT>("select_button");
 
-    if (pressed && e.button == drag_button) {
-        info.cancelled = ht_manager->start_window_drag();
-    } else if (!pressed && e.button == drag_button) {
-        info.cancelled = ht_manager->end_window_drag();
-    } else if (pressed && e.button == select_button) {
-        info.cancelled = ht_manager->exit_to_workspace();
-    }
+        if (pressed && e.button == drag_button) {
+            info.cancelled = ht_manager->start_window_drag();
+        } else if (!pressed && e.button == drag_button) {
+            info.cancelled = ht_manager->end_window_drag();
+        } else if (pressed && e.button == select_button) {
+            info.cancelled = ht_manager->exit_to_workspace();
+        }
+    });
 }
 
 static void on_mouse_move(Vector2D c, Event::SCallbackInfo& info) {
-    if (ht_manager == nullptr)
-        return;
-    info.cancelled = ht_manager->on_mouse_move();
+    HTPlugin::guardedCallback("on_mouse_move", [&] {
+        if (ht_manager == nullptr)
+            return;
+        info.cancelled = ht_manager->on_mouse_move();
+    });
 }
 
 static void on_mouse_axis(IPointer::SAxisEvent e, Event::SCallbackInfo& info) {
-    if (ht_manager == nullptr)
-        return;
-    info.cancelled = ht_manager->on_mouse_axis(e.delta);
+    HTPlugin::guardedCallback("on_mouse_axis", [&] {
+        if (ht_manager == nullptr)
+            return;
+        info.cancelled = ht_manager->on_mouse_axis(e.delta);
+    });
 }
 
 static void on_swipe_begin(IPointer::SSwipeBeginEvent e, Event::SCallbackInfo& info) {
-    if (ht_manager == nullptr)
-        return;
-    ht_manager->swipe_start();
+    HTPlugin::guardedCallback("on_swipe_begin", [&] {
+        if (ht_manager == nullptr)
+            return;
+        ht_manager->swipe_start();
+    });
 }
 
 static void on_swipe_update(IPointer::SSwipeUpdateEvent e, Event::SCallbackInfo& info) {
-    if (ht_manager == nullptr)
-        return;
-    info.cancelled = ht_manager->swipe_update(e);
+    HTPlugin::guardedCallback("on_swipe_update", [&] {
+        if (ht_manager == nullptr)
+            return;
+        info.cancelled = ht_manager->swipe_update(e);
+    });
 }
 
 static void on_swipe_end(IPointer::SSwipeEndEvent e, Event::SCallbackInfo& info) {
-    if (ht_manager == nullptr)
-        return;
-    info.cancelled = ht_manager->swipe_end();
+    HTPlugin::guardedCallback("on_swipe_end", [&] {
+        if (ht_manager == nullptr)
+            return;
+        info.cancelled = ht_manager->swipe_end();
+    });
 }
 
 static void cancel_event(Event::SCallbackInfo& info) {
@@ -250,45 +339,30 @@ static void notify_config_changes() {
 }
 
 static void register_monitors() {
-    if (ht_manager == nullptr)
-        return;
-    for (const PHLMONITOR& monitor : g_pCompositor->m_monitors) {
-        const PHTVIEW view = ht_manager->get_view_from_monitor(monitor);
-        if (view != nullptr) {
-            if (!view->active)
-                view->layout->init_position();
-            continue;
-        }
-        ht_manager->views.push_back(makeShared<HTView>(monitor->m_id));
-
-        Log::logger->log(
-            LOG,
-            "[Hyprtasking] Registering view for monitor {} with resolution {}x{}",
-            monitor->m_description,
-            monitor->m_transformedSize.x,
-            monitor->m_transformedSize.y
-        );
-    }
+    HTPlugin::guardedCallback("register_monitors", [] {
+        if (ht_manager == nullptr)
+            return;
+        ht_manager->sync_monitor_views();
+    });
 }
 
 static void on_config_reloaded() {
-    notify_config_changes();
+    HTPlugin::guardedCallback("on_config_reloaded", [] {
+        notify_config_changes();
 
-    if (ht_manager == nullptr)
-        return;
+        if (ht_manager == nullptr)
+            return;
 
-    // re-init scale and offset for inactive views, change layout if changed
-    for (PHTVIEW& view : ht_manager->views) {
-        if (view == nullptr)
-            continue;
-        const Hyprlang::STRING new_layout = HTConfig::value<Hyprlang::STRING>("layout");
-        if (HTConfig::value<Hyprlang::INT>("close_overview_on_reload")
-            || view->layout->layout_name() != new_layout) {
-            Log::logger->log(LOG, "[Hyprtasking] Closing overview on config reload");
-            view->hide(false);
-            view->change_layout(new_layout);
+        ht_manager->sync_monitor_views();
+
+        // re-init scale and offset for inactive views, change layout if changed
+        for (PHTVIEW& view : ht_manager->views) {
+            if (view == nullptr)
+                continue;
+            const Hyprlang::STRING new_layout = HTConfig::value<Hyprlang::STRING>("layout");
+            view->reload_config(HTConfig::value<Hyprlang::INT>("close_overview_on_reload"), new_layout);
         }
-    }
+    });
 }
 
 static void init_functions() {
@@ -338,28 +412,33 @@ static void init_functions() {
     Log::logger->log(LOG, "[Hyprtasking] Attempting hook {}", FNS4[0].signature);
     success = is_solitary_blocked_hook->hook() && success;
 
-    if (!success)
+    if (!success) {
+        cleanup_hooks();
         fail_exit("Failed initializing hooks");
+    }
 }
 
 static void register_callbacks() {
-    static auto P1 = Event::bus()->m_events.input.mouse.button.listen(on_mouse_button);
-    static auto P2 = Event::bus()->m_events.input.mouse.move.listen(on_mouse_move);
-    static auto P3 = Event::bus()->m_events.input.mouse.axis.listen(on_mouse_axis);
+    unregister_callbacks();
+
+    g_mouse_button_listener = Event::bus()->m_events.input.mouse.button.listen(on_mouse_button);
+    g_mouse_move_listener = Event::bus()->m_events.input.mouse.move.listen(on_mouse_move);
+    g_mouse_axis_listener = Event::bus()->m_events.input.mouse.axis.listen(on_mouse_axis);
 
     // TODO: support touch
-    static auto P4 = Event::bus()->m_events.input.touch.down.listen([&] (ITouch::SDownEvent e, Event::SCallbackInfo i) { cancel_event(i); } );
-    static auto P5 = Event::bus()->m_events.input.touch.up.listen([&] (ITouch::SUpEvent e, Event::SCallbackInfo i) { cancel_event(i); } );
-    static auto P6 = Event::bus()->m_events.input.touch.motion.listen([&] (ITouch::SMotionEvent e, Event::SCallbackInfo i) { cancel_event(i); } );
+    g_touch_down_listener = Event::bus()->m_events.input.touch.down.listen([&] (ITouch::SDownEvent e, Event::SCallbackInfo i) { cancel_event(i); } );
+    g_touch_up_listener = Event::bus()->m_events.input.touch.up.listen([&] (ITouch::SUpEvent e, Event::SCallbackInfo i) { cancel_event(i); } );
+    g_touch_motion_listener = Event::bus()->m_events.input.touch.motion.listen([&] (ITouch::SMotionEvent e, Event::SCallbackInfo i) { cancel_event(i); } );
     // static auto P7 = Event::bus()->m_events.input.touch.cancel.listen([&] (ITouch::SCancelEvent e, Event::SCallbackInfo i) { cancel_event(i); } );
 
 
-    static auto P7 = Event::bus()->m_events.gesture.swipe.begin.listen(on_swipe_begin);
-    static auto P8 = Event::bus()->m_events.gesture.swipe.update.listen(on_swipe_update);
-    static auto P9 = Event::bus()->m_events.gesture.swipe.end.listen(on_swipe_end);
+    g_swipe_begin_listener = Event::bus()->m_events.gesture.swipe.begin.listen(on_swipe_begin);
+    g_swipe_update_listener = Event::bus()->m_events.gesture.swipe.update.listen(on_swipe_update);
+    g_swipe_end_listener = Event::bus()->m_events.gesture.swipe.end.listen(on_swipe_end);
 
-    static auto P10 = Event::bus()->m_events.config.reloaded.listen(on_config_reloaded);
-    static auto P11 = Event::bus()->m_events.monitor.added.listen(register_monitors);
+    g_config_reloaded_listener = Event::bus()->m_events.config.reloaded.listen(on_config_reloaded);
+    g_monitor_added_listener = Event::bus()->m_events.monitor.added.listen(register_monitors);
+    g_monitor_removed_listener = Event::bus()->m_events.monitor.removed.listen(register_monitors);
 }
 
 static void add_dispatchers() {
@@ -488,5 +567,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
 APICALL EXPORT void PLUGIN_EXIT() {
     Log::logger->log(LOG, "[Hyprtasking] Plugin exiting");
 
-    ht_manager->reset();
+    unregister_callbacks();
+    cleanup_hooks();
+    if (ht_manager != nullptr)
+        ht_manager->reset();
 }

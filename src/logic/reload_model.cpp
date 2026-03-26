@@ -4,22 +4,30 @@
 
 namespace HTLogic {
 
-ViewReloadDecision decideViewReload(bool close_overview_on_reload, bool layout_changed, bool active) {
+ViewReloadDecision decideViewReload(
+    bool close_overview_on_reload,
+    bool layout_changed,
+    bool active,
+    bool closing,
+    bool navigating
+) {
+    const bool runtime_active = active || closing || navigating;
+
     if (layout_changed) {
-        if (active)
-            return {.hide_view = true, .change_layout_after_hide = true};
+        if (runtime_active)
+            return {.cancel_runtime_state = true, .change_layout_now = true};
 
         return {.change_layout_now = true};
     }
 
     if (close_overview_on_reload) {
-        if (active)
-            return {.hide_view = true};
+        if (runtime_active)
+            return {.cancel_runtime_state = true, .reinitialize_position = true};
 
         return {.reinitialize_position = true};
     }
 
-    if (!active)
+    if (!runtime_active)
         return {.reinitialize_position = true};
 
     return {};

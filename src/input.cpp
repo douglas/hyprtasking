@@ -6,10 +6,16 @@
 #include <hyprland/src/layout/LayoutManager.hpp>
 #include <hyprland/src/managers/PointerManager.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
+#include <hyprutils/utils/ScopeGuard.hpp>
 
 #include "config.hpp"
+#include "logic/controller_state.hpp"
+#include "logic/gesture_model.hpp"
 #include "manager.hpp"
 #include "overview.hpp"
+#include "state_guards.hpp"
+
+using Hyprutils::Utils::CScopeGuard;
 
 bool HTManager::start_window_drag() {
     const PHLMONITOR cursor_monitor = g_pCompositor->getMonitorFromCursor();
@@ -32,20 +38,30 @@ bool HTManager::start_window_drag() {
     if (cursor_workspace == nullptr)
         return false;
 
-    // PHLWORKSPACEREF o_workspace = cursor_monitor->m_activeWorkspace;
+    HTScopedMonitorWorkspace restore_workspace(cursor_monitor, true);
     cursor_monitor->changeWorkspace(cursor_workspace, true);
 
     const Vector2D workspace_coords =
         cursor_view->layout->global_to_local_ws_unscaled(mouse_coords, workspace_id)
         + cursor_monitor->m_position;
 
+    bool reset_mouse_bind_mode = false;
+    CScopeGuard reset_drag_mode([&reset_mouse_bind_mode] {
+        if (reset_mouse_bind_mode)
+            g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+    });
+
     g_pPointerManager->warpTo(workspace_coords);
     g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+    reset_mouse_bind_mode = true;
     g_pPointerManager->warpTo(mouse_coords);
 
     const SP<Layout::ITarget> target = g_layoutManager->dragController()->target();
     if (target == nullptr)
         return false;
+
+    reset_mouse_bind_mode = false;
+    restore_workspace.dismiss();
 
     const PHLWINDOW dragged_window = target->window();
     if (dragged_window != nullptr) {
@@ -70,17 +86,14 @@ bool HTManager::start_window_drag() {
         }
     }
 
-    // if (o_workspace != nullptr)
-    //     cursor_monitor->changeWorkspace(o_workspace.lock(), true);
-
     return true;
 }
 
 bool HTManager::end_window_drag() {
     const PHLMONITOR cursor_monitor = g_pCompositor->getMonitorFromCursor();
     const PHTVIEW cursor_view = get_view_from_monitor(cursor_monitor);
+    CScopeGuard reset_drag_mode([] { g_pKeybindManager->changeMouseBindMode(MBIND_INVALID); });
     if (cursor_monitor == nullptr || cursor_view == nullptr) {
-        g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
         return false;
     }
 
@@ -110,17 +123,36 @@ bool HTManager::end_window_drag() {
 
     const Vector2D mouse_coords = g_pInputManager->getMouseCoordsInternal();
     Vector2D use_mouse_coords = mouse_coords;
-    const WORKSPACEID workspace_id = cursor_view->layout->get_ws_id_from_global(mouse_coords);
-    PHLWORKSPACE cursor_workspace = g_pCompositor->getWorkspaceByID(workspace_id);
+    const WORKSPACEID hovered_workspace_id = cursor_view->layout->get_ws_id_from_global(mouse_coords);
+    const std::optional<WORKSPACEID> dragged_workspace_id =
+        dragged_window->m_workspace == nullptr ? std::nullopt
+                                               : std::optional<WORKSPACEID> {dragged_window->m_workspace->m_id};
+    const auto drop_decision =
+        HTLogic::resolveDropWorkspace(hovered_workspace_id, dragged_workspace_id);
+    if (!drop_decision.valid) {
+        Log::logger->log(LOG, "[Hyprtasking] tried to drop on null workspace??");
+        return false;
+    }
 
-    // Release on empty dummy workspace, so create and switch to it
-    if (cursor_workspace == nullptr && workspace_id != WORKSPACE_INVALID) {
-        cursor_workspace = g_pCompositor->createNewWorkspace(workspace_id, cursor_monitor->m_id);
-    } else if (workspace_id == WORKSPACE_INVALID) {
-        cursor_workspace = dragged_window->m_workspace;
+    PHLWORKSPACE cursor_workspace = g_pCompositor->getWorkspaceByID(drop_decision.workspace_id);
+    if (cursor_workspace == nullptr && drop_decision.create_if_missing) {
+        cursor_workspace =
+            g_pCompositor->createNewWorkspace(drop_decision.workspace_id, cursor_monitor->m_id);
+    }
+
+    if (cursor_workspace == nullptr) {
+        Log::logger->log(
+            LOG,
+            "[Hyprtasking] drop target workspace {} could not be resolved",
+            drop_decision.workspace_id
+        );
+        return false;
+    }
+
+    if (drop_decision.snap_to_workspace) {
         // Ensure that the mouse coords are snapped to inside the workspace box itself
-        use_mouse_coords = cursor_view->layout->get_global_ws_box(cursor_workspace->m_id)
-                               .closestPoint(use_mouse_coords);
+        use_mouse_coords =
+            cursor_view->layout->get_global_ws_box(cursor_workspace->m_id).closestPoint(use_mouse_coords);
 
         Log::logger->log(
             LOG,
@@ -129,15 +161,9 @@ bool HTManager::end_window_drag() {
         );
     }
 
-    if (cursor_workspace == nullptr) {
-        Log::logger->log(LOG, "[Hyprtasking] tried to drop on null workspace??");
-        g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
-        return false;
-    }
-
     Log::logger->log(LOG, "[Hyprtasking] trying to drop window on ws {}", cursor_workspace->m_id);
 
-    // PHLWORKSPACEREF o_workspace = cursor_monitor->m_activeWorkspace;
+    HTScopedMonitorWorkspace restore_workspace(cursor_monitor, true);
     cursor_monitor->changeWorkspace(cursor_workspace, true);
 
     g_pCompositor->moveWindowToWorkspaceSafe(dragged_window, cursor_workspace);
@@ -163,9 +189,7 @@ bool HTManager::end_window_drag() {
     // workspaces
     dragged_window->m_movingToWorkspaceAlpha->setValueAndWarp(1.0);
     dragged_window->m_movingFromWorkspaceAlpha->setValueAndWarp(1.0);
-
-    // if (o_workspace != nullptr)
-    //     cursor_monitor->changeWorkspace(o_workspace.lock(), true);
+    restore_workspace.dismiss();
 
     // Do not return true and cancel the event! Mouse release requires some stuff to be done for
     // floating windows to be unfocused properly
@@ -201,19 +225,25 @@ bool HTManager::on_mouse_axis(double delta) {
 }
 
 void HTManager::swipe_start() {
-    swipe_state = HT_SWIPE_NONE;
-    swipe_amt = 0.0;
+    reset_swipe_state();
 }
 
 bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
-    const PHLMONITOR cursor_monitor = g_pCompositor->getMonitorFromCursor();
-    const PHTVIEW cursor_view = get_view_from_monitor(cursor_monitor);
-    if (cursor_view == nullptr)
-        return false;
-
     const int ENABLED = HTConfig::value<Hyprlang::INT>("gestures:enabled");
     if (!ENABLED)
         return false;
+
+    PHTVIEW swipe_view = nullptr;
+    if (swipe_state == HT_SWIPE_NONE) {
+        const PHLMONITOR cursor_monitor = g_pCompositor->getMonitorFromCursor();
+        swipe_view = get_view_from_monitor(cursor_monitor);
+    } else {
+        swipe_view = get_swipe_view();
+    }
+    if (swipe_view == nullptr) {
+        reset_swipe_state();
+        return false;
+    }
 
     const unsigned int MOVE_FINGERS = HTConfig::value<Hyprlang::INT>("gestures:move_fingers");
     const float OPEN_DISTANCE = HTConfig::value<Hyprlang::FLOAT>("gestures:open_distance");
@@ -221,88 +251,115 @@ bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
     const int OPEN_POSITIVE = HTConfig::value<Hyprlang::INT>("gestures:open_positive");
 
     bool res = false;
-    char swipe_direction = 0;
-    if (std::abs(e.delta.x) > std::abs(e.delta.y)) {
-        swipe_direction = 'h';
-    } else if (std::abs(e.delta.y) > std::abs(e.delta.x)) {
-        swipe_direction = 'v';
-    }
+    const auto swipe_direction = HTLogic::detectSwipeDirection(e.delta.x, e.delta.y);
 
     if (e.fingers == OPEN_FINGERS) {
-        if (cursor_view->active || swipe_state == HT_SWIPE_OPEN)
+        if (HTLogic::shouldConsumeOpenSwipe(swipe_view->active, swipe_state == HT_SWIPE_OPEN))
             res = true;
 
-        const float deltaY = OPEN_POSITIVE ? e.delta.y : -e.delta.y;
+        const float deltaY = HTLogic::normalizedOpenDelta(e.delta.y, OPEN_POSITIVE);
 
         if (swipe_state != HT_SWIPE_OPEN) {
-            if (swipe_direction != 'v' || cursor_view->closing) {
+            const auto action = HTLogic::resolveOpenSwipeStart(
+                swipe_direction,
+                swipe_view->closing,
+                swipe_view->active,
+                deltaY
+            );
+            if (action == HTLogic::OpenSwipeStartAction::None) {
                 return res;
-            } else if (!cursor_view->active && deltaY <= 0) {
-                cursor_view->show();
+            } else if (action == HTLogic::OpenSwipeStartAction::ShowOverview) {
+                swipe_view->show();
                 swipe_state = HT_SWIPE_OPEN;
+                swipe_view_id = swipe_view->monitor_id;
                 swipe_amt = OPEN_DISTANCE;
-            } else if (cursor_view->active && deltaY > 0) {
-                cursor_view->hide(false);
+            } else if (action == HTLogic::OpenSwipeStartAction::HideOverview) {
+                swipe_view->hide(false);
                 swipe_state = HT_SWIPE_OPEN;
+                swipe_view_id = swipe_view->monitor_id;
                 swipe_amt = 0.0;
             }
         }
 
         if (swipe_state == HT_SWIPE_OPEN) {
-            swipe_amt += deltaY;
-            const float swipe_perc = 1.0 - std::clamp(swipe_amt / OPEN_DISTANCE, 0.01f, 1.0f);
-            cursor_view->layout->close_open_lerp(swipe_perc);
+            const auto next_amount = HTLogic::nextSwipeAmount(swipe_amt, deltaY, OPEN_DISTANCE);
+            if (!next_amount.has_value()) {
+                reset_swipe_state();
+                return res;
+            }
+
+            swipe_amt = *next_amount;
+            const auto swipe_perc = HTLogic::openSwipeProgress(swipe_amt, OPEN_DISTANCE);
+            if (!swipe_perc.has_value()) {
+                reset_swipe_state();
+                return res;
+            }
+
+            swipe_view->layout->close_open_lerp(*swipe_perc);
         }
     } else if (e.fingers == MOVE_FINGERS) {
-        if (swipe_state == HT_SWIPE_MOVE)
+        if (HTLogic::shouldConsumeMoveSwipe(swipe_state == HT_SWIPE_MOVE))
             res = true;
 
         if (swipe_state != HT_SWIPE_MOVE) {
-            if (cursor_view->active) {
+            if (!HTLogic::shouldStartMoveSwipe(swipe_view->active)) {
                 return res;
             } else {
                 swipe_state = HT_SWIPE_MOVE;
-                cursor_view->navigating = true;
+                swipe_view_id = swipe_view->monitor_id;
+                swipe_view->navigating = true;
 
                 // need to schedule frames for monitor, otherwise the screen doesn't re-render
-                g_pHyprRenderer->damageMonitor(cursor_monitor);
-                g_pCompositor->scheduleFrameForMonitor(cursor_monitor);
+                const PHLMONITOR swipe_monitor = swipe_view->get_monitor();
+                if (swipe_monitor != nullptr) {
+                    g_pHyprRenderer->damageMonitor(swipe_monitor);
+                    g_pCompositor->scheduleFrameForMonitor(swipe_monitor);
+                }
             }
         }
 
         if (swipe_state == HT_SWIPE_MOVE) {
-            cursor_view->layout->on_move_swipe(e.delta);
+            swipe_view->layout->on_move_swipe(e.delta);
         }
     }
     return res;
 }
 
 bool HTManager::swipe_end() {
-    const PHTVIEW cursor_view = get_view_from_cursor();
-    if (cursor_view == nullptr || swipe_state == HT_SWIPE_NONE)
+    if (swipe_state == HT_SWIPE_NONE)
         return false;
+
+    const PHTVIEW swipe_view = get_swipe_view();
+    if (swipe_view == nullptr) {
+        reset_swipe_state();
+        return false;
+    }
 
     switch (swipe_state) {
         case HT_SWIPE_OPEN: {
             const float OPEN_DISTANCE = HTConfig::value<Hyprlang::FLOAT>("gestures:open_distance");
-            const float swipe_perc = 1.0 - std::clamp(swipe_amt / OPEN_DISTANCE, 0.01f, 1.0f);
-            if (swipe_perc >= 0.5) {
-                cursor_view->show();
+            const auto keep_open = HTLogic::shouldKeepOverviewOpen(swipe_amt, OPEN_DISTANCE);
+            if (!keep_open.has_value()) {
+                reset_swipe_state();
+                return false;
+            }
+
+            if (*keep_open) {
+                swipe_view->show();
             } else {
-                cursor_view->hide(false);
+                swipe_view->hide(false);
             }
             break;
         }
         case HT_SWIPE_MOVE: {
-            const WORKSPACEID ws_id = cursor_view->layout->on_move_swipe_end();
-            cursor_view->move_id(ws_id, false);
+            const WORKSPACEID ws_id = swipe_view->layout->on_move_swipe_end();
+            swipe_view->move_id(ws_id, false);
             break;
         }
         case HT_SWIPE_NONE:
             break;
     }
 
-    swipe_state = HT_SWIPE_NONE;
-    swipe_amt = 0.0;
+    reset_swipe_state();
     return true;
 }

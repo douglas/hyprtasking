@@ -1,17 +1,9 @@
-#include <any>
-#include <sstream>
-
-#define private public
 #include <hyprland/src/config/ConfigManager.hpp>
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
-#include <hyprland/src/render/Renderer.hpp>
-#include <hyprland/src/render/pass/ClearPassElement.hpp>
-#undef private
 
+#include "../compat/renderer_compat.hpp"
 #include "../globals.hpp"
-#include "../pass/pass_element.hpp"
-#include "../types.hpp"
 #include "layout_base.hpp"
 
 HTLayoutBase::HTLayoutBase(VIEWID new_view_id) : view_id(new_view_id) {
@@ -54,11 +46,7 @@ bool HTLayoutBase::should_render_window(PHLWINDOW window) {
     if (monitor == nullptr || window == nullptr)
         return false;
 
-    return ((should_render_window_t)(should_render_window_hook->m_original))(
-        g_pHyprRenderer.get(),
-        window,
-        monitor
-    );
+    return HTCompat::should_render_window_original(g_pHyprRenderer.get(), window, monitor);
 }
 
 float HTLayoutBase::drag_window_scale() {
@@ -74,22 +62,15 @@ void HTLayoutBase::build_overview_layout(HTViewStage stage) {
 }
 
 void HTLayoutBase::render() {
-    CClearPassElement::SClearData data;
-    data.color = CHyprColor {0};
-    g_pHyprRenderer->m_renderPass.add(makeUnique<CClearPassElement>(data));
+    HTCompat::add_clear_pass();
 }
 
-const std::string CLEAR_PASS_ELEMENT_NAME = "CClearPassElement";
+void HTLayoutBase::cancel_animation_callbacks() {
+    ;
+}
 
 void HTLayoutBase::post_render() {
-    bool first = true;
-    std::erase_if(g_pHyprRenderer->m_renderPass.m_passElements, [&first](const auto& e) {
-        bool res = e->element->passName() == CLEAR_PASS_ELEMENT_NAME && !first;
-        first = false;
-        return res;
-    });
-    g_pHyprRenderer->m_renderPass.add(makeUnique<HTPassElement>());
-    // g_pHyprOpenGL->setDamage(CRegion {CBox {0, 0, INT32_MAX, INT32_MAX}});
+    HTCompat::finalize_overview_render_pass();
 }
 
 PHLMONITOR HTLayoutBase::get_monitor() {
@@ -97,6 +78,14 @@ PHLMONITOR HTLayoutBase::get_monitor() {
     if (par_view == nullptr)
         return nullptr;
     return par_view->get_monitor();
+}
+
+const HTLayoutBase::HTWorkspace* HTLayoutBase::find_layout_workspace(WORKSPACEID workspace_id) const {
+    const auto it = overview_layout.find(workspace_id);
+    if (it == overview_layout.end())
+        return nullptr;
+
+    return &it->second;
 }
 
 WORKSPACEID HTLayoutBase::get_ws_id_from_global(Vector2D pos) {
@@ -148,7 +137,11 @@ CBox HTLayoutBase::get_global_window_box(PHLWINDOW window, WORKSPACEID workspace
 }
 
 CBox HTLayoutBase::get_global_ws_box(WORKSPACEID workspace_id) {
-    const CBox scaled_ws_box = overview_layout[workspace_id].box;
+    const auto* layout_workspace = find_layout_workspace(workspace_id);
+    if (layout_workspace == nullptr)
+        return {};
+
+    const CBox scaled_ws_box = layout_workspace->box;
     const Vector2D top_left = local_ws_scaled_to_global(scaled_ws_box.pos(), workspace_id);
     const Vector2D bottom_right =
         local_ws_scaled_to_global(scaled_ws_box.pos() + scaled_ws_box.size(), workspace_id);
@@ -160,7 +153,11 @@ Vector2D HTLayoutBase::global_to_local_ws_unscaled(Vector2D pos, WORKSPACEID wor
     if (monitor == nullptr)
         return {};
 
-    CBox workspace_box = overview_layout[workspace_id].box;
+    const auto* layout_workspace = find_layout_workspace(workspace_id);
+    if (layout_workspace == nullptr)
+        return {};
+
+    CBox workspace_box = layout_workspace->box;
     if (workspace_box.empty())
         return {};
     pos -= monitor->m_position;
@@ -186,7 +183,11 @@ Vector2D HTLayoutBase::local_ws_unscaled_to_global(Vector2D pos, WORKSPACEID wor
     if (monitor == nullptr)
         return {};
 
-    CBox workspace_box = overview_layout[workspace_id].box;
+    const auto* layout_workspace = find_layout_workspace(workspace_id);
+    if (layout_workspace == nullptr)
+        return {};
+
+    CBox workspace_box = layout_workspace->box;
     if (workspace_box.empty())
         return {};
     pos *= workspace_box.w / monitor->m_transformedSize.x;

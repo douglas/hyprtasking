@@ -33,6 +33,9 @@ class HTView {
 
     void show();
     void hide(bool exit_on_mouse);
+    void cancel_runtime_state();
+    bool has_runtime_activity() const;
+    void reload_config(bool close_overview_on_reload, const std::string& new_layout);
 
     void move_id(WORKSPACEID ws_id, bool move_window);
     // arg is up, down, left, right;

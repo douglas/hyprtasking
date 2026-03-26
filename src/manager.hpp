@@ -3,10 +3,13 @@
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/helpers/AnimatedVariable.hpp>
 
+#include "logic/reload_model.hpp"
 #include "overview.hpp"
 
 class HTManager {
   public:
+    static constexpr VIEWID INVALID_VIEW_ID = -1;
+
     HTManager();
 
     std::vector<PHTVIEW> views;
@@ -18,6 +21,8 @@ class HTManager {
     PHLWINDOW get_window_from_cursor(bool return_focused = true);
 
     void reset();
+    void sync_monitor_views();
+    void reset_drag_state();
 
     void show_all_views();
     void hide_all_views();
@@ -37,6 +42,9 @@ class HTManager {
 
     swipe_state_t swipe_state;
     float swipe_amt;
+    VIEWID swipe_view_id;
+    PHTVIEW get_swipe_view();
+    void reset_swipe_state();
     void swipe_start();
     bool swipe_update(IPointer::SSwipeUpdateEvent e);
     bool swipe_end();

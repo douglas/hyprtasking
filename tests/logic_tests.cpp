@@ -156,26 +156,42 @@ int main() {
         const auto result = resolveDropWorkspace(-1, std::nullopt);
         expect(!result.valid, "drop resolution should reject missing hovered and dragged workspaces");
     }
+    {
+        const auto result = resolveDropWorkspace(-1, std::optional<long> {42});
+        expect(result.valid, "drop resolution should accept invalid-hover fallback with dragged workspace");
+        expect(result.workspace_id == 42, "drop resolution fallback should keep the dragged workspace id");
+        expect(result.snap_to_workspace, "drop resolution fallback should snap to the dragged workspace");
+    }
 
     {
-        const auto result = decideViewReload(false, false, false);
+        const auto result = decideViewReload(false, false, false, false, false);
         expect(result.reinitialize_position, "inactive stable views should reinitialize on reload");
-        expect(!result.hide_view, "inactive stable views should not hide on reload");
+        expect(!result.cancel_runtime_state, "inactive stable views should not cancel runtime state");
     }
     {
-        const auto result = decideViewReload(true, false, true);
-        expect(result.hide_view, "active views should hide when close_overview_on_reload is set");
-        expect(!result.change_layout_after_hide, "stable layouts should not change after hide");
+        const auto result = decideViewReload(true, false, true, false, false);
+        expect(result.cancel_runtime_state, "active views should cancel runtime state on reload");
+        expect(result.reinitialize_position, "active stable views should reinitialize after reload");
     }
     {
-        const auto result = decideViewReload(false, true, true);
-        expect(result.hide_view, "active views should hide before changing layout");
-        expect(result.change_layout_after_hide, "active layout changes should apply after hide");
+        const auto result = decideViewReload(false, true, true, false, false);
+        expect(result.cancel_runtime_state, "active layout changes should cancel runtime state");
+        expect(result.change_layout_now, "active layout changes should apply immediately after cancellation");
     }
     {
-        const auto result = decideViewReload(false, true, false);
+        const auto result = decideViewReload(false, true, false, false, false);
         expect(result.change_layout_now, "inactive layout changes should apply immediately");
-        expect(!result.hide_view, "inactive layout changes should not hide the view");
+        expect(!result.cancel_runtime_state, "inactive layout changes should not cancel runtime state");
+    }
+    {
+        const auto result = decideViewReload(true, false, false, true, false);
+        expect(result.cancel_runtime_state, "closing views should cancel runtime state on reload");
+        expect(result.reinitialize_position, "closing views should reset their position on reload");
+    }
+    {
+        const auto result = decideViewReload(false, false, false, false, true);
+        expect(!result.reinitialize_position, "navigating views should not be reinitialized without a forced close");
+        expect(!result.cancel_runtime_state, "navigating views should be left alone when reload does not force close");
     }
 
     {

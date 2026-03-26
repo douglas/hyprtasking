@@ -65,11 +65,13 @@ class HTLayoutBase {
     virtual void build_overview_layout(HTViewStage stage);
     // Render the overview
     virtual void render();
+    virtual void cancel_animation_callbacks();
 
     // Prevent simplification from happening in the plugin, remove all clear pass objects
     void post_render();
 
     PHLMONITOR get_monitor();
+    const HTWorkspace* find_layout_workspace(WORKSPACEID workspace_id) const;
     WORKSPACEID get_ws_id_from_global(Vector2D pos);
     WORKSPACEID get_ws_id_from_xy(int x, int y);
     std::pair<int, int> get_current_ws_xy();
