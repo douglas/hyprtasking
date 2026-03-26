@@ -93,6 +93,12 @@ Then use `hyprctl plugin load` to load the absolute path to the `.so` file:
 hyprctl plugin load "$(realpath libhyprtasking.so)"
 ```
 
+For a quick live smoke check after the plugin is loaded:
+
+```
+bash scripts/smoke-live.sh
+```
+
 ## Usage
 
 ### Opening Overview

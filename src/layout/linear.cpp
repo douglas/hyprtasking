@@ -16,6 +16,7 @@
 
 #include "../config.hpp"
 #include "../globals.hpp"
+#include "../logic/dispatch_args.hpp"
 #include "../render.hpp"
 #include "layout_base.hpp"
 
@@ -284,7 +285,7 @@ void HTLayoutLinear::build_overview_layout(HTViewStage stage) {
     }
     std::sort(monitor_workspaces.begin(), monitor_workspaces.end());
 
-    WORKSPACEID big_id = monitor_workspaces.back();
+    WORKSPACEID big_id = HTLogic::nextLinearDummyWorkspaceID(monitor_workspaces, 0);
     while (g_pCompositor->getWorkspaceByID(big_id) != nullptr)
         big_id++;
     monitor_workspaces.push_back(big_id);
