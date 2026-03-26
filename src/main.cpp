@@ -1,4 +1,8 @@
+#include <charconv>
 #include <linux/input-event-codes.h>
+#include <limits>
+#include <optional>
+#include <string_view>
 
 #include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/SharedDefs.hpp>
@@ -27,6 +31,34 @@
 #include "types.hpp"
 
 using Hyprutils::Utils::CScopeGuard;
+
+static std::string_view trim_arg(const std::string& arg) {
+    const auto start = arg.find_first_not_of(" \t\n\r");
+    if (start == std::string::npos)
+        return {};
+
+    const auto end = arg.find_last_not_of(" \t\n\r");
+    return std::string_view(arg).substr(start, end - start + 1);
+}
+
+static std::optional<int> parse_int_arg(std::string_view arg) {
+    if (arg.empty())
+        return std::nullopt;
+
+    int value = 0;
+    const auto [ptr, ec] = std::from_chars(arg.data(), arg.data() + arg.size(), value);
+    if (ec != std::errc {} || ptr != arg.data() + arg.size())
+        return std::nullopt;
+
+    return value;
+}
+
+static std::optional<int> checked_int(int64_t value) {
+    if (value < std::numeric_limits<int>::min() || value > std::numeric_limits<int>::max())
+        return std::nullopt;
+
+    return static_cast<int>(value);
+}
 
 APICALL EXPORT std::string PLUGIN_API_VERSION() {
     return HYPRLAND_API_VERSION;
@@ -151,14 +183,25 @@ static SDispatchResult dispatch_setoffset(std::string arg) {
         return {.success = false, .error = "cursor_view is null"};
 
     const int original_offset = cursor_view->layout->first_ws_offset;
-    int new_offset = original_offset;
+    const auto trimmed_arg = trim_arg(arg);
+    if (trimmed_arg.empty())
+        return {.success = false, .error = "missing arg"};
 
-    if (arg[0] == '+' || arg[0] == '-') {
-        new_offset += std::stoi(arg);
-    } else {
-        new_offset = std::stoi(arg);
-    }
-    set_offset(cursor_view, new_offset);
+    const auto parsed_arg = parse_int_arg(trimmed_arg);
+    if (!parsed_arg.has_value())
+        return {.success = false, .error = "invalid numeric arg"};
+
+    const bool relative = trimmed_arg.front() == '+' || trimmed_arg.front() == '-';
+    const int64_t raw_offset =
+        relative ? static_cast<int64_t>(original_offset) + *parsed_arg : *parsed_arg;
+    if (raw_offset < 0)
+        return {.success = false, .error = "offset cannot be negative"};
+
+    const auto new_offset = checked_int(raw_offset);
+    if (!new_offset.has_value())
+        return {.success = false, .error = "offset out of range"};
+
+    set_offset(cursor_view, *new_offset);
 
     const PHLMONITOR monitor = cursor_view->get_monitor();
     if (monitor == nullptr)
@@ -168,7 +211,7 @@ static SDispatchResult dispatch_setoffset(std::string arg) {
         return {.success = false, .error = "active_workspace is null"};
     const WORKSPACEID source_ws_id = active_workspace->m_id;
 
-    const int offset_delta = new_offset - original_offset;
+    const int offset_delta = *new_offset - original_offset;
 
     Log::logger->log(
         LOG,
@@ -196,18 +239,41 @@ static SDispatchResult change_layer(std::string arg, bool move_window) {
     const int COLS = HTConfig::value<Hyprlang::INT>("grid:cols");
     const int LAYERS = HTConfig::value<Hyprlang::INT>("grid:layers");
     const int LOOP_LAYERS = HTConfig::value<Hyprlang::INT>("grid:loop_layers");
-    const int MAX_OFFSET = (LAYERS-1)*COLS*ROWS;
+    if (ROWS <= 0 || COLS <= 0 || LAYERS <= 0)
+        return {.success = false, .error = "invalid grid dimensions"};
+
+    const int64_t ws_per_layer = static_cast<int64_t>(ROWS) * COLS;
+    const int64_t max_offset_raw = static_cast<int64_t>(LAYERS - 1) * ws_per_layer;
+    const auto max_offset = checked_int(max_offset_raw);
+    if (!max_offset.has_value())
+        return {.success = false, .error = "grid dimensions out of range"};
 
     const int original_offset = cursor_view->layout->first_ws_offset;
+    const auto trimmed_arg = trim_arg(arg);
 
-    int resulting_offset = original_offset;
-    if (arg[0] == '+' || arg[0] == '-') {
+    int step = 1;
+    bool relative = true;
+    if (!trimmed_arg.empty()) {
+        relative = trimmed_arg.front() == '+' || trimmed_arg.front() == '-';
+        const auto parsed_arg = parse_int_arg(trimmed_arg);
+        if (!parsed_arg.has_value())
+            return {.success = false, .error = "invalid numeric arg"};
+        step = *parsed_arg;
+    }
+
+    int64_t resulting_offset_raw = original_offset;
+    if (relative) {
         // relative jump
-        resulting_offset += ROWS*COLS*std::stoi(arg);
+        resulting_offset_raw += ws_per_layer * step;
     } else {
         // absolute jump
-        resulting_offset = ROWS*COLS*std::stoi(arg);
+        resulting_offset_raw = ws_per_layer * step;
     }
+
+    const auto resulting_offset_checked = checked_int(resulting_offset_raw);
+    if (!resulting_offset_checked.has_value())
+        return {.success = false, .error = "layer offset out of range"};
+    int resulting_offset = *resulting_offset_checked;
 
     const PHLMONITOR monitor = cursor_view->get_monitor();
     if (monitor == nullptr)
@@ -221,7 +287,7 @@ static SDispatchResult change_layer(std::string arg, bool move_window) {
     WORKSPACEID target_ws_id = source_ws_id + offset_delta;
 
     // if resulting offset doesn't fit in boundaries
-    if (resulting_offset > MAX_OFFSET || resulting_offset < 0) {
+    if (resulting_offset > *max_offset || resulting_offset < 0) {
         // Don't do anything if next is invalid and grid:loop_layers is disabled
         if (!LOOP_LAYERS) {
             return {};
@@ -229,9 +295,9 @@ static SDispatchResult change_layer(std::string arg, bool move_window) {
 
         target_ws_id = source_ws_id - original_offset;
         if (resulting_offset < 0) {
-            target_ws_id += MAX_OFFSET;
-            resulting_offset = MAX_OFFSET;
-        } else if (resulting_offset > MAX_OFFSET) {
+            target_ws_id += *max_offset;
+            resulting_offset = *max_offset;
+        } else if (resulting_offset > *max_offset) {
             resulting_offset = 0;
         }
     }

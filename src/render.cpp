@@ -1,3 +1,5 @@
+#include <cmath>
+
 #include "render.hpp"
 
 #include <hyprland/src/Compositor.hpp>
@@ -21,7 +23,14 @@ void render_window_at_box(PHLWINDOW window, PHLMONITOR monitor, const Time::stea
     box.x -= monitor->m_position.x;
     box.y -= monitor->m_position.y;
 
-    const float scale = box.w / window->m_realSize->value().x;
+    const Vector2D window_size = window->m_realSize->value();
+    if (window_size.x <= 0.f || window_size.y <= 0.f || box.w <= 0.f || box.h <= 0.f)
+        return;
+
+    const float scale = box.w / window_size.x;
+    if (!std::isfinite(scale) || scale <= 0.f)
+        return;
+
     const Vector2D transform =
         (monitor->m_position - window->m_realPosition->value() + box.pos() / scale)
         * monitor->m_scale;

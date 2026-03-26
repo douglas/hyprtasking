@@ -286,7 +286,9 @@ void HTLayoutLinear::build_overview_layout(HTViewStage stage) {
     }
     std::sort(monitor_workspaces.begin(), monitor_workspaces.end());
 
-    WORKSPACEID big_id = monitor_workspaces.back();
+    // Large offsets can legitimately leave no existing workspace in range.
+    WORKSPACEID big_id = monitor_workspaces.empty() ? std::max<WORKSPACEID>(first_ws_offset, 1)
+                                                    : monitor_workspaces.back();
     while (g_pCompositor->getWorkspaceByID(big_id) != nullptr)
         big_id++;
     monitor_workspaces.push_back(big_id);
