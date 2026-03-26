@@ -19,8 +19,42 @@ add_project_arguments(
   ],
   language: 'cpp')
 
-globber = run_command('find', 'src', '-name', '*.cpp', check: true)
-src = globber.stdout().strip().split('\n')
+core_src = [
+  'src/input.cpp',
+  'src/main.cpp',
+  'src/manager.cpp',
+  'src/overview.cpp',
+  'src/render.cpp',
+]
+
+layout_src = [
+  'src/layout/grid.cpp',
+  'src/layout/layout_base.cpp',
+  'src/layout/linear.cpp',
+]
+
+logic_src = [
+  'src/logic/controller_state.cpp',
+  'src/logic/dispatch_args.cpp',
+  'src/logic/gesture_model.cpp',
+  'src/logic/layout_model.cpp',
+  'src/logic/reload_model.cpp',
+]
+
+plugin_src = [
+  'src/plugin/dispatchers.cpp',
+  'src/plugin/runtime.cpp',
+]
+
+compat_src = [
+  'src/compat/renderer_hooks.cpp',
+]
+
+pass_src = [
+  'src/pass/pass_element.cpp',
+]
+
+src = core_src + layout_src + logic_src + plugin_src + compat_src + pass_src
 
 incdir = []
 dependencies = [

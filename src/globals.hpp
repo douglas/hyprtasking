@@ -12,11 +12,6 @@ inline constexpr auto LOG = Hyprutils::CLI::LOG_DEBUG;
 
 inline HANDLE PHANDLE = nullptr;
 
-inline CFunctionHook* should_render_window_hook = nullptr;
-inline void* render_workspace = nullptr;
-inline void* render_window = nullptr;
-inline bool rendering_overview = false;
-
 inline std::unique_ptr<HTManager> ht_manager;
 
 template<typename... Args>

@@ -16,6 +16,7 @@
 #include <hyprutils/math/Vector2D.hpp>
 #include <hyprutils/utils/ScopeGuard.hpp>
 
+#include "../compat/renderer_hooks.hpp"
 #include "../config.hpp"
 #include "../globals.hpp"
 #include "../logic/layout_model.hpp"
@@ -402,22 +403,10 @@ void HTLayoutGrid::render() {
             if (!render_visibility.active())
                 continue;
 
-            ((render_workspace_t)render_workspace)(
-                g_pHyprRenderer.get(),
-                monitor,
-                workspace,
-                time,
-                render_box
-            );
+            HTCompat::renderWorkspaceOriginal(monitor, workspace, time, render_box);
         } else {
             // If pWorkspace is null, then just render the layers
-            ((render_workspace_t)render_workspace)(
-                g_pHyprRenderer.get(),
-                monitor,
-                workspace,
-                time,
-                render_box
-            );
+            HTCompat::renderWorkspaceOriginal(monitor, workspace, time, render_box);
         }
     }
 
@@ -445,13 +434,7 @@ void HTLayoutGrid::render() {
             data.borderSize = BORDERSIZE;
             g_pHyprRenderer->m_renderPass.add(makeUnique<CBorderPassElement>(data));
 
-            ((render_workspace_t)render_workspace)(
-                g_pHyprRenderer.get(),
-                monitor,
-                start_workspace,
-                time,
-                render_box
-            );
+            HTCompat::renderWorkspaceOriginal(monitor, start_workspace, time, render_box);
         }
     }
 

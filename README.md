@@ -4,7 +4,7 @@
 </div>
 
 > [!Important]
-> - Supports Hyprland release `v0.46.2-v0.54.0`.
+> - Maintained and tested against Hyprland `v0.54.x`.
 
 https://github.com/user-attachments/assets/8d6cdfd2-2b17-4240-a117-1dbd2231ed4e
 
@@ -92,6 +92,18 @@ Then use `hyprctl plugin load` to load the absolute path to the `.so` file:
 ```
 hyprctl plugin load "$(realpath libhyprtasking.so)"
 ```
+
+## Validation
+
+Use this validation path before pushing compatibility or render-path changes:
+
+```bash
+meson compile -C build
+meson test -C build
+bash scripts/smoke-live.sh
+```
+
+The smoke script checks dispatcher registration and basic overview flows. It intentionally leaves drag, gesture, and reload interaction as manual checks because those still need a real Hyprland session.
 
 ## Usage
 

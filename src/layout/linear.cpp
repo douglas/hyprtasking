@@ -14,6 +14,7 @@
 #include <hyprutils/utils/ScopeGuard.hpp>
 #include <ranges>
 
+#include "../compat/renderer_hooks.hpp"
 #include "../config.hpp"
 #include "../globals.hpp"
 #include "../logic/dispatch_args.hpp"
@@ -348,13 +349,7 @@ void HTLayoutLinear::render() {
         // use pixel size for geometry
         CBox mon_box = {{0, 0}, monitor->m_pixelSize};
         // Render the current workspace on the screen
-        ((render_workspace_t)render_workspace)(
-            g_pHyprRenderer.get(),
-            monitor,
-            start_workspace,
-            time,
-            mon_box
-        );
+        HTCompat::renderWorkspaceOriginal(monitor, start_workspace, time, mon_box);
 
         // add blur/dim over the original workspace
         CRectPassElement::SRectData blur_data;
@@ -409,22 +404,10 @@ void HTLayoutLinear::render() {
             if (!render_visibility.active())
                 continue;
 
-            ((render_workspace_t)render_workspace)(
-                g_pHyprRenderer.get(),
-                monitor,
-                workspace,
-                time,
-                render_box
-            );
+            HTCompat::renderWorkspaceOriginal(monitor, workspace, time, render_box);
         } else {
             // If pWorkspace is null, then just render the layers
-            ((render_workspace_t)render_workspace)(
-                g_pHyprRenderer.get(),
-                monitor,
-                workspace,
-                time,
-                render_box
-            );
+            HTCompat::renderWorkspaceOriginal(monitor, workspace, time, render_box);
         }
     }
 

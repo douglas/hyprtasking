@@ -9,6 +9,7 @@
 #include <hyprland/src/render/pass/ClearPassElement.hpp>
 #undef private
 
+#include "../compat/renderer_hooks.hpp"
 #include "../globals.hpp"
 #include "../pass/pass_element.hpp"
 #include "../types.hpp"
@@ -48,14 +49,7 @@ bool HTLayoutBase::should_render_window(PHLWINDOW window) {
     if (monitor == nullptr || window == nullptr)
         return false;
 
-    if (should_render_window_hook == nullptr)
-        return g_pHyprRenderer->shouldRenderWindow(window, monitor);
-
-    return ((should_render_window_t)(should_render_window_hook->m_original))(
-        g_pHyprRenderer.get(),
-        window,
-        monitor
-    );
+    return HTCompat::callOriginalShouldRenderWindow(window, monitor);
 }
 
 float HTLayoutBase::drag_window_scale() {

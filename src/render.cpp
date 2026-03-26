@@ -11,6 +11,7 @@
 #include <hyprland/src/render/pass/RendererHintsPassElement.hpp>
 #include <hyprutils/math/Vector2D.hpp>
 
+#include "compat/renderer_hooks.hpp"
 #include "globals.hpp"
 #include "src/helpers/time/Time.hpp"
 #include "types.hpp"
@@ -43,16 +44,7 @@ void render_window_at_box(PHLWINDOW window, PHLMONITOR monitor, const Time::stea
     );
 
     g_pHyprRenderer->damageWindow(window);
-    ((render_window_t)render_window)(
-        g_pHyprRenderer.get(),
-        window,
-        monitor,
-        time,
-        true,
-        RENDER_PASS_MAIN,
-        false,
-        true
-    );
+    HTCompat::renderWindowOriginal(window, monitor, time, true, RENDER_PASS_MAIN, false, true);
 
     g_pHyprRenderer->m_renderPass.add(makeUnique<CRendererHintsPassElement>(
         CRendererHintsPassElement::SData {SRenderModifData {}}
