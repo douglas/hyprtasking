@@ -18,8 +18,10 @@
 
 #include "../config.hpp"
 #include "../globals.hpp"
+#include "../logic/layout_model.hpp"
 #include "../overview.hpp"
 #include "../render.hpp"
+#include "../state_guards.hpp"
 #include "../types.hpp"
 #include "src/layout/target/Target.hpp"
 
@@ -51,23 +53,11 @@ WORKSPACEID HTLayoutGrid::get_ws_id_in_direction(int x, int y, std::string& dire
     const int ROWS = HTConfig::value<Hyprlang::INT>("grid:rows");
     const int COLS = HTConfig::value<Hyprlang::INT>("grid:cols");
 
-    if (direction == "up") {
-        y--;
-    } else if (direction == "down") {
-        y++;
-    } else if (direction == "right") {
-        x++;
-    } else if (direction == "left") {
-        x--;
-    } else {
+    const auto next_position = HTLogic::moveGridInDirection(x, y, direction, ROWS, COLS, LOOP);
+    if (!next_position.has_value())
         return WORKSPACE_INVALID;
-    }
 
-    if (LOOP) {
-        x = (x + COLS) % COLS;
-        y = (y + ROWS) % ROWS;
-    }
-    return get_ws_id_from_xy(x, y);
+    return get_ws_id_from_xy(next_position->x, next_position->y);
 }
 
 void HTLayoutGrid::on_move_swipe(Vector2D delta) {
@@ -110,6 +100,9 @@ void HTLayoutGrid::close_open_lerp(float perc) {
     const PHLMONITOR monitor = get_monitor();
     if (monitor == nullptr)
         return;
+    const PHLWORKSPACE active_workspace = monitor->m_activeWorkspace;
+    if (active_workspace == nullptr)
+        return;
 
     double open_scale =
         calculate_ws_box(0, 0, HT_VIEW_OPENED).w / monitor->m_transformedSize.x; // 1 / ROWS
@@ -117,7 +110,10 @@ void HTLayoutGrid::close_open_lerp(float perc) {
 
     build_overview_layout(HT_VIEW_CLOSED);
     double close_scale = 1.;
-    Vector2D close_pos = -overview_layout[monitor->m_activeWorkspace->m_id].box.pos();
+    const auto* active_layout = find_layout_workspace(active_workspace->m_id);
+    if (active_layout == nullptr)
+        return;
+    Vector2D close_pos = -active_layout->box.pos();
 
     double new_scale = std::lerp(close_scale, open_scale, perc);
     Vector2D new_pos = Vector2D {
@@ -155,11 +151,17 @@ void HTLayoutGrid::on_hide(CallbackFun on_complete) {
     const PHLMONITOR monitor = get_monitor();
     if (monitor == nullptr)
         return;
+    const PHLWORKSPACE active_workspace = monitor->m_activeWorkspace;
+    if (active_workspace == nullptr)
+        return;
 
     build_overview_layout(HT_VIEW_CLOSED);
     *scale = 1.;
     // End workspace to end up on
-    *offset = -overview_layout[monitor->m_activeWorkspace->m_id].box.pos();
+    const auto* active_layout = find_layout_workspace(active_workspace->m_id);
+    if (active_layout == nullptr)
+        return;
+    *offset = -active_layout->box.pos();
 }
 
 void HTLayoutGrid::on_move(WORKSPACEID old_id, WORKSPACEID new_id, CallbackFun on_complete) {
@@ -173,13 +175,20 @@ void HTLayoutGrid::on_move(WORKSPACEID old_id, WORKSPACEID new_id, CallbackFun o
         return;
 
     // prevent the thing from animating
-    g_pCompositor->getWorkspaceByID(old_id)->m_renderOffset->warp();
-    g_pCompositor->getWorkspaceByID(new_id)->m_renderOffset->warp();
+    const PHLWORKSPACE old_workspace = g_pCompositor->getWorkspaceByID(old_id);
+    const PHLWORKSPACE new_workspace = g_pCompositor->getWorkspaceByID(new_id);
+    if (old_workspace == nullptr || new_workspace == nullptr)
+        return;
+    old_workspace->m_renderOffset->warp();
+    new_workspace->m_renderOffset->warp();
 
     build_overview_layout(HT_VIEW_CLOSED);
     *scale = 1.;
     // Target workspace to animate to
-    *offset = -overview_layout[new_id].box.pos();
+    const auto* target_layout = find_layout_workspace(new_id);
+    if (target_layout == nullptr)
+        return;
+    *offset = -target_layout->box.pos();
 }
 
 bool HTLayoutGrid::should_render_window(PHLWINDOW window) {
@@ -214,9 +223,15 @@ void HTLayoutGrid::init_position() {
     const PHLMONITOR monitor = get_monitor();
     if (monitor == nullptr)
         return;
+    const PHLWORKSPACE active_workspace = monitor->m_activeWorkspace;
+    if (active_workspace == nullptr)
+        return;
 
     build_overview_layout(HT_VIEW_CLOSED);
-    offset->setValueAndWarp(-overview_layout[monitor->m_activeWorkspace->m_id].box.pos());
+    const auto* active_layout = find_layout_workspace(active_workspace->m_id);
+    if (active_layout == nullptr)
+        return;
+    offset->setValueAndWarp(-active_layout->box.pos());
     scale->setValueAndWarp(1.f);
 }
 
@@ -276,8 +291,7 @@ void HTLayoutGrid::build_overview_layout(HTViewStage stage) {
     const int ROWS = HTConfig::value<Hyprlang::INT>("grid:rows");
     const int COLS = HTConfig::value<Hyprlang::INT>("grid:cols");
 
-    const PHLMONITOR last_monitor = Desktop::focusState()->monitor();
-    Desktop::focusState()->rawMonitorFocus(monitor);
+    HTScopedMonitorFocus restore_focus(monitor);
 
     overview_layout.clear();
 
@@ -292,10 +306,10 @@ void HTLayoutGrid::build_overview_layout(HTViewStage stage) {
     //  L1       L2
     // 9  10    13 14
     // 11 12    15 16
-    const int ws_per_view = ROWS*COLS;
     for (int y = 0; y < ROWS; y++) {
         for (int x = 0; x < COLS; x++) {
-            const WORKSPACEID ws_id = view_id * ws_per_view + first_ws_offset + (view_id * ROWS + y) * COLS + x + 1;
+            const WORKSPACEID ws_id =
+                HTLogic::gridWorkspaceID(view_id, first_ws_offset, ROWS, COLS, x, y);
             const PHLWORKSPACE workspace = g_pCompositor->getWorkspaceByID(ws_id);
             if (workspace != nullptr && workspace->monitorID() != view_id) {
                 g_pCompositor->moveWorkspaceToMonitor(workspace, monitor);
@@ -305,8 +319,6 @@ void HTLayoutGrid::build_overview_layout(HTViewStage stage) {
         }
     }
 
-    if (last_monitor != nullptr)
-        Desktop::focusState()->rawMonitorFocus(last_monitor);
 }
 
 void HTLayoutGrid::render() {
@@ -341,14 +353,14 @@ void HTLayoutGrid::render() {
     // Do a dance with active workspaces: Hyprland will only properly render the
     // current active one so make the workspace active before rendering it, etc
     const PHLWORKSPACE start_workspace = monitor->m_activeWorkspace;
-
-    g_pDesktopAnimationManager->startAnimation(
-        start_workspace,
-        CDesktopAnimationManager::ANIMATION_TYPE_OUT,
-        false,
-        true
-    );
-    start_workspace->m_visible = false;
+    if (start_workspace == nullptr)
+        return;
+    HTScopedMonitorWorkspace restore_workspace(monitor, false);
+    ht_deactivate_workspace_for_render(start_workspace);
+    CScopeGuard restore_start_workspace([monitor, start_workspace] {
+        ht_activate_workspace_for_render(monitor, start_workspace);
+    });
+    const WORKSPACEID active_workspace_id = start_workspace->m_id;
 
     build_overview_layout(HT_VIEW_ANIMATING);
 
@@ -376,7 +388,7 @@ void HTLayoutGrid::render() {
             continue;
 
         const CGradientValueData border_col =
-            monitor->m_activeWorkspace->m_id == ws_id ? *ACTIVECOL : *INACTIVECOL;
+            active_workspace_id == ws_id ? *ACTIVECOL : *INACTIVECOL;
         CBox border_box = ws_layout.box;
 
         CBorderPassElement::SBorderData data;
@@ -386,14 +398,9 @@ void HTLayoutGrid::render() {
         g_pHyprRenderer->m_renderPass.add(makeUnique<CBorderPassElement>(data));
 
         if (workspace != nullptr) {
-            monitor->m_activeWorkspace = workspace;
-            g_pDesktopAnimationManager->startAnimation(
-                workspace,
-                CDesktopAnimationManager::ANIMATION_TYPE_IN,
-                false,
-                true
-            );
-            workspace->m_visible = true;
+            HTScopedWorkspaceRenderVisibility render_visibility(monitor, workspace);
+            if (!render_visibility.active())
+                continue;
 
             ((render_workspace_t)render_workspace)(
                 g_pHyprRenderer.get(),
@@ -402,14 +409,6 @@ void HTLayoutGrid::render() {
                 time,
                 render_box
             );
-
-            g_pDesktopAnimationManager->startAnimation(
-                workspace,
-                CDesktopAnimationManager::ANIMATION_TYPE_OUT,
-                false,
-                true
-            );
-            workspace->m_visible = false;
         } else {
             // If pWorkspace is null, then just render the layers
             ((render_workspace_t)render_workspace)(
@@ -422,18 +421,12 @@ void HTLayoutGrid::render() {
         }
     }
 
-    monitor->m_activeWorkspace = start_workspace;
-    g_pDesktopAnimationManager->startAnimation(
-        start_workspace,
-        CDesktopAnimationManager::ANIMATION_TYPE_IN,
-        false,
-        true
-    );
-    start_workspace->m_visible = true;
-
     // Render active workspace last so the dragging window is always on top when let go of
-    if (start_workspace != nullptr && overview_layout.count(start_workspace->m_id)) {
-        CBox ws_box = overview_layout[start_workspace->m_id].box;
+    if (overview_layout.count(start_workspace->m_id)) {
+        const auto* active_layout = find_layout_workspace(start_workspace->m_id);
+        if (active_layout == nullptr)
+            return;
+        CBox ws_box = active_layout->box;
         // make sure box is not empty
         if (ws_box.width > 0.01 && ws_box.height > 0.01) {
             // renderModif translation used by renderWorkspace is weird so need
@@ -443,8 +436,7 @@ void HTLayoutGrid::render() {
                 std::swap(render_box.w, render_box.h);
 
             const CGradientValueData border_col =
-                monitor->m_activeWorkspace->m_id == start_workspace->m_id ? *ACTIVECOL
-                                                                          : *INACTIVECOL;
+                active_workspace_id == start_workspace->m_id ? *ACTIVECOL : *INACTIVECOL;
             CBox border_box = ws_box;
 
             CBorderPassElement::SBorderData data;

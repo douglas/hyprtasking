@@ -16,7 +16,9 @@
 
 #include "../config.hpp"
 #include "../globals.hpp"
+#include "../logic/dispatch_args.hpp"
 #include "../render.hpp"
+#include "../state_guards.hpp"
 #include "layout_base.hpp"
 
 using Hyprutils::Utils::CScopeGuard;
@@ -117,9 +119,12 @@ void HTLayoutLinear::on_move(WORKSPACEID old_id, WORKSPACEID new_id, CallbackFun
 
     build_overview_layout(HT_VIEW_ANIMATING);
 
-    const float cur_screen_min_x = overview_layout[new_id].box.x - GAP_SIZE;
-    const float cur_screen_max_x =
-        overview_layout[new_id].box.x + overview_layout[new_id].box.w + GAP_SIZE;
+    const auto* target_layout = find_layout_workspace(new_id);
+    if (target_layout == nullptr)
+        return;
+
+    const float cur_screen_min_x = target_layout->box.x - GAP_SIZE;
+    const float cur_screen_max_x = target_layout->box.x + target_layout->box.w + GAP_SIZE;
 
     if (cur_screen_min_x < 0) {
         *scroll_offset = scroll_offset->value() - cur_screen_min_x;
@@ -287,8 +292,7 @@ void HTLayoutLinear::build_overview_layout(HTViewStage stage) {
     std::sort(monitor_workspaces.begin(), monitor_workspaces.end());
 
     // Large offsets can legitimately leave no existing workspace in range.
-    WORKSPACEID big_id = monitor_workspaces.empty() ? std::max<WORKSPACEID>(first_ws_offset, 1)
-                                                    : monitor_workspaces.back();
+    WORKSPACEID big_id = HTLogic::nextLinearDummyWorkspaceID(monitor_workspaces, first_ws_offset);
     while (g_pCompositor->getWorkspaceByID(big_id) != nullptr)
         big_id++;
     monitor_workspaces.push_back(big_id);
@@ -326,53 +330,40 @@ void HTLayoutLinear::render() {
     // Do a dance with active workspaces: Hyprland will only properly render the
     // current active one so make the workspace active before rendering it, etc
     const PHLWORKSPACE start_workspace = monitor->m_activeWorkspace;
-    g_pDesktopAnimationManager->startAnimation(
-        start_workspace,
-        CDesktopAnimationManager::ANIMATION_TYPE_OUT,
-        false,
-        true
-    );
-    start_workspace->m_visible = false;
+    if (start_workspace == nullptr)
+        return;
+    HTScopedMonitorWorkspace restore_workspace(monitor, false);
+    ht_deactivate_workspace_for_render(start_workspace);
+    CScopeGuard restore_start_workspace([monitor, start_workspace] {
+        ht_activate_workspace_for_render(monitor, start_workspace);
+    });
 
-    const PHLWORKSPACE big_ws = monitor->m_activeWorkspace;
+    {
+        rendering_standard_ws = true;
+        CScopeGuard restore_standard_ws([this] { rendering_standard_ws = false; });
+        HTScopedWorkspaceRenderVisibility render_standard_workspace(monitor, start_workspace);
+        if (!render_standard_workspace.active())
+            return;
 
-    rendering_standard_ws = true;
-    monitor->m_activeWorkspace = big_ws;
-    g_pDesktopAnimationManager->startAnimation(
-        start_workspace,
-        CDesktopAnimationManager::ANIMATION_TYPE_IN,
-        false,
-        true
-    );
-    big_ws->m_visible = true;
+        // use pixel size for geometry
+        CBox mon_box = {{0, 0}, monitor->m_pixelSize};
+        // Render the current workspace on the screen
+        ((render_workspace_t)render_workspace)(
+            g_pHyprRenderer.get(),
+            monitor,
+            start_workspace,
+            time,
+            mon_box
+        );
 
-    // use pixel size for geometry
-    CBox mon_box = {{0, 0}, monitor->m_pixelSize};
-    // Render the current workspace on the screen
-    ((render_workspace_t)render_workspace)(
-        g_pHyprRenderer.get(),
-        monitor,
-        big_ws,
-        time,
-        mon_box
-    );
-
-    // add blur/dim over the original workspace
-    CRectPassElement::SRectData blur_data;
-    blur_data.color = CHyprColor(0, 0, 0, dim_opacity->value());
-    blur_data.box = mon_box;
-    blur_data.blur = (bool)HTConfig::value<Hyprlang::INT>("linear:blur");
-    blur_data.blurA = blur_strength->value();
-    g_pHyprRenderer->m_renderPass.add(makeUnique<CRectPassElement>(blur_data));
-
-    g_pDesktopAnimationManager->startAnimation(
-        start_workspace,
-        CDesktopAnimationManager::ANIMATION_TYPE_OUT,
-        false,
-        true
-    );
-    big_ws->m_visible = false;
-    rendering_standard_ws = false;
+        // add blur/dim over the original workspace
+        CRectPassElement::SRectData blur_data;
+        blur_data.color = CHyprColor(0, 0, 0, dim_opacity->value());
+        blur_data.box = mon_box;
+        blur_data.blur = (bool)HTConfig::value<Hyprlang::INT>("linear:blur");
+        blur_data.blurA = blur_strength->value();
+        g_pHyprRenderer->m_renderPass.add(makeUnique<CRectPassElement>(blur_data));
+    }
 
     CBox view_box = {
         {0.f, calculate_y(monitor->m_transformedSize.y, view_offset->value(), HEIGHT)},
@@ -404,7 +395,7 @@ void HTLayoutLinear::render() {
         if (global_box.intersection(global_mon_box).empty())
             continue;
 
-        const CGradientValueData border_col = workspace == big_ws ? *ACTIVECOL : *INACTIVECOL;
+        const CGradientValueData border_col = workspace == start_workspace ? *ACTIVECOL : *INACTIVECOL;
         CBox border_box = ws_layout.box;
 
         CBorderPassElement::SBorderData data;
@@ -414,14 +405,9 @@ void HTLayoutLinear::render() {
         g_pHyprRenderer->m_renderPass.add(makeUnique<CBorderPassElement>(data));
 
         if (workspace != nullptr) {
-            monitor->m_activeWorkspace = workspace;
-            g_pDesktopAnimationManager->startAnimation(
-                workspace,
-                CDesktopAnimationManager::ANIMATION_TYPE_IN,
-                false,
-                true
-            );
-            workspace->m_visible = true;
+            HTScopedWorkspaceRenderVisibility render_visibility(monitor, workspace);
+            if (!render_visibility.active())
+                continue;
 
             ((render_workspace_t)render_workspace)(
                 g_pHyprRenderer.get(),
@@ -430,14 +416,6 @@ void HTLayoutLinear::render() {
                 time,
                 render_box
             );
-
-            g_pDesktopAnimationManager->startAnimation(
-                workspace,
-                CDesktopAnimationManager::ANIMATION_TYPE_OUT,
-                false,
-                true
-            );
-            workspace->m_visible = false;
         } else {
             // If pWorkspace is null, then just render the layers
             ((render_workspace_t)render_workspace)(
@@ -449,15 +427,6 @@ void HTLayoutLinear::render() {
             );
         }
     }
-
-    monitor->m_activeWorkspace = start_workspace;
-    g_pDesktopAnimationManager->startAnimation(
-        start_workspace,
-        CDesktopAnimationManager::ANIMATION_TYPE_IN,
-        false,
-        true
-    );
-    start_workspace->m_visible = true;
 
     // Render dragged window at mouse cursor
     const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();

@@ -7,6 +7,7 @@
 #include <hyprland/src/macros.hpp>
 #include <hyprutils/math/Box.hpp>
 #include <hyprutils/math/Vector2D.hpp>
+#include <functional>
 
 #include "layout/layout_base.hpp"
 
@@ -28,11 +29,12 @@ class HTView {
 
     void do_exit_behavior(bool exit_on_mouse);
     void warp_window(Hyprlang::INT warp, PHLWINDOW window);
+    void reload_config(const std::string& layout_name, bool close_overview_on_reload);
 
     PHLMONITOR get_monitor();
 
     void show(bool recalculate = true);
-    void hide(bool exit_on_mouse);
+    void hide(bool exit_on_mouse, std::function<void()> on_complete = {});
 
     void move_id(WORKSPACEID ws_id, bool move_window);
     // arg is up, down, left, right;

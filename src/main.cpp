@@ -1,8 +1,8 @@
-#include <charconv>
+#include <algorithm>
+#include <exception>
 #include <linux/input-event-codes.h>
-#include <limits>
-#include <optional>
 #include <string_view>
+#include <vector>
 
 #include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/SharedDefs.hpp>
@@ -27,37 +27,35 @@
 
 #include "config.hpp"
 #include "globals.hpp"
+#include "logic/dispatch_args.hpp"
+#include "logic/reload_model.hpp"
 #include "overview.hpp"
 #include "types.hpp"
 
 using Hyprutils::Utils::CScopeGuard;
 
-static std::string_view trim_arg(const std::string& arg) {
-    const auto start = arg.find_first_not_of(" \t\n\r");
-    if (start == std::string::npos)
-        return {};
-
-    const auto end = arg.find_last_not_of(" \t\n\r");
-    return std::string_view(arg).substr(start, end - start + 1);
+template<typename Fn>
+static SDispatchResult guarded_dispatch(std::string_view name, Fn&& fn) {
+    try {
+        return fn();
+    } catch (const std::exception& e) {
+        Log::logger->log(Log::ERR, "[Hyprtasking] {} failed: {}", name, e.what());
+        return {.success = false, .error = "internal error"};
+    } catch (...) {
+        Log::logger->log(Log::ERR, "[Hyprtasking] {} failed with unknown exception", name);
+        return {.success = false, .error = "internal error"};
+    }
 }
 
-static std::optional<int> parse_int_arg(std::string_view arg) {
-    if (arg.empty())
-        return std::nullopt;
-
-    int value = 0;
-    const auto [ptr, ec] = std::from_chars(arg.data(), arg.data() + arg.size(), value);
-    if (ec != std::errc {} || ptr != arg.data() + arg.size())
-        return std::nullopt;
-
-    return value;
-}
-
-static std::optional<int> checked_int(int64_t value) {
-    if (value < std::numeric_limits<int>::min() || value > std::numeric_limits<int>::max())
-        return std::nullopt;
-
-    return static_cast<int>(value);
+template<typename Fn>
+static void guarded_callback(std::string_view name, Fn&& fn) {
+    try {
+        fn();
+    } catch (const std::exception& e) {
+        Log::logger->log(Log::ERR, "[Hyprtasking] {} failed: {}", name, e.what());
+    } catch (...) {
+        Log::logger->log(Log::ERR, "[Hyprtasking] {} failed with unknown exception", name);
+    }
 }
 
 APICALL EXPORT std::string PLUGIN_API_VERSION() {
@@ -65,35 +63,37 @@ APICALL EXPORT std::string PLUGIN_API_VERSION() {
 }
 
 static SDispatchResult dispatch_if(std::string arg, bool is_active) {
-    if (ht_manager == nullptr)
-        return {.passEvent = true, .success = false, .error = "ht_manager is null"};
-    PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
-    if (cursor_view == nullptr)
-        return {.passEvent = true, .success = false, .error = "cursor_view is null"};
-    if (cursor_view->active != is_active)
-        return {.passEvent = true, .success = false, .error = "predicate not met"};
+    return guarded_dispatch("dispatch_if", [&]() -> SDispatchResult {
+        if (ht_manager == nullptr)
+            return {.passEvent = true, .success = false, .error = "ht_manager is null"};
+        PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
+        if (cursor_view == nullptr)
+            return {.passEvent = true, .success = false, .error = "cursor_view is null"};
+        if (cursor_view->active != is_active)
+            return {.passEvent = true, .success = false, .error = "predicate not met"};
 
-    const auto DISPATCHSTR = arg.substr(0, arg.find_first_of(' '));
+        const auto DISPATCHSTR = arg.substr(0, arg.find_first_of(' '));
 
-    auto DISPATCHARG = std::string();
-    if ((int)arg.find_first_of(' ') != -1)
-        DISPATCHARG = arg.substr(arg.find_first_of(' ') + 1);
+        auto DISPATCHARG = std::string();
+        if ((int)arg.find_first_of(' ') != -1)
+            DISPATCHARG = arg.substr(arg.find_first_of(' ') + 1);
 
-    const auto DISPATCHER = g_pKeybindManager->m_dispatchers.find(DISPATCHSTR);
-    if (DISPATCHER == g_pKeybindManager->m_dispatchers.end())
-        return {.success = false, .error = "invalid dispatcher"};
+        const auto DISPATCHER = g_pKeybindManager->m_dispatchers.find(DISPATCHSTR);
+        if (DISPATCHER == g_pKeybindManager->m_dispatchers.end())
+            return {.success = false, .error = "invalid dispatcher"};
 
-    SDispatchResult res = DISPATCHER->second(DISPATCHARG);
+        SDispatchResult res = DISPATCHER->second(DISPATCHARG);
 
-    Log::logger->log(
-        LOG,
-        "[Hyprtasking] passthrough dispatch: {} : {}{}",
-        DISPATCHSTR,
-        DISPATCHARG,
-        res.success ? "" : " -> " + res.error
-    );
+        Log::logger->log(
+            LOG,
+            "[Hyprtasking] passthrough dispatch: {} : {}{}",
+            DISPATCHSTR,
+            DISPATCHARG,
+            res.success ? "" : " -> " + res.error
+        );
 
-    return res;
+        return res;
+    });
 }
 
 static SDispatchResult dispatch_if_not_active(std::string arg) {
@@ -105,43 +105,49 @@ static SDispatchResult dispatch_if_active(std::string arg) {
 }
 
 static SDispatchResult dispatch_toggle_view(std::string arg) {
-    if (ht_manager == nullptr)
-        return {.success = false, .error = "ht_manager is null"};
+    return guarded_dispatch("dispatch_toggle_view", [&]() -> SDispatchResult {
+        if (ht_manager == nullptr)
+            return {.success = false, .error = "ht_manager is null"};
 
-    if (arg == "all") {
-        if (ht_manager->has_active_view())
-            ht_manager->hide_all_views();
-        else
-            ht_manager->show_all_views();
-    } else if (arg == "cursor") {
-        if (ht_manager->cursor_view_active())
-            ht_manager->hide_all_views();
-        else
-            ht_manager->show_cursor_view();
-    } else {
-        return {.success = false, .error = "invalid arg"};
-    }
-    return {};
+        if (arg == "all") {
+            if (ht_manager->has_active_view())
+                ht_manager->hide_all_views();
+            else
+                ht_manager->show_all_views();
+        } else if (arg == "cursor") {
+            if (ht_manager->cursor_view_active())
+                ht_manager->hide_all_views();
+            else
+                ht_manager->show_cursor_view();
+        } else {
+            return {.success = false, .error = "invalid arg"};
+        }
+        return {};
+    });
 }
 
 static SDispatchResult dispatch_move(std::string arg) {
-    if (ht_manager == nullptr)
-        return {.success = false, .error = "ht_manager is null"};
-    const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
-    if (cursor_view == nullptr)
-        return {.success = false, .error = "cursor_view is null"};
-    cursor_view->move(arg, false);
-    return {};
+    return guarded_dispatch("dispatch_move", [&]() -> SDispatchResult {
+        if (ht_manager == nullptr)
+            return {.success = false, .error = "ht_manager is null"};
+        const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
+        if (cursor_view == nullptr)
+            return {.success = false, .error = "cursor_view is null"};
+        cursor_view->move(arg, false);
+        return {};
+    });
 }
 
 static SDispatchResult dispatch_move_window(std::string arg) {
-    if (ht_manager == nullptr)
-        return {.success = false, .error = "ht_manager is null"};
-    const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
-    if (cursor_view == nullptr)
-        return {.success = false, .error = "cursor_view is null"};
-    cursor_view->move(arg, true);
-    return {};
+    return guarded_dispatch("dispatch_move_window", [&]() -> SDispatchResult {
+        if (ht_manager == nullptr)
+            return {.success = false, .error = "ht_manager is null"};
+        const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
+        if (cursor_view == nullptr)
+            return {.success = false, .error = "cursor_view is null"};
+        cursor_view->move(arg, true);
+        return {};
+    });
 }
 
 static void set_offset(PHTVIEW view, int new_offset) {
@@ -176,52 +182,40 @@ static void set_offset(PHTVIEW view, int new_offset) {
 }
 
 static SDispatchResult dispatch_setoffset(std::string arg) {
-    if (ht_manager == nullptr)
-        return {.success = false, .error = "ht_manager is null"};
-    const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
-    if (cursor_view == nullptr)
-        return {.success = false, .error = "cursor_view is null"};
+    return guarded_dispatch("dispatch_setoffset", [&]() -> SDispatchResult {
+        if (ht_manager == nullptr)
+            return {.success = false, .error = "ht_manager is null"};
+        const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
+        if (cursor_view == nullptr)
+            return {.success = false, .error = "cursor_view is null"};
 
-    const int original_offset = cursor_view->layout->first_ws_offset;
-    const auto trimmed_arg = trim_arg(arg);
-    if (trimmed_arg.empty())
-        return {.success = false, .error = "missing arg"};
+        const int original_offset = cursor_view->layout->first_ws_offset;
+        const auto parsed_arg = HTLogic::parseOffsetArg(arg, original_offset);
+        if (!parsed_arg.ok)
+            return {.success = false, .error = parsed_arg.error};
 
-    const auto parsed_arg = parse_int_arg(trimmed_arg);
-    if (!parsed_arg.has_value())
-        return {.success = false, .error = "invalid numeric arg"};
+        set_offset(cursor_view, parsed_arg.value);
 
-    const bool relative = trimmed_arg.front() == '+' || trimmed_arg.front() == '-';
-    const int64_t raw_offset =
-        relative ? static_cast<int64_t>(original_offset) + *parsed_arg : *parsed_arg;
-    if (raw_offset < 0)
-        return {.success = false, .error = "offset cannot be negative"};
+        const PHLMONITOR monitor = cursor_view->get_monitor();
+        if (monitor == nullptr)
+            return {.success = false, .error = "monitor is null"};
+        const PHLWORKSPACE active_workspace = monitor->m_activeWorkspace;
+        if (active_workspace == nullptr)
+            return {.success = false, .error = "active_workspace is null"};
+        const WORKSPACEID source_ws_id = active_workspace->m_id;
 
-    const auto new_offset = checked_int(raw_offset);
-    if (!new_offset.has_value())
-        return {.success = false, .error = "offset out of range"};
+        const int offset_delta = parsed_arg.value - original_offset;
 
-    set_offset(cursor_view, *new_offset);
+        Log::logger->log(
+            LOG,
+            "[Hyprtasking] Setting offset from workspace \"{}\", from offset: {}",
+            active_workspace->m_id,
+            original_offset
+        );
 
-    const PHLMONITOR monitor = cursor_view->get_monitor();
-    if (monitor == nullptr)
-        return {.success = false, .error = "monitor is null"};
-    const PHLWORKSPACE active_workspace = monitor->m_activeWorkspace;
-    if (active_workspace == nullptr)
-        return {.success = false, .error = "active_workspace is null"};
-    const WORKSPACEID source_ws_id = active_workspace->m_id;
-
-    const int offset_delta = *new_offset - original_offset;
-
-    Log::logger->log(
-        LOG,
-        "[Hyprtasking] Setting offset from workspace \"{}\", from offset: {}",
-        active_workspace->m_id,
-        original_offset
-    );
-
-    cursor_view->move_id(source_ws_id + offset_delta, false);
-    return {};
+        cursor_view->move_id(source_ws_id + offset_delta, false);
+        return {};
+    });
 }
 
 static SDispatchResult change_layer(std::string arg, bool move_window) {
@@ -239,41 +233,12 @@ static SDispatchResult change_layer(std::string arg, bool move_window) {
     const int COLS = HTConfig::value<Hyprlang::INT>("grid:cols");
     const int LAYERS = HTConfig::value<Hyprlang::INT>("grid:layers");
     const int LOOP_LAYERS = HTConfig::value<Hyprlang::INT>("grid:loop_layers");
-    if (ROWS <= 0 || COLS <= 0 || LAYERS <= 0)
-        return {.success = false, .error = "invalid grid dimensions"};
-
-    const int64_t ws_per_layer = static_cast<int64_t>(ROWS) * COLS;
-    const int64_t max_offset_raw = static_cast<int64_t>(LAYERS - 1) * ws_per_layer;
-    const auto max_offset = checked_int(max_offset_raw);
-    if (!max_offset.has_value())
-        return {.success = false, .error = "grid dimensions out of range"};
-
     const int original_offset = cursor_view->layout->first_ws_offset;
-    const auto trimmed_arg = trim_arg(arg);
-
-    int step = 1;
-    bool relative = true;
-    if (!trimmed_arg.empty()) {
-        relative = trimmed_arg.front() == '+' || trimmed_arg.front() == '-';
-        const auto parsed_arg = parse_int_arg(trimmed_arg);
-        if (!parsed_arg.has_value())
-            return {.success = false, .error = "invalid numeric arg"};
-        step = *parsed_arg;
-    }
-
-    int64_t resulting_offset_raw = original_offset;
-    if (relative) {
-        // relative jump
-        resulting_offset_raw += ws_per_layer * step;
-    } else {
-        // absolute jump
-        resulting_offset_raw = ws_per_layer * step;
-    }
-
-    const auto resulting_offset_checked = checked_int(resulting_offset_raw);
-    if (!resulting_offset_checked.has_value())
-        return {.success = false, .error = "layer offset out of range"};
-    int resulting_offset = *resulting_offset_checked;
+    const auto parsed_arg =
+        HTLogic::parseLayerOffsetArg(arg, original_offset, ROWS, COLS, LAYERS);
+    if (!parsed_arg.ok)
+        return {.success = false, .error = parsed_arg.error};
+    int resulting_offset = parsed_arg.requested_offset;
 
     const PHLMONITOR monitor = cursor_view->get_monitor();
     if (monitor == nullptr)
@@ -287,7 +252,7 @@ static SDispatchResult change_layer(std::string arg, bool move_window) {
     WORKSPACEID target_ws_id = source_ws_id + offset_delta;
 
     // if resulting offset doesn't fit in boundaries
-    if (resulting_offset > *max_offset || resulting_offset < 0) {
+    if (resulting_offset > parsed_arg.max_offset || resulting_offset < 0) {
         // Don't do anything if next is invalid and grid:loop_layers is disabled
         if (!LOOP_LAYERS) {
             return {};
@@ -295,9 +260,9 @@ static SDispatchResult change_layer(std::string arg, bool move_window) {
 
         target_ws_id = source_ws_id - original_offset;
         if (resulting_offset < 0) {
-            target_ws_id += *max_offset;
-            resulting_offset = *max_offset;
-        } else if (resulting_offset > *max_offset) {
+            target_ws_id += parsed_arg.max_offset;
+            resulting_offset = parsed_arg.max_offset;
+        } else if (resulting_offset > parsed_arg.max_offset) {
             resulting_offset = 0;
         }
     }
@@ -309,27 +274,29 @@ static SDispatchResult change_layer(std::string arg, bool move_window) {
 }
 
 static SDispatchResult dispatch_setlayer(std::string arg) {
-    return change_layer(arg, false);
+    return guarded_dispatch("dispatch_setlayer", [&]() { return change_layer(arg, false); });
 }
 
 static SDispatchResult dispatch_setlayerwindow(std::string arg) {
-    return change_layer(arg, true);
+    return guarded_dispatch("dispatch_setlayerwindow", [&]() { return change_layer(arg, true); });
 }
 
 static SDispatchResult dispatch_kill_hover(std::string arg) {
-    if (ht_manager == nullptr)
-        return {.success = false, .error = "ht_manager is null"};
+    return guarded_dispatch("dispatch_kill_hover", [&]() -> SDispatchResult {
+        if (ht_manager == nullptr)
+            return {.success = false, .error = "ht_manager is null"};
 
-    const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
-    if (cursor_view == nullptr)
-        return {.success = false, .error = "cursor_view is null"};
-    // Only use actually hovered window when overview is active
-    // Use focused otherwise
-    const PHLWINDOW hovered_window = ht_manager->get_window_from_cursor(!cursor_view->active);
-    if (hovered_window == nullptr)
-        return {.success = false, .error = "hovered_window is null"};
-    g_pCompositor->closeWindow(hovered_window);
-    return {};
+        const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
+        if (cursor_view == nullptr)
+            return {.success = false, .error = "cursor_view is null"};
+        // Only use actually hovered window when overview is active
+        // Use focused otherwise
+        const PHLWINDOW hovered_window = ht_manager->get_window_from_cursor(!cursor_view->active);
+        if (hovered_window == nullptr)
+            return {.success = false, .error = "hovered_window is null"};
+        g_pCompositor->closeWindow(hovered_window);
+        return {};
+    });
 }
 
 static SFunctionMatch find_function_match(
@@ -376,83 +343,105 @@ static bool hook_should_render_window(void* thisptr, PHLWINDOW window, PHLMONITO
         window,
         monitor
     );
-    if (ht_manager == nullptr || !ht_manager->has_active_view())
+    try {
+        if (ht_manager == nullptr || !ht_manager->has_active_view())
+            return ori_result;
+
+        const PHTVIEW view = ht_manager->get_view_from_monitor(monitor);
+        if (view == nullptr)
+            return ori_result;
+
+        return view->layout->should_render_window(window);
+    } catch (const std::exception& e) {
+        Log::logger->log(Log::ERR, "[Hyprtasking] hook_should_render_window failed: {}", e.what());
         return ori_result;
-
-    const PHTVIEW view = ht_manager->get_view_from_monitor(monitor);
-    if (view == nullptr)
+    } catch (...) {
+        Log::logger->log(Log::ERR, "[Hyprtasking] hook_should_render_window failed with unknown exception");
         return ori_result;
-
-    return view->layout->should_render_window(window);
-}
-
-static void on_mouse_button(IPointer::SButtonEvent e, Event::SCallbackInfo& info) {
-    if (ht_manager == nullptr)
-        return;
-
-    const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
-    if (cursor_view == nullptr)
-        return;
-
-    const bool pressed = e.state == WL_POINTER_BUTTON_STATE_PRESSED;
-
-    const unsigned int drag_button = HTConfig::value<Hyprlang::INT>("drag_button");
-    const unsigned int select_button = HTConfig::value<Hyprlang::INT>("select_button");
-
-    if (pressed && e.button == drag_button) {
-        info.cancelled = ht_manager->start_window_drag();
-    } else if (!pressed && e.button == drag_button) {
-        info.cancelled = ht_manager->end_window_drag();
-    } else if (pressed && e.button == select_button) {
-        info.cancelled = ht_manager->exit_to_workspace();
     }
 }
 
+static void on_mouse_button(IPointer::SButtonEvent e, Event::SCallbackInfo& info) {
+    guarded_callback("on_mouse_button", [&]() {
+        if (ht_manager == nullptr)
+            return;
+
+        const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
+        if (cursor_view == nullptr)
+            return;
+
+        const bool pressed = e.state == WL_POINTER_BUTTON_STATE_PRESSED;
+
+        const unsigned int drag_button = HTConfig::value<Hyprlang::INT>("drag_button");
+        const unsigned int select_button = HTConfig::value<Hyprlang::INT>("select_button");
+
+        if (pressed && e.button == drag_button) {
+            info.cancelled = ht_manager->start_window_drag();
+        } else if (!pressed && e.button == drag_button) {
+            info.cancelled = ht_manager->end_window_drag();
+        } else if (pressed && e.button == select_button) {
+            info.cancelled = ht_manager->exit_to_workspace();
+        }
+    });
+}
+
 static void on_mouse_move(Vector2D c, Event::SCallbackInfo& info) {
-    if (ht_manager == nullptr)
-        return;
-    info.cancelled = ht_manager->on_mouse_move();
+    guarded_callback("on_mouse_move", [&]() {
+        if (ht_manager == nullptr)
+            return;
+        info.cancelled = ht_manager->on_mouse_move();
+    });
 }
 
 static void on_mouse_axis(IPointer::SAxisEvent e, Event::SCallbackInfo& info) {
-    if (ht_manager == nullptr)
-        return;
-    info.cancelled = ht_manager->on_mouse_axis(e.delta);
+    guarded_callback("on_mouse_axis", [&]() {
+        if (ht_manager == nullptr)
+            return;
+        info.cancelled = ht_manager->on_mouse_axis(e.delta);
+    });
 }
 
 static void on_swipe_begin(IPointer::SSwipeBeginEvent e, Event::SCallbackInfo& info) {
-    if (ht_manager == nullptr)
-        return;
-    ht_manager->swipe_start();
+    guarded_callback("on_swipe_begin", [&]() {
+        if (ht_manager == nullptr)
+            return;
+        ht_manager->swipe_start();
+    });
 }
 
 static void on_swipe_update(IPointer::SSwipeUpdateEvent e, Event::SCallbackInfo& info) {
-    if (ht_manager == nullptr)
-        return;
-    info.cancelled = ht_manager->swipe_update(e);
+    guarded_callback("on_swipe_update", [&]() {
+        if (ht_manager == nullptr)
+            return;
+        info.cancelled = ht_manager->swipe_update(e);
+    });
 }
 
 static void on_swipe_end(IPointer::SSwipeEndEvent e, Event::SCallbackInfo& info) {
-    if (ht_manager == nullptr)
-        return;
-    info.cancelled = ht_manager->swipe_end();
+    guarded_callback("on_swipe_end", [&]() {
+        if (ht_manager == nullptr)
+            return;
+        info.cancelled = ht_manager->swipe_end();
+    });
 }
 
 static void on_render_stage(eRenderStage stage) {
-    if (stage != RENDER_POST_WINDOWS || ht_manager == nullptr || rendering_overview)
-        return;
+    guarded_callback("on_render_stage", [&]() {
+        if (stage != RENDER_POST_WINDOWS || ht_manager == nullptr || rendering_overview)
+            return;
 
-    const PHLMONITOR monitor = g_pHyprOpenGL->m_renderData.pMonitor.lock();
-    if (monitor == nullptr)
-        return;
+        const PHLMONITOR monitor = g_pHyprOpenGL->m_renderData.pMonitor.lock();
+        if (monitor == nullptr)
+            return;
 
-    const PHTVIEW view = ht_manager->get_view_from_monitor(monitor);
-    if (view == nullptr || (!view->navigating && !view->active))
-        return;
+        const PHTVIEW view = ht_manager->get_view_from_monitor(monitor);
+        if (view == nullptr || (!view->navigating && !view->active))
+            return;
 
-    rendering_overview = true;
-    CScopeGuard reset_rendering_state([] { rendering_overview = false; });
-    view->layout->render();
+        rendering_overview = true;
+        CScopeGuard reset_rendering_state([] { rendering_overview = false; });
+        view->layout->render();
+    });
 }
 
 static void cancel_event(Event::SCallbackInfo& info) {
@@ -483,26 +472,80 @@ static void notify_config_changes() {
     }
 }
 
-static void register_monitors() {
+static std::vector<MONITORID> current_monitor_ids() {
+    std::vector<MONITORID> monitor_ids;
+    monitor_ids.reserve(g_pCompositor->m_monitors.size());
+
+    for (const PHLMONITOR& monitor : g_pCompositor->m_monitors) {
+        if (monitor == nullptr)
+            continue;
+        monitor_ids.push_back(monitor->m_id);
+    }
+
+    return monitor_ids;
+}
+
+static std::vector<MONITORID> current_view_ids() {
+    std::vector<MONITORID> view_ids;
+    if (ht_manager == nullptr)
+        return view_ids;
+
+    view_ids.reserve(ht_manager->views.size());
+    for (const PHTVIEW& view : ht_manager->views) {
+        if (view == nullptr)
+            continue;
+        view_ids.push_back(view->monitor_id);
+    }
+
+    return view_ids;
+}
+
+static void sync_monitor_views(bool reinitialize_inactive_views) {
     if (ht_manager == nullptr)
         return;
+
+    const auto monitor_ids = current_monitor_ids();
+    const auto stale_view_ids = HTLogic::staleMonitorViewIDs(current_view_ids(), monitor_ids);
+    std::erase_if(ht_manager->views, [&](const PHTVIEW& view) {
+        if (view == nullptr)
+            return true;
+
+        const bool stale =
+            std::ranges::find(stale_view_ids, view->monitor_id) != stale_view_ids.end();
+        if (stale) {
+            Log::logger->log(LOG, "[Hyprtasking] Removing stale view for monitor id {}", view->monitor_id);
+        }
+        return stale;
+    });
+
+    const auto missing_view_ids = HTLogic::missingMonitorViewIDs(current_view_ids(), monitor_ids);
     for (const PHLMONITOR& monitor : g_pCompositor->m_monitors) {
-        const PHTVIEW view = ht_manager->get_view_from_monitor(monitor);
-        if (view != nullptr) {
-            if (!view->active)
-                view->layout->init_position();
+        if (monitor == nullptr)
+            continue;
+
+        const bool missing =
+            std::ranges::find(missing_view_ids, monitor->m_id) != missing_view_ids.end();
+        if (missing) {
+            ht_manager->views.push_back(makeShared<HTView>(monitor->m_id));
+
+            Log::logger->log(
+                LOG,
+                "[Hyprtasking] Registering view for monitor {} with resolution {}x{}",
+                monitor->m_description,
+                monitor->m_transformedSize.x,
+                monitor->m_transformedSize.y
+            );
             continue;
         }
-        ht_manager->views.push_back(makeShared<HTView>(monitor->m_id));
 
-        Log::logger->log(
-            LOG,
-            "[Hyprtasking] Registering view for monitor {} with resolution {}x{}",
-            monitor->m_description,
-            monitor->m_transformedSize.x,
-            monitor->m_transformedSize.y
-        );
+        const PHTVIEW view = ht_manager->get_view_from_monitor(monitor);
+        if (view != nullptr && reinitialize_inactive_views && !view->active && !view->closing)
+            view->layout->init_position();
     }
+}
+
+static void register_monitors() {
+    sync_monitor_views(true);
 }
 
 static void on_config_reloaded() {
@@ -511,17 +554,15 @@ static void on_config_reloaded() {
     if (ht_manager == nullptr)
         return;
 
-    // re-init scale and offset for inactive views, change layout if changed
+    sync_monitor_views(false);
+
+    const Hyprlang::STRING new_layout = HTConfig::value<Hyprlang::STRING>("layout");
+    const bool close_overview_on_reload = HTConfig::value<Hyprlang::INT>("close_overview_on_reload");
     for (PHTVIEW& view : ht_manager->views) {
-        if (view == nullptr)
+        if (view == nullptr || view->get_monitor() == nullptr)
             continue;
-        const Hyprlang::STRING new_layout = HTConfig::value<Hyprlang::STRING>("layout");
-        if (HTConfig::value<Hyprlang::INT>("close_overview_on_reload")
-            || view->layout->layout_name() != new_layout) {
-            Log::logger->log(LOG, "[Hyprtasking] Closing overview on config reload");
-            view->hide(false);
-            view->change_layout(new_layout);
-        }
+
+        view->reload_config(new_layout, close_overview_on_reload);
     }
 }
 

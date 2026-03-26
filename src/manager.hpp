@@ -37,9 +37,13 @@ class HTManager {
 
     swipe_state_t swipe_state;
     float swipe_amt;
+    VIEWID swipe_view_id;
     void swipe_start();
     bool swipe_update(IPointer::SSwipeUpdateEvent e);
     bool swipe_end();
+    PHTVIEW get_swipe_view();
+    void reset_swipe_state();
+    void clear_navigating_views();
 
     bool has_active_view();
     bool cursor_view_active();

@@ -13,6 +13,7 @@
 #include "../pass/pass_element.hpp"
 #include "../types.hpp"
 #include "layout_base.hpp"
+#include "../logic/layout_model.hpp"
 
 HTLayoutBase::HTLayoutBase(VIEWID new_view_id) : view_id(new_view_id) {
     ;
@@ -27,18 +28,11 @@ WORKSPACEID HTLayoutBase::on_move_swipe_end() {
 }
 
 WORKSPACEID HTLayoutBase::get_ws_id_in_direction(int x, int y, std::string& direction) {
-    if (direction == "up") {
-        y--;
-    } else if (direction == "down") {
-        y++;
-    } else if (direction == "right") {
-        x++;
-    } else if (direction == "left") {
-        x--;
-    } else {
+    const auto next_position = HTLogic::moveInDirection(x, y, direction);
+    if (!next_position.has_value())
         return WORKSPACE_INVALID;
-    }
-    return get_ws_id_from_xy(x, y);
+
+    return get_ws_id_from_xy(next_position->x, next_position->y);
 }
 
 bool HTLayoutBase::on_mouse_axis(double delta) {
@@ -126,6 +120,14 @@ WORKSPACEID HTLayoutBase::get_ws_id_from_xy(int x, int y) {
     return WORKSPACE_INVALID;
 }
 
+const HTLayoutBase::HTWorkspace* HTLayoutBase::find_layout_workspace(WORKSPACEID workspace_id) const {
+    const auto workspace = overview_layout.find(workspace_id);
+    if (workspace == overview_layout.end())
+        return nullptr;
+
+    return &workspace->second;
+}
+
 CBox HTLayoutBase::get_global_window_box(PHLWINDOW window, WORKSPACEID workspace_id) {
     if (window == nullptr)
         return {};
@@ -151,7 +153,11 @@ CBox HTLayoutBase::get_global_window_box(PHLWINDOW window, WORKSPACEID workspace
 }
 
 CBox HTLayoutBase::get_global_ws_box(WORKSPACEID workspace_id) {
-    const CBox scaled_ws_box = overview_layout[workspace_id].box;
+    const auto* workspace_layout = find_layout_workspace(workspace_id);
+    if (workspace_layout == nullptr)
+        return {};
+
+    const CBox scaled_ws_box = workspace_layout->box;
     const Vector2D top_left = local_ws_scaled_to_global(scaled_ws_box.pos(), workspace_id);
     const Vector2D bottom_right =
         local_ws_scaled_to_global(scaled_ws_box.pos() + scaled_ws_box.size(), workspace_id);
@@ -163,14 +169,26 @@ Vector2D HTLayoutBase::global_to_local_ws_unscaled(Vector2D pos, WORKSPACEID wor
     if (monitor == nullptr)
         return {};
 
-    CBox workspace_box = overview_layout[workspace_id].box;
+    if (monitor->m_scale <= 0 || monitor->m_transformedSize.x <= 0)
+        return {};
+
+    const auto* workspace_layout = find_layout_workspace(workspace_id);
+    if (workspace_layout == nullptr)
+        return {};
+
+    CBox workspace_box = workspace_layout->box;
     if (workspace_box.empty())
         return {};
+
+    const float workspace_scale = workspace_box.w / monitor->m_transformedSize.x;
+    if (workspace_scale <= 0)
+        return {};
+
     pos -= monitor->m_position;
     pos *= monitor->m_scale;
     pos -= workspace_box.pos();
     pos /= monitor->m_scale;
-    pos /= workspace_box.w / monitor->m_transformedSize.x;
+    pos /= workspace_scale;
     return pos;
 }
 
@@ -189,10 +207,22 @@ Vector2D HTLayoutBase::local_ws_unscaled_to_global(Vector2D pos, WORKSPACEID wor
     if (monitor == nullptr)
         return {};
 
-    CBox workspace_box = overview_layout[workspace_id].box;
+    if (monitor->m_scale <= 0 || monitor->m_transformedSize.x <= 0)
+        return {};
+
+    const auto* workspace_layout = find_layout_workspace(workspace_id);
+    if (workspace_layout == nullptr)
+        return {};
+
+    CBox workspace_box = workspace_layout->box;
     if (workspace_box.empty())
         return {};
-    pos *= workspace_box.w / monitor->m_transformedSize.x;
+
+    const float workspace_scale = workspace_box.w / monitor->m_transformedSize.x;
+    if (workspace_scale <= 0)
+        return {};
+
+    pos *= workspace_scale;
     pos *= monitor->m_scale;
     pos += workspace_box.pos();
     pos /= monitor->m_scale;
@@ -202,7 +232,7 @@ Vector2D HTLayoutBase::local_ws_unscaled_to_global(Vector2D pos, WORKSPACEID wor
 
 Vector2D HTLayoutBase::local_ws_scaled_to_global(Vector2D pos, WORKSPACEID workspace_id) {
     const PHLMONITOR monitor = get_monitor();
-    if (monitor == nullptr)
+    if (monitor == nullptr || monitor->m_scale <= 0)
         return {};
 
     pos /= monitor->m_scale;

@@ -74,6 +74,7 @@ class HTLayoutBase {
     WORKSPACEID get_ws_id_from_global(Vector2D pos);
     WORKSPACEID get_ws_id_from_xy(int x, int y);
     std::pair<int, int> get_current_ws_xy();
+    const HTWorkspace* find_layout_workspace(WORKSPACEID workspace_id) const;
     CBox get_global_window_box(PHLWINDOW window, WORKSPACEID workspace_id);
     CBox get_global_ws_box(WORKSPACEID workspace_id);
 
