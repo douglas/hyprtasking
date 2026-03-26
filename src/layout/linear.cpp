@@ -318,8 +318,6 @@ void HTLayoutLinear::render() {
     const float HEIGHT = HTConfig::value<Hyprlang::FLOAT>("linear:height") * monitor->m_scale;
 
     const auto time = Time::steadyNow();
-
-
     g_pHyprRenderer->damageMonitor(monitor);
     g_pHyprOpenGL->m_renderData.pCurrentMonData->blurFBShouldRender = true;
 
@@ -349,7 +347,7 @@ void HTLayoutLinear::render() {
     // use pixel size for geometry
     CBox mon_box = {{0, 0}, monitor->m_pixelSize};
     // Render the current workspace on the screen
-    ((render_workspace_t)(render_workspace_hook->m_original))(
+    ((render_workspace_t)render_workspace)(
         g_pHyprRenderer.get(),
         monitor,
         big_ws,
@@ -423,7 +421,7 @@ void HTLayoutLinear::render() {
             );
             workspace->m_visible = true;
 
-            ((render_workspace_t)(render_workspace_hook->m_original))(
+            ((render_workspace_t)render_workspace)(
                 g_pHyprRenderer.get(),
                 monitor,
                 workspace,
@@ -440,7 +438,7 @@ void HTLayoutLinear::render() {
             workspace->m_visible = false;
         } else {
             // If pWorkspace is null, then just render the layers
-            ((render_workspace_t)(render_workspace_hook->m_original))(
+            ((render_workspace_t)render_workspace)(
                 g_pHyprRenderer.get(),
                 monitor,
                 workspace,
@@ -463,14 +461,13 @@ void HTLayoutLinear::render() {
     const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
     if (cursor_view == nullptr)
         return;
-
     const SP<Layout::ITarget> target = g_layoutManager->dragController()->target();
     if (target == nullptr)
         return;
-
     const PHLWINDOW dragged_window = target->window();
     if (dragged_window == nullptr)
         return;
+
     const Vector2D mouse_coords = g_pInputManager->getMouseCoordsInternal();
     const CBox window_box = dragged_window->getWindowMainSurfaceBox()
                                 .translate(-mouse_coords)

@@ -54,6 +54,9 @@ bool HTLayoutBase::should_render_window(PHLWINDOW window) {
     if (monitor == nullptr || window == nullptr)
         return false;
 
+    if (should_render_window_hook == nullptr)
+        return g_pHyprRenderer->shouldRenderWindow(window, monitor);
+
     return ((should_render_window_t)(should_render_window_hook->m_original))(
         g_pHyprRenderer.get(),
         window,

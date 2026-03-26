@@ -12,11 +12,10 @@ inline constexpr auto LOG = Hyprutils::CLI::LOG_DEBUG;
 
 inline HANDLE PHANDLE = nullptr;
 
-inline CFunctionHook* render_workspace_hook = nullptr;
 inline CFunctionHook* should_render_window_hook = nullptr;
-inline CFunctionHook* is_solitary_blocked_hook = nullptr;
-typedef uint32_t (*origIsSolitaryBlocked)(void*, bool);
+inline void* render_workspace = nullptr;
 inline void* render_window = nullptr;
+inline bool rendering_overview = false;
 
 inline std::unique_ptr<HTManager> ht_manager;
 

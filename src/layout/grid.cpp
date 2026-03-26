@@ -329,8 +329,6 @@ void HTLayoutGrid::render() {
     const float BORDERSIZE = HTConfig::value<Hyprlang::FLOAT>("border_size");
 
     const auto time = Time::steadyNow();
-
-
     g_pHyprRenderer->damageMonitor(monitor);
     g_pHyprOpenGL->m_renderData.pCurrentMonData->blurFBShouldRender = true;
     CBox monitor_box = {{0, 0}, monitor->m_transformedSize};
@@ -397,7 +395,7 @@ void HTLayoutGrid::render() {
             );
             workspace->m_visible = true;
 
-            ((render_workspace_t)(render_workspace_hook->m_original))(
+            ((render_workspace_t)render_workspace)(
                 g_pHyprRenderer.get(),
                 monitor,
                 workspace,
@@ -414,7 +412,7 @@ void HTLayoutGrid::render() {
             workspace->m_visible = false;
         } else {
             // If pWorkspace is null, then just render the layers
-            ((render_workspace_t)(render_workspace_hook->m_original))(
+            ((render_workspace_t)render_workspace)(
                 g_pHyprRenderer.get(),
                 monitor,
                 workspace,
@@ -455,7 +453,7 @@ void HTLayoutGrid::render() {
             data.borderSize = BORDERSIZE;
             g_pHyprRenderer->m_renderPass.add(makeUnique<CBorderPassElement>(data));
 
-            ((render_workspace_t)(render_workspace_hook->m_original))(
+            ((render_workspace_t)render_workspace)(
                 g_pHyprRenderer.get(),
                 monitor,
                 start_workspace,
@@ -474,6 +472,7 @@ void HTLayoutGrid::render() {
     const PHLWINDOW dragged_window = target->window();
     if (dragged_window == nullptr)
         return;
+
     const Vector2D mouse_coords = g_pInputManager->getMouseCoordsInternal();
     const CBox window_box = dragged_window->getWindowMainSurfaceBox()
                                 .translate(-mouse_coords)

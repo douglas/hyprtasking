@@ -13,16 +13,20 @@
 #include <hyprland/src/plugins/HookSystem.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprland/src/plugins/PluginSystem.hpp>
+#include <hyprland/src/render/OpenGL.hpp>
 #include <hyprland/src/render/Renderer.hpp>
 #include <hyprland/src/event/EventBus.hpp>
 #include <hyprlang.hpp>
 #include <hyprutils/math/Box.hpp>
 #include <hyprutils/math/Vector2D.hpp>
+#include <hyprutils/utils/ScopeGuard.hpp>
 
 #include "config.hpp"
 #include "globals.hpp"
 #include "overview.hpp"
 #include "types.hpp"
+
+using Hyprutils::Utils::CScopeGuard;
 
 APICALL EXPORT std::string PLUGIN_API_VERSION() {
     return HYPRLAND_API_VERSION;
@@ -262,49 +266,58 @@ static SDispatchResult dispatch_kill_hover(std::string arg) {
     return {};
 }
 
-static void hook_render_workspace(
-    void* thisptr,
-    PHLMONITOR monitor,
-    PHLWORKSPACE workspace,
-   const Time::steady_tp& now,
-    const CBox& geometry
+static SFunctionMatch find_function_match(
+    const std::string& label,
+    const std::string& query,
+    const std::string& signature = ""
 ) {
-    if (ht_manager == nullptr) {
-        ((render_workspace_t)(render_workspace_hook
-                                  ->m_original))(thisptr, monitor, workspace, now, geometry);
-        return;
+    const auto matches = HyprlandAPI::findFunctionsByName(PHANDLE, query);
+    if (matches.empty())
+        fail_exit("No {} for query {}", label, query);
+
+    if (signature.empty())
+        return matches[0];
+
+    for (const auto& match : matches) {
+        if (match.signature == signature)
+            return match;
     }
-    const PHTVIEW view = ht_manager->get_view_from_monitor(monitor);
-    if ((view != nullptr && view->navigating) || ht_manager->has_active_view()) {
-        view->layout->render();
-    } else {
-        ((render_workspace_t)(render_workspace_hook
-                                  ->m_original))(thisptr, monitor, workspace, now, geometry);
+
+    Log::logger->log(
+        LOG,
+        "[Hyprtasking] No exact {} match for {}. {} candidate(s) returned for query {}",
+        label,
+        signature,
+        matches.size(),
+        query
+    );
+    for (const auto& match : matches) {
+        Log::logger->log(
+            LOG,
+            "[Hyprtasking] Candidate {} hook signature: {}",
+            label,
+            match.signature
+        );
     }
+
+    fail_exit("No exact {} match for {}", label, signature);
+    __builtin_unreachable();
 }
 
 static bool hook_should_render_window(void* thisptr, PHLWINDOW window, PHLMONITOR monitor) {
-    bool ori_result =
-        ((should_render_window_t)(should_render_window_hook->m_original))(thisptr, window, monitor);
+    const bool ori_result = ((should_render_window_t)(should_render_window_hook->m_original))(
+        thisptr,
+        window,
+        monitor
+    );
     if (ht_manager == nullptr || !ht_manager->has_active_view())
         return ori_result;
+
     const PHTVIEW view = ht_manager->get_view_from_monitor(monitor);
     if (view == nullptr)
         return ori_result;
+
     return view->layout->should_render_window(window);
-}
-
-static uint32_t hook_is_solitary_blocked(void* thisptr, bool full) {
-    PHTVIEW view = ht_manager->get_view_from_cursor();
-    if (view == nullptr) {
-        Log::logger->log(Log::ERR, "[Hyprtasking] View is nullptr in hook_is_solitary_blocked");
-        (*(origIsSolitaryBlocked)is_solitary_blocked_hook->m_original)(thisptr, full);
-    }
-
-    if (view->active || view->navigating) {
-        return CMonitor::SC_UNKNOWN;
-    }
-    return (*(origIsSolitaryBlocked)is_solitary_blocked_hook->m_original)(thisptr, full);
 }
 
 static void on_mouse_button(IPointer::SButtonEvent e, Event::SCallbackInfo& info) {
@@ -357,6 +370,23 @@ static void on_swipe_end(IPointer::SSwipeEndEvent e, Event::SCallbackInfo& info)
     if (ht_manager == nullptr)
         return;
     info.cancelled = ht_manager->swipe_end();
+}
+
+static void on_render_stage(eRenderStage stage) {
+    if (stage != RENDER_POST_WINDOWS || ht_manager == nullptr || rendering_overview)
+        return;
+
+    const PHLMONITOR monitor = g_pHyprOpenGL->m_renderData.pMonitor.lock();
+    if (monitor == nullptr)
+        return;
+
+    const PHTVIEW view = ht_manager->get_view_from_monitor(monitor);
+    if (view == nullptr || (!view->navigating && !view->active))
+        return;
+
+    rendering_overview = true;
+    CScopeGuard reset_rendering_state([] { rendering_overview = false; });
+    view->layout->render();
 }
 
 static void cancel_event(Event::SCallbackInfo& info) {
@@ -430,54 +460,42 @@ static void on_config_reloaded() {
 }
 
 static void init_functions() {
-    bool success = true;
-
-    static auto FNS1 = HyprlandAPI::findFunctionsByName(PHANDLE, "renderWorkspace");
-    if (FNS1.empty())
-        fail_exit("No renderWorkspace!");
-    render_workspace_hook =
-        HyprlandAPI::createFunctionHook(PHANDLE, FNS1[0].address, (void*)hook_render_workspace);
-    Log::logger->log(LOG, "[Hyprtasking] Attempting hook {}", FNS1[0].signature);
-    success = render_workspace_hook->hook();
-
-    static auto FNS2 = HyprlandAPI::findFunctionsByName(
-        PHANDLE,
-        "_ZN13CHyprRenderer18shouldRenderWindowEN9Hyprutils6Memory14CS"
-        "haredPointerIN7Desktop4View7CWindowEEENS2_I8CMonitorEE"
+    static const auto RENDER_WORKSPACE_MATCH = find_function_match(
+        "renderWorkspace",
+        "renderWorkspace",
+        "_ZN13CHyprRenderer15renderWorkspaceEN9Hyprutils6Memory14CSharedPointerI8CMon"
+        "itorEENS2_I10CWorkspaceEERKNSt6chrono10time_pointINS7_3_V212steady_clockENS7"
+        "_8durationIlSt5ratioILl1ELl1000000000EEEEEERKNS0_4Math4CBoxE"
     );
-    if (FNS2.empty())
-        fail_exit("No shouldRenderWindow");
-    should_render_window_hook =
-        HyprlandAPI::createFunctionHook(PHANDLE, FNS2[0].address, (void*)hook_should_render_window);
-    Log::logger->log(LOG, "[Hyprtasking] Attempting hook {}", FNS2[0].signature);
-    success = should_render_window_hook->hook() && success;
+    render_workspace = RENDER_WORKSPACE_MATCH.address;
 
-    // Right now (in v0.54.0) there are several "renderWindow" functions
-    // This is needed so it won't break on update that adds/removes a
-    // function with this name
-    // This, however, requires checking for signautre changes
-    static auto FNS3 = HyprlandAPI::findFunctionsByName(
+    static const auto SHOULD_RENDER_WINDOW_MATCH = find_function_match(
+        "shouldRenderWindow",
+        "shouldRenderWindow",
+        "_ZN13CHyprRenderer18shouldRenderWindowEN9Hyprutils6Memory14CSharedPointerIN7"
+        "Desktop4View7CWindowEEENS2_I8CMonitorEE"
+    );
+    should_render_window_hook = HyprlandAPI::createFunctionHook(
         PHANDLE,
+        SHOULD_RENDER_WINDOW_MATCH.address,
+        (void*)hook_should_render_window
+    );
+    Log::logger->log(LOG, "[Hyprtasking] Attempting hook {}", SHOULD_RENDER_WINDOW_MATCH.signature);
+    if (!should_render_window_hook->hook())
+        fail_exit("Failed initializing shouldRenderWindow hook");
+
+    static const auto RENDER_WINDOW_MATCH = find_function_match(
+        "renderWindow",
+        "_ZN13CHyprRenderer12renderWindowEN9Hyprutils6Memory14CSha"
+        "redPointerIN7Desktop4View7CWindowEEENS2_I8CMonitorEERKNSt"
+        "6chrono10time_pointINS9_3_V212steady_clockENS9_8durationI"
+        "lSt5ratioILl1ELl1000000000EEEEEEb15eRenderPassModebb",
         "_ZN13CHyprRenderer12renderWindowEN9Hyprutils6Memory14CSha"
         "redPointerIN7Desktop4View7CWindowEEENS2_I8CMonitorEERKNSt"
         "6chrono10time_pointINS9_3_V212steady_clockENS9_8durationI"
         "lSt5ratioILl1ELl1000000000EEEEEEb15eRenderPassModebb"
     );
-    if (FNS3.empty())
-        fail_exit("No renderWindow");
-    render_window = FNS3[0].address;
-
-    static auto FNS4 = HyprlandAPI::findFunctionsByName(PHANDLE, "isSolitaryBlocked");
-    if (FNS4.empty())
-        fail_exit("No isSolitaryBlocked");
-
-    is_solitary_blocked_hook =
-        HyprlandAPI::createFunctionHook(PHANDLE, FNS4[0].address, (void*)hook_is_solitary_blocked);
-    Log::logger->log(LOG, "[Hyprtasking] Attempting hook {}", FNS4[0].signature);
-    success = is_solitary_blocked_hook->hook() && success;
-
-    if (!success)
-        fail_exit("Failed initializing hooks");
+    render_window = RENDER_WINDOW_MATCH.address;
 }
 
 static void register_callbacks() {
@@ -498,6 +516,7 @@ static void register_callbacks() {
 
     static auto P10 = Event::bus()->m_events.config.reloaded.listen(on_config_reloaded);
     static auto P11 = Event::bus()->m_events.monitor.added.listen(register_monitors);
+    static auto P12 = Event::bus()->m_events.render.stage.listen(on_render_stage);
 }
 
 static void add_dispatchers() {
