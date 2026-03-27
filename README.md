@@ -184,6 +184,12 @@ to diagnose during updates. On failure, it also prints the missing contract list
 and the first place to patch. The full ownership map lives in
 `docs/compat-contract.md`.
 
+Audit exit codes:
+
+- `2`: required Hyprland source file missing
+- `3`: unsupported Hyprland minor line for this plugin branch
+- `4`: supported line, but one or more audited contracts drifted
+
 The manual compositor checklist is also available directly:
 
 ```

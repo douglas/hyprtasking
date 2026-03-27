@@ -4,12 +4,15 @@ set -euo pipefail
 HYPRLAND_SOURCE=${1:-${HYPRLAND_SOURCE:-/home/douglas/src/Hyprland}}
 SUPPORTED_MINOR="0.54.x"
 SUPPORTED_PREFIX="0.54."
+EXIT_MISSING_FILE=2
+EXIT_UNSUPPORTED_VERSION=3
+EXIT_CONTRACT_DRIFT=4
 
 require_file() {
   local path=$1
   if [[ ! -f "$path" ]]; then
     printf 'Missing required file: %s\n' "$path" >&2
-    exit 1
+    exit "$EXIT_MISSING_FILE"
   fi
 }
 
@@ -75,7 +78,7 @@ if [[ "$TARGET_VERSION" != ${SUPPORTED_PREFIX}* ]]; then
   printf 'Unsupported Hyprland version for this plugin line: %s\n' "$TARGET_VERSION" >&2
   printf 'Expected supported line: %s\n' "$SUPPORTED_MINOR" >&2
   printf 'Update the plugin compat layer before attempting to load against this tree.\n' >&2
-  exit 1
+  exit "$EXIT_UNSUPPORTED_VERSION"
 fi
 
 if [[ -f "$HYPRLAND_PC" ]]; then
@@ -116,7 +119,7 @@ if ((failures > 0)); then
   done
   printf 'Compat contract reference: docs/compat-contract.md\n' >&2
   printf 'Rerun with HYPRLAND_SOURCE set to the target Hyprland checkout after patching.\n' >&2
-  exit 1
+  exit "$EXIT_CONTRACT_DRIFT"
 fi
 
 printf '\nCompat audit passed for Hyprland %s on supported line %s.\n' "$TARGET_VERSION" "$SUPPORTED_MINOR"
