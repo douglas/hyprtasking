@@ -190,6 +190,12 @@ Audit exit codes:
 - `3`: unsupported Hyprland minor line for this plugin branch
 - `4`: supported line, but one or more audited contracts drifted
 
+For tooling or CI wrappers, request machine-readable output:
+
+```
+AUDIT_FORMAT=json bash scripts/audit-compat.sh /path/to/Hyprland
+```
+
 The manual compositor checklist is also available directly:
 
 ```

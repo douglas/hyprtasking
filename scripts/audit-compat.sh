@@ -4,14 +4,84 @@ set -euo pipefail
 HYPRLAND_SOURCE=${1:-${HYPRLAND_SOURCE:-/home/douglas/src/Hyprland}}
 SUPPORTED_MINOR="0.54.x"
 SUPPORTED_PREFIX="0.54."
+AUDIT_FORMAT=${AUDIT_FORMAT:-text}
 EXIT_MISSING_FILE=2
 EXIT_UNSUPPORTED_VERSION=3
 EXIT_CONTRACT_DRIFT=4
 
+print_out() {
+  if [[ "$AUDIT_FORMAT" != "json" ]]; then
+    printf '%b' "$1"
+  fi
+}
+
+print_err() {
+  if [[ "$AUDIT_FORMAT" != "json" ]]; then
+    printf '%b' "$1" >&2
+  fi
+}
+
+json_escape() {
+  local value=$1
+  value=${value//\\/\\\\}
+  value=${value//\"/\\\"}
+  value=${value//$'\n'/\\n}
+  value=${value//$'\r'/\\r}
+  value=${value//$'\t'/\\t}
+  printf '%s' "$value"
+}
+
+json_string() {
+  printf '"%s"' "$(json_escape "$1")"
+}
+
+emit_json_result() {
+  local status=$1
+  local exit_code=$2
+  local message=$3
+  local i
+
+  if [[ "$AUDIT_FORMAT" != "json" ]]; then
+    return
+  fi
+
+  printf '{'
+  printf '"status":%s,' "$(json_string "$status")"
+  printf '"exit_code":%s,' "$exit_code"
+  printf '"source":%s,' "$(json_string "$HYPRLAND_SOURCE")"
+  printf '"supported_line":%s,' "$(json_string "$SUPPORTED_MINOR")"
+  printf '"target_version":%s,' "$(json_string "${TARGET_VERSION:-}")"
+  printf '"message":%s,' "$(json_string "$message")"
+
+  printf '"checked_contracts":['
+  for ((i = 0; i < ${#CHECK_LABELS[@]}; i++)); do
+    if ((i > 0)); then
+      printf ','
+    fi
+    printf '%s' "$(json_string "${CHECK_LABELS[i]}")"
+  done
+  printf '],'
+
+  printf '"failed_contracts":['
+  for ((i = 0; i < ${#FAILED_LABELS[@]}; i++)); do
+    if ((i > 0)); then
+      printf ','
+    fi
+    printf '{'
+    printf '"label":%s,' "$(json_string "${FAILED_LABELS[i]}")"
+    printf '"source_path":%s,' "$(json_string "${FAILED_PATHS[i]}")"
+    printf '"suggested_touchpoint":%s' "$(json_string "${FAILED_OWNERS[i]}")"
+    printf '}'
+  done
+  printf ']'
+  printf '}\n'
+}
+
 require_file() {
   local path=$1
   if [[ ! -f "$path" ]]; then
-    printf 'Missing required file: %s\n' "$path" >&2
+    print_err "Missing required file: $path\n"
+    emit_json_result "missing_file" "$EXIT_MISSING_FILE" "Missing required file: $path"
     exit "$EXIT_MISSING_FILE"
   fi
 }
@@ -22,11 +92,11 @@ require_match() {
   local label=$3
 
   if ! rg -q --fixed-strings "$pattern" "$path"; then
-    printf 'Missing %s in %s\n' "$label" "$path" >&2
+    print_err "Missing $label in $path\n"
     return 1
   fi
 
-  printf 'ok: %s\n' "$label"
+  print_out "ok: $label\n"
 }
 
 check_contract() {
@@ -69,21 +139,24 @@ require_file "$VERSION_FILE"
 
 TARGET_VERSION="$(tr -d '[:space:]' < "$VERSION_FILE")"
 
-printf 'Hyprtasking compat audit\n'
-printf 'Source: %s\n' "$HYPRLAND_SOURCE"
-printf 'Supported Hyprland line: %s\n' "$SUPPORTED_MINOR"
-printf 'Detected target version: %s\n' "$TARGET_VERSION"
+print_out "Hyprtasking compat audit\n"
+print_out "Source: $HYPRLAND_SOURCE\n"
+print_out "Supported Hyprland line: $SUPPORTED_MINOR\n"
+print_out "Detected target version: $TARGET_VERSION\n"
 
 if [[ "$TARGET_VERSION" != ${SUPPORTED_PREFIX}* ]]; then
-  printf 'Unsupported Hyprland version for this plugin line: %s\n' "$TARGET_VERSION" >&2
-  printf 'Expected supported line: %s\n' "$SUPPORTED_MINOR" >&2
-  printf 'Update the plugin compat layer before attempting to load against this tree.\n' >&2
+  print_err "Unsupported Hyprland version for this plugin line: $TARGET_VERSION\n"
+  print_err "Expected supported line: $SUPPORTED_MINOR\n"
+  print_err "Update the plugin compat layer before attempting to load against this tree.\n"
+  emit_json_result "unsupported_version" "$EXIT_UNSUPPORTED_VERSION" "Unsupported Hyprland version for this plugin line: $TARGET_VERSION"
   exit "$EXIT_UNSUPPORTED_VERSION"
 fi
 
 if [[ -f "$HYPRLAND_PC" ]]; then
-  printf 'pkg-config version line:\n'
-  rg -n '^Version:' "$HYPRLAND_PC" || true
+  print_out "pkg-config version line:\n"
+  if [[ "$AUDIT_FORMAT" != "json" ]]; then
+    rg -n '^Version:' "$HYPRLAND_PC" || true
+  fi
 fi
 
 failures=0
@@ -106,20 +179,24 @@ check_contract 'renderWindow' "$RENDERER_CPP" 'renderWindow symbol' 'src/compat/
 check_contract 'isSolitaryBlocked' "$MONITOR_HPP" 'isSolitaryBlocked symbol' 'src/compat/profile.cpp'
 check_contract 'HYPRLAND_API_VERSION' "$PLUGIN_SYSTEM_CPP" 'plugin API version check' 'src/compat/profile.cpp'
 
-printf '\nChecked contracts (%d):\n' "${#CHECK_LABELS[@]}"
-printf ' - %s\n' "${CHECK_LABELS[@]}"
+print_out "\nChecked contracts (${#CHECK_LABELS[@]}):\n"
+for label in "${CHECK_LABELS[@]}"; do
+  print_out " - $label\n"
+done
 
 if ((failures > 0)); then
-  printf '\nCompat audit failed with %d issue(s).\n' "$failures" >&2
-  printf 'Missing or changed contracts:\n' >&2
+  print_err "\nCompat audit failed with $failures issue(s).\n"
+  print_err "Missing or changed contracts:\n"
   i=0
   for ((i = 0; i < ${#FAILED_LABELS[@]}; i++)); do
-    printf ' - %s (%s)\n' "${FAILED_LABELS[i]}" "${FAILED_PATHS[i]}" >&2
-    printf '   Suggested plugin touchpoint: %s\n' "${FAILED_OWNERS[i]}" >&2
+    print_err " - ${FAILED_LABELS[i]} (${FAILED_PATHS[i]})\n"
+    print_err "   Suggested plugin touchpoint: ${FAILED_OWNERS[i]}\n"
   done
-  printf 'Compat contract reference: docs/compat-contract.md\n' >&2
-  printf 'Rerun with HYPRLAND_SOURCE set to the target Hyprland checkout after patching.\n' >&2
+  print_err "Compat contract reference: docs/compat-contract.md\n"
+  print_err "Rerun with HYPRLAND_SOURCE set to the target Hyprland checkout after patching.\n"
+  emit_json_result "contract_drift" "$EXIT_CONTRACT_DRIFT" "One or more audited Hyprland contracts drifted on a supported line."
   exit "$EXIT_CONTRACT_DRIFT"
 fi
 
-printf '\nCompat audit passed for Hyprland %s on supported line %s.\n' "$TARGET_VERSION" "$SUPPORTED_MINOR"
+print_out "\nCompat audit passed for Hyprland $TARGET_VERSION on supported line $SUPPORTED_MINOR.\n"
+emit_json_result "ok" 0 "Compat audit passed."
