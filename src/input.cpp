@@ -97,11 +97,11 @@ bool HTManager::start_window_drag() {
             const Vector2D dragged_monitor_pos = HTCompat::monitor_position(dragged_monitor);
 
             const Vector2D pre_pos = cursor_view->layout->local_ws_unscaled_to_global(
-                dragged_window->m_realPosition->value() - dragged_monitor_pos,
+                HTCompat::window_real_position(dragged_window) - dragged_monitor_pos,
                 workspace_id
             );
             const Vector2D post_pos = cursor_view->layout->local_ws_unscaled_to_global(
-                dragged_window->m_realPosition->goal() - dragged_monitor_pos,
+                HTCompat::window_real_position_goal(dragged_window) - dragged_monitor_pos,
                 workspace_id
             );
             const Vector2D mapped_pre_pos =
@@ -109,8 +109,8 @@ bool HTManager::start_window_drag() {
             const Vector2D mapped_post_pos =
                 (post_pos - mouse_coords) * *inverse_drag_scale + mouse_coords;
 
-            dragged_window->m_realPosition->setValueAndWarp(mapped_pre_pos);
-            *dragged_window->m_realPosition = mapped_post_pos;
+            HTCompat::set_window_real_position(dragged_window, mapped_pre_pos);
+            HTCompat::set_window_real_position_goal(dragged_window, mapped_post_pos);
         } else {
             g_pInputManager->simulateMouseMovement();
         }
@@ -215,7 +215,7 @@ bool HTManager::end_window_drag() {
     const Vector2D cursor_monitor_pos = HTCompat::monitor_position(cursor_monitor);
 
     const Vector2D warped_global_pos = cursor_view->layout->global_to_local_ws_unscaled(
-                                (dragged_window->m_realPosition->value() - use_mouse_coords)
+                                (HTCompat::window_real_position(dragged_window) - use_mouse_coords)
                                         * *drag_scale
                                     + use_mouse_coords,
                                 HTCompat::workspace_id(cursor_workspace)
@@ -229,7 +229,7 @@ bool HTManager::end_window_drag() {
         return false;
 
     g_pCompositor->moveWindowToWorkspaceSafe(dragged_window, cursor_workspace);
-    dragged_window->m_realPosition->setValueAndWarp(tp_pos);
+    HTCompat::set_window_real_position(dragged_window, tp_pos);
 
     if (!HTCompat::warp_pointer(*workspace_coords))
         return false;
@@ -239,8 +239,7 @@ bool HTManager::end_window_drag() {
 
     // otherwise the window leaves blur (?) artifacts on all
     // workspaces
-    dragged_window->m_movingToWorkspaceAlpha->setValueAndWarp(1.0);
-    dragged_window->m_movingFromWorkspaceAlpha->setValueAndWarp(1.0);
+    HTCompat::reset_window_workspace_move_alpha(dragged_window);
     restore_workspace.dismiss();
 
     // Do not return true and cancel the event! Mouse release requires some stuff to be done for

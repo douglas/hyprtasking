@@ -248,8 +248,7 @@ void HTManager::reset_drag_state() {
     const auto target = drag_controller->target();
     if (const PHLWINDOW dragged_window = target == nullptr ? nullptr : target->window();
         dragged_window != nullptr) {
-        dragged_window->m_movingToWorkspaceAlpha->setValueAndWarp(1.0);
-        dragged_window->m_movingFromWorkspaceAlpha->setValueAndWarp(1.0);
+        HTCompat::reset_window_workspace_move_alpha(dragged_window);
     }
 
     if (drag_controller->mode() != MBIND_INVALID)

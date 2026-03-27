@@ -26,7 +26,7 @@ void render_window_at_box(PHLWINDOW window, PHLMONITOR monitor, const Time::stea
     box.x -= monitor_pos.x;
     box.y -= monitor_pos.y;
 
-    const Vector2D window_size = window->m_realSize->value();
+    const Vector2D window_size = HTCompat::window_real_size(window);
     if (!HTLogic::isPositiveFinite(monitor->m_scale))
         return;
 
@@ -36,7 +36,8 @@ void render_window_at_box(PHLWINDOW window, PHLMONITOR monitor, const Time::stea
         return;
 
     const Vector2D transform =
-        (monitor_pos - window->m_realPosition->value() + box.pos() / *scale) * monitor->m_scale;
+        (monitor_pos - HTCompat::window_real_position(window) + box.pos() / *scale)
+        * monitor->m_scale;
     if (!std::isfinite(transform.x) || !std::isfinite(transform.y))
         return;
 

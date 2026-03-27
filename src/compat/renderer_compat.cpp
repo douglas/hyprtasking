@@ -304,6 +304,49 @@ PHLMONITOR window_monitor(PHLWINDOW window) {
     return window->m_monitor.lock();
 }
 
+Vector2D window_real_position(PHLWINDOW window) {
+    if (window == nullptr)
+        return {};
+
+    return window->m_realPosition->value();
+}
+
+Vector2D window_real_position_goal(PHLWINDOW window) {
+    if (window == nullptr)
+        return {};
+
+    return window->m_realPosition->goal();
+}
+
+Vector2D window_real_size(PHLWINDOW window) {
+    if (window == nullptr)
+        return {};
+
+    return window->m_realSize->value();
+}
+
+void set_window_real_position(PHLWINDOW window, const Vector2D& position) {
+    if (window == nullptr)
+        return;
+
+    window->m_realPosition->setValueAndWarp(position);
+}
+
+void set_window_real_position_goal(PHLWINDOW window, const Vector2D& position) {
+    if (window == nullptr)
+        return;
+
+    *window->m_realPosition = position;
+}
+
+void reset_window_workspace_move_alpha(PHLWINDOW window) {
+    if (window == nullptr)
+        return;
+
+    window->m_movingToWorkspaceAlpha->setValueAndWarp(1.0);
+    window->m_movingFromWorkspaceAlpha->setValueAndWarp(1.0);
+}
+
 void warp_workspace_render_offset(PHLWORKSPACE workspace) {
     if (workspace == nullptr)
         return;
