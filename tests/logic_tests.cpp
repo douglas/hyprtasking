@@ -6,6 +6,7 @@
 #include "../src/logic/controller_state.hpp"
 #include "../src/logic/dispatch_args.hpp"
 #include "../src/logic/gesture_model.hpp"
+#include "../src/logic/interaction_model.hpp"
 #include "../src/logic/layout_model.hpp"
 #include "../src/logic/reload_model.hpp"
 
@@ -137,6 +138,27 @@ int main() {
     expect(!shouldMoveHoveredWindow(false, true), "workspace moves should not move hovered windows");
     expect(shouldFocusMovedWindow(true, true), "move_window should focus moved windows when present");
     expect(!shouldFocusMovedWindow(true, false), "move_window should not focus null hovered windows");
+    {
+        const auto result = resolveMoveExecution(false, false);
+        expect(result.valid, "workspace moves should stay valid without a hovered window");
+        expect(!result.move_hovered_window, "workspace moves should not move hovered windows");
+        expect(!result.focus_moved_window, "workspace moves should not focus moved windows");
+        expect(!result.use_move_window_warp, "workspace moves should use workspace warp config");
+    }
+    {
+        const auto result = resolveMoveExecution(true, true);
+        expect(result.valid, "move execution should accept hovered-window moves");
+        expect(result.move_hovered_window, "move execution should move hovered windows");
+        expect(result.focus_moved_window, "move execution should focus moved windows");
+        expect(result.use_move_window_warp, "move execution should use move-window warp config");
+    }
+    {
+        const auto result = resolveMoveExecution(true, false);
+        expect(!result.valid, "move execution should reject missing hovered windows");
+        expect(!result.move_hovered_window, "invalid move execution should not move hovered windows");
+        expect(!result.focus_moved_window, "invalid move execution should not focus moved windows");
+        expect(!result.use_move_window_warp, "invalid move execution should not use move-window warp");
+    }
 
     {
         const auto result = resolveDropWorkspace(12, std::optional<long> {7});
@@ -162,6 +184,32 @@ int main() {
         expect(result.workspace_id == 42, "drop resolution fallback should keep the dragged workspace id");
         expect(result.snap_to_workspace, "drop resolution fallback should snap to the dragged workspace");
     }
+
+    expect(
+        decideDragStart(true, true, false, false, true) == DragStartAction::HideViews,
+        "drag start should hide views when the layout does not manage the mouse"
+    );
+    expect(
+        decideDragStart(true, true, false, true, true) == DragStartAction::BeginDrag,
+        "drag start should proceed with a valid workspace target"
+    );
+    expect(
+        decideDragStart(true, true, false, true, false) == DragStartAction::Ignore,
+        "drag start should reject non-workspace targets"
+    );
+
+    expect(
+        decideDragEnd(true, true, false, true, true, true, true) == DragEndAction::FinalizeDrop,
+        "drag end should finalize valid move drops"
+    );
+    expect(
+        decideDragEnd(true, true, false, true, true, false, true) == DragEndAction::Ignore,
+        "drag end should reject missing dragged windows"
+    );
+    expect(
+        decideDragEnd(true, true, false, true, true, true, false) == DragEndAction::Ignore,
+        "drag end should reject non-move drag modes"
+    );
 
     {
         const auto result = decideViewReload(false, false, false, false, false);

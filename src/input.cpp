@@ -11,6 +11,7 @@
 #include "config.hpp"
 #include "logic/controller_state.hpp"
 #include "logic/gesture_model.hpp"
+#include "logic/interaction_model.hpp"
 #include "manager.hpp"
 #include "overview.hpp"
 #include "state_guards.hpp"
@@ -20,23 +21,39 @@ using Hyprutils::Utils::CScopeGuard;
 bool HTManager::start_window_drag() {
     const PHLMONITOR cursor_monitor = g_pCompositor->getMonitorFromCursor();
     const PHTVIEW cursor_view = get_view_from_monitor(cursor_monitor);
-    if (cursor_monitor == nullptr || cursor_view == nullptr || !cursor_view->active
-        || cursor_view->closing)
-        return false;
+    const bool manages_mouse = cursor_view != nullptr && cursor_view->layout->should_manage_mouse();
 
-    if (!cursor_view->layout->should_manage_mouse()) {
+    const Vector2D mouse_coords = g_pInputManager->getMouseCoordsInternal();
+    const WORKSPACEID workspace_id =
+        cursor_view == nullptr ? WORKSPACE_INVALID : cursor_view->layout->get_ws_id_from_global(mouse_coords);
+    PHLWORKSPACE cursor_workspace = g_pCompositor->getWorkspaceByID(workspace_id);
+
+    switch (HTLogic::decideDragStart(
+        cursor_view != nullptr,
+        cursor_view != nullptr && cursor_view->active,
+        cursor_view != nullptr && cursor_view->closing,
+        manages_mouse,
+        cursor_workspace != nullptr
+    )) {
+        case HTLogic::DragStartAction::Ignore:
+            return false;
+        case HTLogic::DragStartAction::HideViews:
+            // hide all views if should not manage mouse but active
+            hide_all_views();
+            return true;
+        case HTLogic::DragStartAction::BeginDrag:
+            break;
+    }
+
+    if (cursor_monitor == nullptr || cursor_view == nullptr) {
+        return false;
+    }
+
+    if (!manages_mouse) {
         // hide all views if should not manage mouse but active
         hide_all_views();
         return true;
     }
-
-    const Vector2D mouse_coords = g_pInputManager->getMouseCoordsInternal();
-    const WORKSPACEID workspace_id = cursor_view->layout->get_ws_id_from_global(mouse_coords);
-    PHLWORKSPACE cursor_workspace = g_pCompositor->getWorkspaceByID(workspace_id);
-
-    // If left click on non-workspace workspace, do nothing
-    if (cursor_workspace == nullptr)
-        return false;
 
     HTScopedMonitorWorkspace restore_workspace(cursor_monitor, true);
     cursor_monitor->changeWorkspace(cursor_workspace, true);
@@ -93,33 +110,30 @@ bool HTManager::end_window_drag() {
     const PHLMONITOR cursor_monitor = g_pCompositor->getMonitorFromCursor();
     const PHTVIEW cursor_view = get_view_from_monitor(cursor_monitor);
     CScopeGuard reset_drag_mode([] { g_pKeybindManager->changeMouseBindMode(MBIND_INVALID); });
-    if (cursor_monitor == nullptr || cursor_view == nullptr) {
+    const bool has_view = cursor_view != nullptr;
+    const bool manages_mouse = cursor_view != nullptr && cursor_view->layout->should_manage_mouse();
+    const bool has_layout_manager = static_cast<bool>(g_layoutManager);
+    const SP<Layout::ITarget> target =
+        has_layout_manager ? g_layoutManager->dragController()->target() : SP<Layout::ITarget> {};
+    const PHLWINDOW dragged_window = target == nullptr ? nullptr : target->window();
+    const bool move_mode =
+        has_layout_manager && g_layoutManager->dragController()->mode() == MBIND_MOVE;
+
+    if (HTLogic::decideDragEnd(
+            has_view,
+            cursor_view != nullptr && cursor_view->active,
+            cursor_view != nullptr && cursor_view->closing,
+            manages_mouse,
+            target != nullptr,
+            dragged_window != nullptr,
+            move_mode
+        )
+        != HTLogic::DragEndAction::FinalizeDrop) {
         return false;
     }
 
-    // Required if dragging and dropping from active to inactive
-    if (!cursor_view->active || cursor_view->closing) {
-        g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+    if (cursor_monitor == nullptr || cursor_view == nullptr || dragged_window == nullptr)
         return false;
-    }
-
-    // For linear layout: if dropping on big workspace, just pass on
-    if (!cursor_view->layout->should_manage_mouse()) {
-        g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
-        return false;
-    }
-
-    const SP<Layout::ITarget> target = g_layoutManager->dragController()->target();
-    if (target == nullptr)
-        return false;
-
-    // If not dragging window or drag is not move, then we just let go (supposed to prevent it
-    // from messing up resize on border, but it should be good because above?)
-    const PHLWINDOW dragged_window = target->window();
-    if (dragged_window == nullptr || g_layoutManager->dragController()->mode() != MBIND_MOVE) {
-        g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
-        return false;
-    }
 
     const Vector2D mouse_coords = g_pInputManager->getMouseCoordsInternal();
     Vector2D use_mouse_coords = mouse_coords;
@@ -307,7 +321,7 @@ bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
             } else {
                 swipe_state = HT_SWIPE_MOVE;
                 swipe_view_id = swipe_view->monitor_id;
-                swipe_view->navigating = true;
+                swipe_view->set_runtime_state(swipe_view->active, swipe_view->closing, true);
 
                 // need to schedule frames for monitor, otherwise the screen doesn't re-render
                 const PHLMONITOR swipe_monitor = swipe_view->get_monitor();

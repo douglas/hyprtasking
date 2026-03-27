@@ -35,6 +35,18 @@ bool shouldFocusMovedWindow(bool move_window, bool has_hovered_window) {
     return move_window && has_hovered_window;
 }
 
+MoveExecutionDecision resolveMoveExecution(bool move_window, bool has_hovered_window) {
+    const bool move_hovered_window = shouldMoveHoveredWindow(move_window, has_hovered_window);
+    const bool focus_moved_window = shouldFocusMovedWindow(move_window, has_hovered_window);
+
+    return {
+        .valid = !move_window || has_hovered_window,
+        .move_hovered_window = move_hovered_window,
+        .focus_moved_window = focus_moved_window,
+        .use_move_window_warp = focus_moved_window,
+    };
+}
+
 DropWorkspaceDecision
 resolveDropWorkspace(WorkspaceID hovered_workspace_id, std::optional<WorkspaceID> dragged_workspace_id) {
     if (hovered_workspace_id >= 0) {

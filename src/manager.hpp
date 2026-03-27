@@ -27,6 +27,8 @@ class HTManager {
     void show_all_views();
     void hide_all_views();
     void show_cursor_view();
+    bool has_runtime_view();
+    void refresh_cursor_override();
 
     bool start_window_drag();
     bool end_window_drag();

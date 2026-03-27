@@ -20,9 +20,7 @@
 
 HTView::HTView(MONITORID in_monitor_id) {
     monitor_id = in_monitor_id;
-    active = false;
-    closing = false;
-    navigating = false;
+    set_runtime_state(false, false, false);
 
     change_layout(HTConfig::value<Hyprlang::STRING>("layout"));
 }
@@ -63,9 +61,11 @@ void HTView::do_exit_behavior(bool exit_on_mouse) {
     };
 
     const int EXIT_ON_HOVERED = HTConfig::value<Hyprlang::INT>("exit_on_hovered");
-
-    const WORKSPACEID ws_id =
-        (exit_on_mouse || EXIT_ON_HOVERED) ? try_get_hover_id() : active_workspace->m_id;
+    const WORKSPACEID ws_id = HTLogic::resolveExitWorkspaceID(
+        exit_on_mouse || EXIT_ON_HOVERED,
+        try_get_hover_id(),
+        active_workspace->m_id
+    );
     PHLWORKSPACE workspace = g_pCompositor->getWorkspaceByID(ws_id);
 
     if (workspace == nullptr && ws_id != WORKSPACE_INVALID)
@@ -84,13 +84,9 @@ void HTView::show() {
     if (active_workspace == nullptr)
         return;
 
-    active = true;
-    closing = false;
-    navigating = false;
+    set_runtime_state(true, false, false);
 
     layout->on_show();
-
-    Cursor::overrideController->setOverride("left_ptr", Cursor::CURSOR_OVERRIDE_UNKNOWN);
 
     g_pHyprRenderer->damageMonitor(monitor);
     g_pCompositor->scheduleFrameForMonitor(monitor);
@@ -106,28 +102,30 @@ void HTView::hide(bool exit_on_mouse) {
 
     do_exit_behavior(exit_on_mouse);
 
-    active = true;
-    closing = true;
-    navigating = false;
+    set_runtime_state(true, true, false);
 
     layout->on_hide([this](auto self) {
-        active = false;
-        closing = false;
+        set_runtime_state(false, false, false);
     });
-
-    Cursor::overrideController->unsetOverride(Cursor::CURSOR_OVERRIDE_UNKNOWN);
 
     g_pHyprRenderer->damageMonitor(monitor);
     g_pCompositor->scheduleFrameForMonitor(monitor);
+}
+
+void HTView::set_runtime_state(bool new_active, bool new_closing, bool new_navigating) {
+    active = new_active;
+    closing = new_closing;
+    navigating = new_navigating;
+
+    if (ht_manager != nullptr)
+        ht_manager->refresh_cursor_override();
 }
 
 void HTView::cancel_runtime_state() {
     if (layout != nullptr)
         layout->cancel_animation_callbacks();
 
-    active = false;
-    closing = false;
-    navigating = false;
+    set_runtime_state(false, false, false);
 }
 
 bool HTView::has_runtime_activity() const {
@@ -146,7 +144,6 @@ void HTView::reload_config(bool close_overview_on_reload, const std::string& new
 
     if (decision.cancel_runtime_state) {
         cancel_runtime_state();
-        Cursor::overrideController->unsetOverride(Cursor::CURSOR_OVERRIDE_UNKNOWN);
     }
 
     if (decision.change_layout_now)
@@ -174,7 +171,7 @@ void HTView::warp_window(Hyprlang::INT warp, PHLWINDOW window) {
 }
 
 void HTView::move_id(WORKSPACEID ws_id, bool move_window) {
-    navigating = false;
+    set_runtime_state(active, closing, false);
     if (closing || ws_id == WORKSPACE_INVALID)
         return;
     const PHLMONITOR monitor = get_monitor();
@@ -186,7 +183,8 @@ void HTView::move_id(WORKSPACEID ws_id, bool move_window) {
 
     const PHLWINDOW hovered_window = move_window ? ht_manager->get_window_from_cursor() : nullptr;
     const bool has_hovered_window = hovered_window != nullptr;
-    if (move_window && !HTLogic::shouldMoveHoveredWindow(move_window, has_hovered_window))
+    const auto move_execution = HTLogic::resolveMoveExecution(move_window, has_hovered_window);
+    if (!move_execution.valid)
         return;
 
     PHLWORKSPACE other_workspace = g_pCompositor->getWorkspaceByID(ws_id);
@@ -195,24 +193,29 @@ void HTView::move_id(WORKSPACEID ws_id, bool move_window) {
     if (other_workspace == nullptr)
         return;
 
-    if (HTLogic::shouldMoveHoveredWindow(move_window, has_hovered_window)) {
+    if (move_execution.move_hovered_window) {
         g_pCompositor->moveWindowToWorkspaceSafe(hovered_window, other_workspace);
     }
 
     Hyprlang::INT warp;
 
     monitor->changeWorkspace(other_workspace);
-    if (HTLogic::shouldFocusMovedWindow(move_window, has_hovered_window)) {
+    if (move_execution.focus_moved_window) {
         Desktop::focusState()->fullWindowFocus(hovered_window, Desktop::FOCUS_REASON_CLICK);
+    }
+
+    if (move_execution.use_move_window_warp) {
         warp = *CConfigValue<Hyprlang::INT>("plugin:hyprtasking:warp_on_move_window");
     } else {
         warp = *CConfigValue<Hyprlang::INT>("cursor:warp_on_change_workspace");
     }
     warp_window(warp, hovered_window);
 
-    navigating = true;
-    layout->on_move(active_workspace->m_id, other_workspace->m_id, [this](auto self) {
-        navigating = false;
+    const bool was_active = active;
+    const bool was_closing = closing;
+    set_runtime_state(was_active, was_closing, true);
+    layout->on_move(active_workspace->m_id, other_workspace->m_id, [this, was_active, was_closing](auto self) {
+        set_runtime_state(was_active, was_closing, false);
     });
 }
 

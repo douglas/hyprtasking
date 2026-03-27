@@ -113,10 +113,25 @@ void HTManager::show_cursor_view() {
         view->show();
 }
 
+bool HTManager::has_runtime_view() {
+    return std::ranges::any_of(views, [](const PHTVIEW& view) {
+        return view != nullptr && view->has_runtime_activity();
+    });
+}
+
+void HTManager::refresh_cursor_override() {
+    if (has_runtime_view()) {
+        Cursor::overrideController->setOverride("left_ptr", Cursor::CURSOR_OVERRIDE_UNKNOWN);
+    } else {
+        Cursor::overrideController->unsetOverride(Cursor::CURSOR_OVERRIDE_UNKNOWN);
+    }
+}
+
 void HTManager::reset() {
     reset_drag_state();
     reset_swipe_state();
     views.clear();
+    refresh_cursor_override();
 }
 
 PHTVIEW HTManager::get_swipe_view() {
@@ -128,11 +143,12 @@ PHTVIEW HTManager::get_swipe_view() {
 
 void HTManager::reset_swipe_state() {
     if (const PHTVIEW swipe_view = get_swipe_view(); swipe_view != nullptr)
-        swipe_view->navigating = false;
+        swipe_view->set_runtime_state(swipe_view->active, swipe_view->closing, false);
 
     swipe_state = HT_SWIPE_NONE;
     swipe_amt = 0.0f;
     swipe_view_id = INVALID_VIEW_ID;
+    refresh_cursor_override();
 }
 
 void HTManager::reset_drag_state() {
@@ -197,11 +213,7 @@ void HTManager::sync_monitor_views() {
     if (removed_runtime_view || removed_swipe_view) {
         reset_drag_state();
         reset_swipe_state();
-        const bool has_remaining_runtime_view = std::ranges::any_of(views, [](const PHTVIEW& view) {
-            return view != nullptr && view->has_runtime_activity();
-        });
-        if (!has_remaining_runtime_view)
-            Cursor::overrideController->unsetOverride(Cursor::CURSOR_OVERRIDE_UNKNOWN);
+        refresh_cursor_override();
     }
 
     const auto missing_ids = HTLogic::missingMonitorViewIDs(view_ids, monitor_ids);

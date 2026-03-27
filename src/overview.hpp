@@ -33,6 +33,7 @@ class HTView {
 
     void show();
     void hide(bool exit_on_mouse);
+    void set_runtime_state(bool new_active, bool new_closing, bool new_navigating);
     void cancel_runtime_state();
     bool has_runtime_activity() const;
     void reload_config(bool close_overview_on_reload, const std::string& new_layout);
