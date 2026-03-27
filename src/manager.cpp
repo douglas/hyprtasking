@@ -307,13 +307,14 @@ void HTManager::sync_monitor_views() {
         if (monitor == nullptr)
             continue;
 
+        const Vector2D monitor_size = HTCompat::monitor_transformed_size(monitor);
         views.push_back(makeShared<HTView>(HTCompat::monitor_id(monitor)));
         Log::logger->log(
             LOG,
             "[Hyprtasking] Registering view for monitor {} with resolution {}x{}",
             monitor->m_description,
-            monitor->m_transformedSize.x,
-            monitor->m_transformedSize.y
+            monitor_size.x,
+            monitor_size.y
         );
     }
 

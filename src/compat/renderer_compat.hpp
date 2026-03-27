@@ -35,6 +35,10 @@ void render_window_original(
 );
 Vector2D monitor_position(PHLMONITOR monitor);
 MONITORID monitor_id(PHLMONITOR monitor);
+float monitor_scale(PHLMONITOR monitor);
+Vector2D monitor_transformed_size(PHLMONITOR monitor);
+Vector2D monitor_pixel_size(PHLMONITOR monitor);
+int monitor_transform(PHLMONITOR monitor);
 PHLWORKSPACE active_monitor_workspace(PHLMONITOR monitor);
 PHLMONITOR workspace_monitor(PHLWORKSPACE workspace);
 bool workspace_render_visible(PHLWORKSPACE workspace);

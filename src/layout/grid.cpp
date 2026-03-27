@@ -116,9 +116,10 @@ void HTLayoutGrid::close_open_lerp(float perc) {
     const PHLWORKSPACE active_workspace = HTCompat::active_monitor_workspace(monitor);
     if (active_workspace == nullptr)
         return;
+    const Vector2D transformed_size = HTCompat::monitor_transformed_size(monitor);
 
     double open_scale =
-        calculate_ws_box(0, 0, HT_VIEW_OPENED).w / monitor->m_transformedSize.x; // 1 / ROWS
+        calculate_ws_box(0, 0, HT_VIEW_OPENED).w / transformed_size.x; // 1 / ROWS
     Vector2D open_pos = {0, 0};
 
     build_overview_layout(HT_VIEW_CLOSED);
@@ -154,7 +155,8 @@ void HTLayoutGrid::on_show(CallbackFun on_complete) {
     // so we don't start animating from an inactive workspace
     init_position();
 
-    *scale = calculate_ws_box(0, 0, HT_VIEW_OPENED).w / monitor->m_transformedSize.x; // 1 / ROWS
+    *scale = calculate_ws_box(0, 0, HT_VIEW_OPENED).w
+        / HTCompat::monitor_transformed_size(monitor).x; // 1 / ROWS
     // Offset for the whole grid of workspaces
     *offset = {0, 0};
 }
@@ -259,21 +261,23 @@ CBox HTLayoutGrid::calculate_ws_box(int x, int y, HTViewStage stage) {
     const int ROWS = HTConfig::value<Hyprlang::INT>("grid:rows");
     const int COLS = HTConfig::value<Hyprlang::INT>("grid:cols");
     const int GAPS_USE_ASPECT_RATIO = HTConfig::value<Hyprlang::INT>("grid:gaps_use_aspect_ratio");
-    const float GAP_SIZE = HTConfig::value<Hyprlang::FLOAT>("gap_size") * monitor->m_scale;
+    const float monitor_scale = HTCompat::monitor_scale(monitor);
+    const Vector2D transformed_size = HTCompat::monitor_transformed_size(monitor);
+    const float GAP_SIZE = HTConfig::value<Hyprlang::FLOAT>("gap_size") * monitor_scale;
     const Vector2D gaps = {
         GAP_SIZE,
         GAPS_USE_ASPECT_RATIO
-            ? GAP_SIZE * monitor->m_transformedSize.y / monitor->m_transformedSize.x
+            ? GAP_SIZE * transformed_size.y / transformed_size.x
             : GAP_SIZE
     };
 
-    if (GAP_SIZE > std::min(monitor->m_transformedSize.x, monitor->m_transformedSize.y)
+    if (GAP_SIZE > std::min(transformed_size.x, transformed_size.y)
         || GAP_SIZE < 0)
         fail_exit("Gap size {} induces invalid render dimensions", GAP_SIZE);
 
-    double render_x = (monitor->m_transformedSize.x - gaps.x * (COLS + 1)) / COLS;
-    double render_y = (monitor->m_transformedSize.y - gaps.y * (ROWS + 1)) / ROWS;
-    const double mon_aspect = monitor->m_transformedSize.x / monitor->m_transformedSize.y;
+    double render_x = (transformed_size.x - gaps.x * (COLS + 1)) / COLS;
+    double render_y = (transformed_size.y - gaps.y * (ROWS + 1)) / ROWS;
+    const double mon_aspect = transformed_size.x / transformed_size.y;
     Vector2D start_offset {};
 
     // make correct aspect ratio
@@ -291,11 +295,11 @@ CBox HTLayoutGrid::calculate_ws_box(int x, int y, HTViewStage stage) {
         use_scale = 1;
         use_offset = Vector2D {0, 0};
     } else if (stage == HT_VIEW_OPENED) {
-        use_scale = render_x / monitor->m_transformedSize.x;
+        use_scale = render_x / transformed_size.x;
         use_offset = Vector2D {0, 0};
     }
 
-    const Vector2D ws_sz = monitor->m_transformedSize * use_scale;
+    const Vector2D ws_sz = transformed_size * use_scale;
     return CBox {Vector2D {x, y} * (ws_sz + gaps) + gaps + use_offset + start_offset, ws_sz};
 };
 
@@ -353,7 +357,8 @@ void HTLayoutGrid::render() {
 
     g_pHyprRenderer->damageMonitor(monitor);
     g_pHyprOpenGL->m_renderData.pCurrentMonData->blurFBShouldRender = true;
-    CBox monitor_box = {{0, 0}, monitor->m_transformedSize};
+    const Vector2D transformed_size = HTCompat::monitor_transformed_size(monitor);
+    CBox monitor_box = {{0, 0}, transformed_size};
 
     CRectPassElement::SRectData data;
     data.color = CHyprColor {HTConfig::value<Hyprlang::INT>("bg_color")}.stripA();
@@ -370,7 +375,7 @@ void HTLayoutGrid::render() {
     build_overview_layout(HT_VIEW_ANIMATING);
 
     const Vector2D monitor_pos = HTCompat::monitor_position(monitor);
-    CBox global_mon_box = {monitor_pos, monitor->m_transformedSize};
+    CBox global_mon_box = {monitor_pos, transformed_size};
     for (const auto& [ws_id, ws_layout] : overview_layout) {
         // Skip if the box is empty
         if (ws_layout.box.width < 0.01 || ws_layout.box.height < 0.01)
@@ -382,7 +387,7 @@ void HTLayoutGrid::render() {
         // renderModif translation used by renderWorkspace is weird so need
         // to scale the translation up as well. Geometry is also calculated from pixel size and not transformed size??
         CBox render_box = {{ws_layout.box.pos() / scale->value()}, ws_layout.box.size()};
-        if (monitor->m_transform % 2 == 1)
+        if (HTCompat::monitor_transform(monitor) % 2 == 1)
             std::swap(render_box.w, render_box.h);
 
         // render active one last
@@ -439,7 +444,7 @@ void HTLayoutGrid::render() {
             // renderModif translation used by renderWorkspace is weird so need
             // to scale the translation up as well. Geometry is also calculated from pixel size and not transformed size??
             CBox render_box = {{ws_box.pos() / scale->value()}, ws_box.size()};
-            if (monitor->m_transform % 2 == 1)
+            if (HTCompat::monitor_transform(monitor) % 2 == 1)
                 std::swap(render_box.w, render_box.h);
 
             const CGradientValueData border_col = *ACTIVECOL;

@@ -62,7 +62,8 @@ void HTLayoutLinear::close_open_lerp(float perc) {
     const PHLMONITOR monitor = get_monitor();
     if (monitor == nullptr)
         return;
-    const float HEIGHT = HTConfig::value<Hyprlang::FLOAT>("linear:height") * monitor->m_scale;
+    const float HEIGHT = HTConfig::value<Hyprlang::FLOAT>("linear:height")
+        * HTCompat::monitor_scale(monitor);
 
     view_offset->resetAllCallbacks();
     blur_strength->resetAllCallbacks();
@@ -82,7 +83,8 @@ void HTLayoutLinear::on_show(CallbackFun on_complete) {
     if (monitor == nullptr)
         return;
 
-    const float HEIGHT = HTConfig::value<Hyprlang::FLOAT>("linear:height") * monitor->m_scale;
+    const float HEIGHT = HTConfig::value<Hyprlang::FLOAT>("linear:height")
+        * HTCompat::monitor_scale(monitor);
     *view_offset = HEIGHT;
     *blur_strength = 2.0;
     *dim_opacity = 0.4;
@@ -113,7 +115,9 @@ void HTLayoutLinear::on_move(WORKSPACEID old_id, WORKSPACEID new_id, CallbackFun
     if (monitor == nullptr)
         return;
 
-    const float GAP_SIZE = HTConfig::value<Hyprlang::FLOAT>("gap_size") * monitor->m_scale;
+    const float GAP_SIZE = HTConfig::value<Hyprlang::FLOAT>("gap_size")
+        * HTCompat::monitor_scale(monitor);
+    const Vector2D transformed_size = HTCompat::monitor_transformed_size(monitor);
 
     const PHLWORKSPACE new_ws = g_pCompositor->getWorkspaceByID(new_id);
     if (new_ws == nullptr)
@@ -129,8 +133,8 @@ void HTLayoutLinear::on_move(WORKSPACEID old_id, WORKSPACEID new_id, CallbackFun
 
     if (cur_screen_min_x < 0) {
         *scroll_offset = scroll_offset->value() - cur_screen_min_x;
-    } else if (cur_screen_max_x > monitor->m_transformedSize.x) {
-        *scroll_offset = scroll_offset->value() - (cur_screen_max_x - monitor->m_transformedSize.x);
+    } else if (cur_screen_max_x > transformed_size.x) {
+        *scroll_offset = scroll_offset->value() - (cur_screen_max_x - transformed_size.x);
     }
 }
 
@@ -142,14 +146,16 @@ bool HTLayoutLinear::on_mouse_axis(double delta) {
     if (monitor == nullptr)
         return false;
 
-    const float GAP_SIZE = HTConfig::value<Hyprlang::FLOAT>("gap_size") * monitor->m_scale;
+    const float GAP_SIZE = HTConfig::value<Hyprlang::FLOAT>("gap_size")
+        * HTCompat::monitor_scale(monitor);
+    const Vector2D transformed_size = HTCompat::monitor_transformed_size(monitor);
 
     const float total_ws_width =
         (overview_layout.size() * (GAP_SIZE + calculate_ws_box(0, 0, HT_VIEW_ANIMATING).w))
         + GAP_SIZE;
 
     // Stay at 0 if not long enough
-    if (total_ws_width < monitor->m_transformedSize.x) {
+    if (total_ws_width < transformed_size.x) {
         *scroll_offset = 0.;
         return true;
     }
@@ -166,8 +172,8 @@ bool HTLayoutLinear::on_mouse_axis(double delta) {
         new_offset = 0.;
 
     // Snap to right
-    if (max_x < monitor->m_transformedSize.x)
-        new_offset = new_offset + (monitor->m_transformedSize.x - max_x);
+    if (max_x < transformed_size.x)
+        new_offset = new_offset + (transformed_size.x - max_x);
 
     *scroll_offset = new_offset;
     return true;
@@ -185,15 +191,17 @@ bool HTLayoutLinear::should_manage_mouse() {
     if (monitor == nullptr)
         return 1;
 
-    const float HEIGHT = HTConfig::value<Hyprlang::FLOAT>("linear:height") * monitor->m_scale;
+    const float HEIGHT = HTConfig::value<Hyprlang::FLOAT>("linear:height")
+        * HTCompat::monitor_scale(monitor);
+    const Vector2D transformed_size = HTCompat::monitor_transformed_size(monitor);
 
     const Vector2D mouse_coords = g_pInputManager->getMouseCoordsInternal();
     CBox scaled_view_box = {
-        Vector2D {0.f, calculate_y(monitor->m_transformedSize.y, view_offset->value(), HEIGHT)},
-        {(float)monitor->m_transformedSize.x, (float)HEIGHT}
+        Vector2D {0.f, calculate_y(transformed_size.y, view_offset->value(), HEIGHT)},
+        {transformed_size.x, (float)HEIGHT}
     };
 
-    return scaled_view_box.scale(1 / monitor->m_scale)
+    return scaled_view_box.scale(1 / HTCompat::monitor_scale(monitor))
         .translate(HTCompat::monitor_position(monitor))
         .containsPoint(mouse_coords);
 }
@@ -230,7 +238,8 @@ float HTLayoutLinear::drag_window_scale() {
         return 1;
 
     if (should_manage_mouse())
-        return calculate_ws_box(0, 0, HT_VIEW_OPENED).w / monitor->m_transformedSize.x;
+        return calculate_ws_box(0, 0, HT_VIEW_OPENED).w
+            / HTCompat::monitor_transformed_size(monitor).x;
 
     return 1;
 }
@@ -247,10 +256,12 @@ CBox HTLayoutLinear::calculate_ws_box(int x, int y, HTViewStage stage) {
     if (monitor == nullptr)
         return {};
 
-    const float HEIGHT = HTConfig::value<Hyprlang::FLOAT>("linear:height") * monitor->m_scale;
-    const float GAP_SIZE = HTConfig::value<Hyprlang::FLOAT>("gap_size") * monitor->m_scale;
+    const float monitor_scale = HTCompat::monitor_scale(monitor);
+    const Vector2D transformed_size = HTCompat::monitor_transformed_size(monitor);
+    const float HEIGHT = HTConfig::value<Hyprlang::FLOAT>("linear:height") * monitor_scale;
+    const float GAP_SIZE = HTConfig::value<Hyprlang::FLOAT>("gap_size") * monitor_scale;
 
-    if (HEIGHT < 0 || HEIGHT > monitor->m_transformedSize.y)
+    if (HEIGHT < 0 || HEIGHT > transformed_size.y)
         fail_exit("Linear layout height {} is taller than monitor size", HEIGHT);
 
     if (GAP_SIZE < 0 || GAP_SIZE > HEIGHT / 2.f)
@@ -263,10 +274,10 @@ CBox HTLayoutLinear::calculate_ws_box(int x, int y, HTViewStage stage) {
         use_view_offset = HEIGHT;
 
     const float ws_height = HEIGHT - 2 * GAP_SIZE;
-    const float ws_width = ws_height * monitor->m_transformedSize.x / monitor->m_transformedSize.y;
+    const float ws_width = ws_height * transformed_size.x / transformed_size.y;
 
     const float ws_x = scroll_offset->value() + (x * (GAP_SIZE + ws_width) + GAP_SIZE);
-    const float ws_y = calculate_y(monitor->m_transformedSize.y, use_view_offset, HEIGHT) + GAP_SIZE;
+    const float ws_y = calculate_y(transformed_size.y, use_view_offset, HEIGHT) + GAP_SIZE;
     return CBox {ws_x, ws_y, ws_width, ws_height};
 }
 
@@ -318,7 +329,8 @@ void HTLayoutLinear::render() {
     auto* const INACTIVECOL = (CGradientValueData*)(PINACTIVECOL.ptr())->getData();
 
     const float BORDERSIZE = HTConfig::value<Hyprlang::FLOAT>("border_size");
-    const float HEIGHT = HTConfig::value<Hyprlang::FLOAT>("linear:height") * monitor->m_scale;
+    const float HEIGHT = HTConfig::value<Hyprlang::FLOAT>("linear:height")
+        * HTCompat::monitor_scale(monitor);
 
     const auto render_snapshot = capture_render_snapshot(view_id, drag_window_scale());
     const auto time = render_snapshot.has_value() ? render_snapshot->time : Time::steadyNow();
@@ -340,7 +352,7 @@ void HTLayoutLinear::render() {
     const PHLWORKSPACE big_ws = start_workspace;
 
     // use pixel size for geometry
-    CBox mon_box = {{0, 0}, monitor->m_pixelSize};
+    CBox mon_box = {{0, 0}, HTCompat::monitor_pixel_size(monitor)};
     rendering_standard_ws = true;
     {
         CScopeGuard reset_rendering_standard_ws([this] { rendering_standard_ws = false; });
@@ -365,8 +377,8 @@ void HTLayoutLinear::render() {
     g_pHyprRenderer->m_renderPass.add(makeUnique<CRectPassElement>(blur_data));
 
     CBox view_box = {
-        {0.f, calculate_y(monitor->m_transformedSize.y, view_offset->value(), HEIGHT)},
-        {(float)monitor->m_transformedSize.x, (float)HEIGHT}
+        {0.f, calculate_y(HTCompat::monitor_transformed_size(monitor).y, view_offset->value(), HEIGHT)},
+        {HTCompat::monitor_transformed_size(monitor).x, (float)HEIGHT}
     };
 
     CRectPassElement::SRectData data;
@@ -377,7 +389,8 @@ void HTLayoutLinear::render() {
     build_overview_layout(HT_VIEW_ANIMATING);
 
     const Vector2D monitor_pos = HTCompat::monitor_position(monitor);
-    CBox global_mon_box = {monitor_pos, monitor->m_transformedSize};
+    const Vector2D transformed_size = HTCompat::monitor_transformed_size(monitor);
+    CBox global_mon_box = {monitor_pos, transformed_size};
     for (const auto& [ws_id, ws_layout] : overview_layout) {
         // Could be nullptr, in which we render only layers
         const PHLWORKSPACE workspace = g_pCompositor->getWorkspaceByID(ws_id);
@@ -385,10 +398,10 @@ void HTLayoutLinear::render() {
         // renderModif translation used by renderWorkspace is weird so need
         // to scale the translation up as well. Geometry is also calculated from pixel size and not transformed size??
         CBox render_box = {
-            {ws_layout.box.pos() / (ws_layout.box.w / monitor->m_transformedSize.x)},
+            {ws_layout.box.pos() / (ws_layout.box.w / transformed_size.x)},
             ws_layout.box.size()
         };
-        if (monitor->m_transform % 2 == 1)
+        if (HTCompat::monitor_transform(monitor) % 2 == 1)
             std::swap(render_box.w, render_box.h);
 
         CBox global_box = {ws_layout.box.pos() + monitor_pos, ws_layout.box.size()};

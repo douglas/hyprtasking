@@ -255,6 +255,34 @@ MONITORID monitor_id(PHLMONITOR monitor) {
     return monitor->m_id;
 }
 
+float monitor_scale(PHLMONITOR monitor) {
+    if (monitor == nullptr)
+        return 0.F;
+
+    return monitor->m_scale;
+}
+
+Vector2D monitor_transformed_size(PHLMONITOR monitor) {
+    if (monitor == nullptr)
+        return {};
+
+    return monitor->m_transformedSize;
+}
+
+Vector2D monitor_pixel_size(PHLMONITOR monitor) {
+    if (monitor == nullptr)
+        return {};
+
+    return monitor->m_pixelSize;
+}
+
+int monitor_transform(PHLMONITOR monitor) {
+    if (monitor == nullptr)
+        return 0;
+
+    return monitor->m_transform;
+}
+
 PHLWORKSPACE active_monitor_workspace(PHLMONITOR monitor) {
     if (monitor == nullptr)
         return nullptr;
