@@ -10,6 +10,7 @@
 
 #include "config.hpp"
 #include "compat/renderer_compat.hpp"
+#include "compat/runtime_compat.hpp"
 #include "logic/controller_state.hpp"
 #include "logic/gesture_model.hpp"
 #include "logic/geometry_model.hpp"
@@ -72,21 +73,21 @@ bool HTManager::start_window_drag() {
     bool reset_mouse_bind_mode = false;
     CScopeGuard reset_drag_mode([&reset_mouse_bind_mode] {
         if (reset_mouse_bind_mode)
-            g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+            HTCompat::set_mouse_bind_mode(MBIND_INVALID);
     });
 
-    g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+    HTCompat::set_mouse_bind_mode(MBIND_MOVE);
     reset_mouse_bind_mode = true;
     if (!HTCompat::warp_pointer(mouse_coords))
         return false;
 
-    const SP<Layout::ITarget> target = g_layoutManager->dragController()->target();
+    const SP<Layout::ITarget> target = HTCompat::drag_controller_target();
     if (target == nullptr)
         return false;
 
     const PHLWINDOW dragged_window = target->window();
     if (dragged_window != nullptr) {
-        if (g_layoutManager->dragController()->draggingTiled()) {
+        if (HTCompat::drag_controller_is_tiled()) {
             const auto inverse_drag_scale =
                 HTLogic::inverseDragWindowScale(cursor_view->layout->drag_window_scale());
             if (!inverse_drag_scale.has_value())
@@ -127,16 +128,13 @@ bool HTManager::end_window_drag() {
     const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace(false);
     const PHLMONITOR cursor_monitor = cursor_context.monitor;
     const PHTVIEW cursor_view = cursor_context.view;
-    CScopeGuard reset_drag_mode([] { g_pKeybindManager->changeMouseBindMode(MBIND_INVALID); });
+    CScopeGuard reset_drag_mode([] { HTCompat::set_mouse_bind_mode(MBIND_INVALID); });
     CScopeGuard clear_dragged_window_guard([this] { clear_dragged_window(); });
     const bool has_view = cursor_view != nullptr;
     const bool manages_mouse = cursor_view != nullptr && cursor_view->layout->should_manage_mouse();
-    const bool has_layout_manager = static_cast<bool>(g_layoutManager);
-    const SP<Layout::ITarget> target =
-        has_layout_manager ? g_layoutManager->dragController()->target() : SP<Layout::ITarget> {};
+    const SP<Layout::ITarget> target = HTCompat::drag_controller_target();
     const PHLWINDOW dragged_window = target == nullptr ? nullptr : target->window();
-    const bool move_mode =
-        has_layout_manager && g_layoutManager->dragController()->mode() == MBIND_MOVE;
+    const bool move_mode = HTCompat::drag_controller_mode() == MBIND_MOVE;
 
     if (HTLogic::decideDragEnd(
             has_view,
@@ -233,7 +231,7 @@ bool HTManager::end_window_drag() {
 
     if (!HTCompat::warp_pointer(*workspace_coords))
         return false;
-    g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+    HTCompat::set_mouse_bind_mode(MBIND_INVALID);
     if (!HTCompat::warp_pointer(mouse_coords))
         return false;
 

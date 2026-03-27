@@ -1,7 +1,11 @@
 #include "runtime_compat.hpp"
 
+#include <hyprland/src/desktop/state/FocusState.hpp>
+#include <hyprland/src/desktop/view/View.hpp>
+#include <hyprland/src/desktop/view/Window.hpp>
 #include <hyprland/src/event/EventBus.hpp>
 #include <hyprland/src/managers/KeybindManager.hpp>
+#include <hyprland/src/managers/SeatManager.hpp>
 
 SDispatchResult HTCompat::invoke_dispatcher(
     const std::string& dispatch_name,
@@ -15,6 +19,91 @@ SDispatchResult HTCompat::invoke_dispatcher(
         return {.success = false, .error = "invalid dispatcher"};
 
     return dispatcher->second(dispatch_arg);
+}
+
+PHLMONITOR HTCompat::focused_monitor() {
+    return Desktop::focusState()->monitor();
+}
+
+void HTCompat::focus_monitor(PHLMONITOR monitor) {
+    if (monitor == nullptr)
+        return;
+
+    Desktop::focusState()->rawMonitorFocus(monitor);
+}
+
+void HTCompat::focus_window(PHLWINDOW window) {
+    if (window == nullptr)
+        return;
+
+    Desktop::focusState()->fullWindowFocus(window, Desktop::FOCUS_REASON_CLICK);
+}
+
+bool HTCompat::can_warp_window_cursor(PHLWINDOW window) {
+    if (window == nullptr)
+        return false;
+
+    const auto focused_surface =
+        Desktop::View::CWLSurface::fromResource(g_pSeatManager->m_state.pointerFocus.lock());
+    return !focused_surface || focused_surface->view();
+}
+
+void HTCompat::warp_window_cursor(PHLWINDOW window, bool force) {
+    if (window == nullptr)
+        return;
+
+    window->warpCursor(force);
+}
+
+void HTCompat::set_mouse_bind_mode(eMouseBindMode mode) {
+    if (!g_pKeybindManager)
+        return;
+
+    g_pKeybindManager->changeMouseBindMode(mode);
+}
+
+SP<Layout::ITarget> HTCompat::drag_controller_target() {
+    if (!g_layoutManager)
+        return SP<Layout::ITarget> {};
+
+    const auto& drag_controller = g_layoutManager->dragController();
+    if (!drag_controller)
+        return SP<Layout::ITarget> {};
+
+    return drag_controller->target();
+}
+
+bool HTCompat::drag_controller_is_tiled() {
+    if (!g_layoutManager)
+        return false;
+
+    const auto& drag_controller = g_layoutManager->dragController();
+    if (!drag_controller)
+        return false;
+
+    return drag_controller->draggingTiled();
+}
+
+eMouseBindMode HTCompat::drag_controller_mode() {
+    if (!g_layoutManager)
+        return MBIND_INVALID;
+
+    const auto& drag_controller = g_layoutManager->dragController();
+    if (!drag_controller)
+        return MBIND_INVALID;
+
+    return drag_controller->mode();
+}
+
+void HTCompat::end_drag_controller() {
+    if (!g_layoutManager)
+        return;
+
+    const auto& drag_controller = g_layoutManager->dragController();
+    if (!drag_controller)
+        return;
+
+    drag_controller->dragEnd();
 }
 
 void HTCompat::listen_mouse_button(

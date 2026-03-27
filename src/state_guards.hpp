@@ -1,21 +1,21 @@
 #pragma once
 
 #include <hyprland/src/desktop/DesktopTypes.hpp>
-#include <hyprland/src/desktop/state/FocusState.hpp>
 
 #include "compat/renderer_compat.hpp"
+#include "compat/runtime_compat.hpp"
 
 class HTScopedMonitorFocus {
   public:
     explicit HTScopedMonitorFocus(PHLMONITOR monitor)
-        : previous_monitor(Desktop::focusState()->monitor()) {
+        : previous_monitor(HTCompat::focused_monitor()) {
         if (monitor != nullptr)
-            Desktop::focusState()->rawMonitorFocus(monitor);
+            HTCompat::focus_monitor(monitor);
     }
 
     ~HTScopedMonitorFocus() {
         if (previous_monitor != nullptr)
-            Desktop::focusState()->rawMonitorFocus(previous_monitor);
+            HTCompat::focus_monitor(previous_monitor);
     }
 
   private:

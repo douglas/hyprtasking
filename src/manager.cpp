@@ -12,6 +12,7 @@
 #include <hyprland/src/plugins/PluginAPI.hpp>
 
 #include "globals.hpp"
+#include "compat/runtime_compat.hpp"
 #include "logic/reload_model.hpp"
 #include "overview.hpp"
 #include "state_guards.hpp"
@@ -238,23 +239,16 @@ void HTManager::reset_swipe_state() {
 void HTManager::reset_drag_state() {
     clear_dragged_window();
 
-    if (!g_layoutManager)
-        return;
-
-    const auto& drag_controller = g_layoutManager->dragController();
-    if (!drag_controller)
-        return;
-
-    const auto target = drag_controller->target();
+    const auto target = HTCompat::drag_controller_target();
     if (const PHLWINDOW dragged_window = target == nullptr ? nullptr : target->window();
         dragged_window != nullptr) {
         HTCompat::reset_window_workspace_move_alpha(dragged_window);
     }
 
-    if (drag_controller->mode() != MBIND_INVALID)
-        drag_controller->dragEnd();
+    if (HTCompat::drag_controller_mode() != MBIND_INVALID)
+        HTCompat::end_drag_controller();
 
-    g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+    HTCompat::set_mouse_bind_mode(MBIND_INVALID);
 }
 
 void HTManager::sync_monitor_views() {

@@ -12,12 +12,12 @@
 
 #include "config.hpp"
 #include "compat/renderer_compat.hpp"
+#include "compat/runtime_compat.hpp"
 #include "globals.hpp"
 #include "layout/grid.hpp"
 #include "layout/linear.hpp"
 #include "logic/controller_state.hpp"
 #include "logic/reload_model.hpp"
-#include "src/desktop/state/FocusState.hpp"
 
 HTView::HTView(MONITORID in_monitor_id) {
     monitor_id = in_monitor_id;
@@ -155,14 +155,8 @@ void HTView::reload_config(bool close_overview_on_reload, const std::string& new
 }
 
 void HTView::warp_window(Hyprlang::INT warp, PHLWINDOW window) {
-    // taken from Hyprland:
-    // https://github.com/hyprwm/Hyprland/blob/ea42041f936d5810c5cfa45d6bece12dde2fd9b6/src/managers/KeybindManager.cpp#L1319
-    if (warp > 0) {
-        auto HLSurface = Desktop::View::CWLSurface::fromResource(g_pSeatManager->m_state.pointerFocus.lock());
-
-        if (window && (!HLSurface || HLSurface->view()))
-            window->warpCursor(warp == 2);
-    }
+    if (warp > 0 && HTCompat::can_warp_window_cursor(window))
+        HTCompat::warp_window_cursor(window, warp == 2);
 }
 
 void HTView::move_id(WORKSPACEID ws_id, bool move_window) {
@@ -196,7 +190,7 @@ void HTView::move_id(WORKSPACEID ws_id, bool move_window) {
     if (!HTCompat::activate_monitor_workspace(monitor, other_workspace))
         return;
     if (move_execution.focus_moved_window) {
-        Desktop::focusState()->fullWindowFocus(hovered_window, Desktop::FOCUS_REASON_CLICK);
+        HTCompat::focus_window(hovered_window);
     }
 
     if (move_execution.use_move_window_warp) {
