@@ -272,7 +272,7 @@ void HTManager::sync_monitor_views() {
     for (const PHLMONITOR& monitor : g_pCompositor->m_monitors) {
         if (monitor == nullptr)
             continue;
-        monitor_ids.push_back(monitor->m_id);
+        monitor_ids.push_back(HTCompat::monitor_id(monitor));
     }
 
     const auto stale_ids = HTLogic::staleMonitorViewIDs(view_ids, monitor_ids);
@@ -308,7 +308,7 @@ void HTManager::sync_monitor_views() {
         if (monitor == nullptr)
             continue;
 
-        views.push_back(makeShared<HTView>(monitor->m_id));
+        views.push_back(makeShared<HTView>(HTCompat::monitor_id(monitor)));
         Log::logger->log(
             LOG,
             "[Hyprtasking] Registering view for monitor {} with resolution {}x{}",

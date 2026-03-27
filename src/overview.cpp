@@ -61,7 +61,7 @@ void HTView::do_exit_behavior(bool exit_on_mouse) {
     const WORKSPACEID ws_id = HTLogic::resolveExitWorkspaceID(
         exit_on_mouse || EXIT_ON_HOVERED,
         hovered_workspace_id,
-        active_workspace->m_id
+        HTCompat::workspace_id(active_workspace)
     );
     const PHLWORKSPACE workspace =
         HTCompat::resolve_workspace_target(monitor, ws_id, true);
@@ -209,9 +209,13 @@ void HTView::move_id(WORKSPACEID ws_id, bool move_window) {
     const bool was_active = active;
     const bool was_closing = closing;
     set_runtime_state(was_active, was_closing, true);
-    layout->on_move(active_workspace->m_id, other_workspace->m_id, [this, was_active, was_closing](auto self) {
-        set_runtime_state(was_active, was_closing, false);
-    });
+    layout->on_move(
+        HTCompat::workspace_id(active_workspace),
+        HTCompat::workspace_id(other_workspace),
+        [this, was_active, was_closing](auto self) {
+            set_runtime_state(was_active, was_closing, false);
+        }
+    );
 }
 
 void HTView::move(std::string arg, bool move_window) {
@@ -227,7 +231,11 @@ void HTView::move(std::string arg, bool move_window) {
 
     // if moving a window, the up/down/left/right should be relative to the window (and cursor) and not necessarily the active workspace
     const WORKSPACEID source_ws_id =
-        HTLogic::resolveMoveSourceWorkspace(move_window, active_workspace->m_id, hovered_workspace_id);
+        HTLogic::resolveMoveSourceWorkspace(
+            move_window,
+            HTCompat::workspace_id(active_workspace),
+            hovered_workspace_id
+        );
     if (source_ws_id == WORKSPACE_INVALID)
         return;
 

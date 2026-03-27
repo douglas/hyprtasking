@@ -130,10 +130,13 @@ CBox HTLayoutBase::get_global_window_box(PHLWINDOW window, WORKSPACEID workspace
     const CBox ws_window_box = window->getWindowMainSurfaceBox();
 
     const Vector2D top_left =
-        local_ws_unscaled_to_global(ws_window_box.pos() - monitor_pos, workspace->m_id);
+        local_ws_unscaled_to_global(
+            ws_window_box.pos() - monitor_pos,
+            HTCompat::workspace_id(workspace)
+        );
     const Vector2D bottom_right = local_ws_unscaled_to_global(
         ws_window_box.pos() + ws_window_box.size() - monitor_pos,
-        workspace->m_id
+        HTCompat::workspace_id(workspace)
     );
     if (!HTLogic::isFinitePoint(top_left.x, top_left.y)
         || !HTLogic::isFinitePoint(bottom_right.x, bottom_right.y))

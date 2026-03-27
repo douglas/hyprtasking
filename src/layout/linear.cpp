@@ -285,7 +285,7 @@ void HTLayoutLinear::build_overview_layout(HTViewStage stage) {
             continue;
         if (workspace->m_isSpecialWorkspace)
             continue;
-        monitor_workspaces.push_back(workspace->m_id);
+        monitor_workspaces.push_back(HTCompat::workspace_id(workspace));
     }
     std::sort(monitor_workspaces.begin(), monitor_workspaces.end());
 

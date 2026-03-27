@@ -123,7 +123,7 @@ void HTLayoutGrid::close_open_lerp(float perc) {
 
     build_overview_layout(HT_VIEW_CLOSED);
     double close_scale = 1.;
-    const auto* active_layout = find_layout_workspace(active_workspace->m_id);
+    const auto* active_layout = find_layout_workspace(HTCompat::workspace_id(active_workspace));
     if (active_layout == nullptr)
         return;
     Vector2D close_pos = -active_layout->box.pos();
@@ -175,7 +175,7 @@ void HTLayoutGrid::on_hide(CallbackFun on_complete) {
     build_overview_layout(HT_VIEW_CLOSED);
     *scale = 1.;
     // End workspace to end up on
-    const auto* active_layout = find_layout_workspace(active_workspace->m_id);
+    const auto* active_layout = find_layout_workspace(HTCompat::workspace_id(active_workspace));
     if (active_layout == nullptr)
         return;
     *offset = -active_layout->box.pos();
@@ -244,7 +244,7 @@ void HTLayoutGrid::init_position() {
         return;
 
     build_overview_layout(HT_VIEW_CLOSED);
-    const auto* active_layout = find_layout_workspace(active_workspace->m_id);
+    const auto* active_layout = find_layout_workspace(HTCompat::workspace_id(active_workspace));
     if (active_layout == nullptr)
         return;
     offset->setValueAndWarp(-active_layout->box.pos());
@@ -393,8 +393,8 @@ void HTLayoutGrid::render() {
         if (global_box.expand(BORDERSIZE).intersection(global_mon_box).empty())
             continue;
 
-        const CGradientValueData border_col = start_workspace->m_id == ws_id ? *ACTIVECOL
-                                                                             : *INACTIVECOL;
+        const CGradientValueData border_col =
+            HTCompat::workspace_id(start_workspace) == ws_id ? *ACTIVECOL : *INACTIVECOL;
         CBox border_box = ws_layout.box;
 
         CBorderPassElement::SBorderData data;
@@ -430,7 +430,9 @@ void HTLayoutGrid::render() {
     HTCompat::set_workspace_render_visibility(start_workspace, true);
 
     // Render active workspace last so the dragging window is always on top when let go of
-    if (const auto* start_layout = find_layout_workspace(start_workspace->m_id); start_layout != nullptr) {
+    if (const auto* start_layout =
+            find_layout_workspace(HTCompat::workspace_id(start_workspace));
+        start_layout != nullptr) {
         CBox ws_box = start_layout->box;
         // make sure box is not empty
         if (ws_box.width > 0.01 && ws_box.height > 0.01) {

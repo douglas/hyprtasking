@@ -159,7 +159,9 @@ bool HTManager::end_window_drag() {
     const WORKSPACEID hovered_workspace_id = cursor_context.workspace_id;
     const PHLWORKSPACE dragged_workspace = HTCompat::window_workspace(dragged_window);
     const std::optional<WORKSPACEID> dragged_workspace_id =
-        dragged_workspace == nullptr ? std::nullopt : std::optional<WORKSPACEID> {dragged_workspace->m_id};
+        dragged_workspace == nullptr
+            ? std::nullopt
+            : std::optional<WORKSPACEID> {HTCompat::workspace_id(dragged_workspace)};
     const auto drop_decision =
         HTLogic::resolveDropWorkspace(hovered_workspace_id, dragged_workspace_id);
     if (!drop_decision.valid) {
@@ -184,21 +186,26 @@ bool HTManager::end_window_drag() {
 
     if (drop_decision.snap_to_workspace) {
         // Ensure that the mouse coords are snapped to inside the workspace box itself
-        use_mouse_coords =
-            cursor_view->layout->get_global_ws_box(cursor_workspace->m_id).closestPoint(use_mouse_coords);
+        use_mouse_coords = cursor_view->layout
+                               ->get_global_ws_box(HTCompat::workspace_id(cursor_workspace))
+                               .closestPoint(use_mouse_coords);
 
         Log::logger->log(
             LOG,
             "[Hyprtasking] Dragging to invalid position, snapping to last ws {}",
-            cursor_workspace->m_id
+            HTCompat::workspace_id(cursor_workspace)
         );
     }
 
-    Log::logger->log(LOG, "[Hyprtasking] trying to drop window on ws {}", cursor_workspace->m_id);
+    Log::logger->log(
+        LOG,
+        "[Hyprtasking] trying to drop window on ws {}",
+        HTCompat::workspace_id(cursor_workspace)
+    );
 
     const auto workspace_coords = cursor_view->layout->global_to_workspace_monitor_coords(
         use_mouse_coords,
-        cursor_workspace->m_id
+        HTCompat::workspace_id(cursor_workspace)
     );
     if (!workspace_coords.has_value())
         return false;
@@ -211,7 +218,7 @@ bool HTManager::end_window_drag() {
                                 (dragged_window->m_realPosition->value() - use_mouse_coords)
                                         * *drag_scale
                                     + use_mouse_coords,
-                                cursor_workspace->m_id
+                                HTCompat::workspace_id(cursor_workspace)
                             ) + cursor_monitor_pos;
     if (!HTLogic::isFinitePoint(warped_global_pos.x, warped_global_pos.y))
         return false;

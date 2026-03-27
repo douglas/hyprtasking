@@ -248,6 +248,13 @@ Vector2D monitor_position(PHLMONITOR monitor) {
     return monitor->m_position;
 }
 
+MONITORID monitor_id(PHLMONITOR monitor) {
+    if (monitor == nullptr)
+        return MONITOR_INVALID;
+
+    return monitor->m_id;
+}
+
 PHLWORKSPACE active_monitor_workspace(PHLMONITOR monitor) {
     if (monitor == nullptr)
         return nullptr;
@@ -267,6 +274,13 @@ bool workspace_render_visible(PHLWORKSPACE workspace) {
         return false;
 
     return workspace->m_visible;
+}
+
+WORKSPACEID workspace_id(PHLWORKSPACE workspace) {
+    if (workspace == nullptr)
+        return WORKSPACE_INVALID;
+
+    return workspace->m_id;
 }
 
 PHLWORKSPACE window_workspace(PHLWINDOW window) {
@@ -323,7 +337,7 @@ PHLWORKSPACE resolve_workspace_target(
 
     PHLWORKSPACE workspace = g_pCompositor->getWorkspaceByID(workspace_id);
     if (workspace == nullptr && create_if_missing)
-        workspace = g_pCompositor->createNewWorkspace(workspace_id, monitor->m_id);
+        workspace = g_pCompositor->createNewWorkspace(workspace_id, HTCompat::monitor_id(monitor));
 
     return workspace;
 }
