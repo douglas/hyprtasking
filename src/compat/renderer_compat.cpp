@@ -185,6 +185,10 @@ void shutdownRendererHooks() {
     render_window = nullptr;
 }
 
+bool should_render_window_original(PHLWINDOW window, PHLMONITOR monitor) {
+    return should_render_window_original(g_pHyprRenderer.get(), window, monitor);
+}
+
 bool should_render_window_original(void* renderer, PHLWINDOW window, PHLMONITOR monitor) {
     if (renderer == nullptr || should_render_window_hook == nullptr || window == nullptr
         || monitor == nullptr)
@@ -195,6 +199,15 @@ bool should_render_window_original(void* renderer, PHLWINDOW window, PHLMONITOR 
         window,
         monitor
     );
+}
+
+void render_workspace_original(
+    PHLMONITOR monitor,
+    PHLWORKSPACE workspace,
+    const Time::steady_tp& now,
+    const CBox& geometry
+) {
+    render_workspace_original(g_pHyprRenderer.get(), monitor, workspace, now, geometry);
 }
 
 void render_workspace_original(
@@ -213,6 +226,27 @@ void render_workspace_original(
         workspace,
         now,
         geometry
+    );
+}
+
+void render_window_original(
+    PHLWINDOW window,
+    PHLMONITOR monitor,
+    const Time::steady_tp& time,
+    bool decorate,
+    eRenderPassMode mode,
+    bool ignore_position,
+    bool standalone
+) {
+    render_window_original(
+        g_pHyprRenderer.get(),
+        window,
+        monitor,
+        time,
+        decorate,
+        mode,
+        ignore_position,
+        standalone
     );
 }
 

@@ -410,7 +410,6 @@ void HTLayoutGrid::render() {
         if (workspace != nullptr) {
             HTScopedWorkspaceRender render_workspace(monitor, workspace);
             HTCompat::render_workspace_original(
-                g_pHyprRenderer.get(),
                 monitor,
                 workspace,
                 time,
@@ -420,7 +419,6 @@ void HTLayoutGrid::render() {
         } else {
             // If pWorkspace is null, then just render the layers
             HTCompat::render_workspace_original(
-                g_pHyprRenderer.get(),
                 monitor,
                 workspace,
                 time,
@@ -456,7 +454,6 @@ void HTLayoutGrid::render() {
             HTCompat::add_border_pass(data);
 
             HTCompat::render_workspace_original(
-                g_pHyprRenderer.get(),
                 monitor,
                 start_workspace,
                 time,

@@ -47,7 +47,7 @@ bool HTLayoutBase::should_render_window(PHLWINDOW window) {
     if (monitor == nullptr || window == nullptr)
         return false;
 
-    return HTCompat::should_render_window_original(g_pHyprRenderer.get(), window, monitor);
+    return HTCompat::should_render_window_original(window, monitor);
 }
 
 float HTLayoutBase::drag_window_scale() {

@@ -358,7 +358,6 @@ void HTLayoutLinear::render() {
         HTScopedWorkspaceVisibility show_standard_workspace(big_ws, true);
         // Render the current workspace on the screen
         HTCompat::render_workspace_original(
-            g_pHyprRenderer.get(),
             monitor,
             big_ws,
             time,
@@ -419,7 +418,6 @@ void HTLayoutLinear::render() {
         if (workspace != nullptr) {
             HTScopedWorkspaceRender render_workspace(monitor, workspace);
             HTCompat::render_workspace_original(
-                g_pHyprRenderer.get(),
                 monitor,
                 workspace,
                 time,
@@ -429,7 +427,6 @@ void HTLayoutLinear::render() {
         } else {
             // If pWorkspace is null, then just render the layers
             HTCompat::render_workspace_original(
-                g_pHyprRenderer.get(),
                 monitor,
                 workspace,
                 time,

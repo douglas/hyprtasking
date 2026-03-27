@@ -19,13 +19,29 @@ namespace HTCompat {
 void initializeRendererHooks();
 void shutdownRendererHooks();
 
+bool should_render_window_original(PHLWINDOW window, PHLMONITOR monitor);
 bool should_render_window_original(void* renderer, PHLWINDOW window, PHLMONITOR monitor);
+void render_workspace_original(
+    PHLMONITOR monitor,
+    PHLWORKSPACE workspace,
+    const Time::steady_tp& now,
+    const CBox& geometry
+);
 void render_workspace_original(
     void* thisptr,
     PHLMONITOR monitor,
     PHLWORKSPACE workspace,
     const Time::steady_tp& now,
     const CBox& geometry
+);
+void render_window_original(
+    PHLWINDOW window,
+    PHLMONITOR monitor,
+    const Time::steady_tp& time,
+    bool decorate,
+    eRenderPassMode mode,
+    bool ignore_position,
+    bool standalone
 );
 void render_window_original(
     void* thisptr,

@@ -49,7 +49,6 @@ void render_window_at_box(PHLWINDOW window, PHLMONITOR monitor, const Time::stea
 
     HTCompat::damage_window(window);
     HTCompat::render_window_original(
-        g_pHyprRenderer.get(),
         window,
         monitor,
         time,
