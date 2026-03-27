@@ -4,7 +4,7 @@
 </div>
 
 > [!Important]
-> - Supports Hyprland release `v0.46.2-v0.54.0`.
+> - Maintained for Hyprland `v0.54.x`.
 
 https://github.com/user-attachments/assets/8d6cdfd2-2b17-4240-a117-1dbd2231ed4e
 
@@ -102,15 +102,17 @@ bash scripts/smoke-live.sh all
 Supported smoke subcommands:
 
 - `all`: unload/load the plugin, wait for dispatcher registration, run toggle/move probes, then reload Hyprland
-- `load-unload`: validate a live unload/load cycle for `build/libhyprtasking.so`
+- `load-unload`: validate one or more live unload/load cycles for `build/libhyprtasking.so`
 - `toggle`: validate toggle and directional move dispatchers
 - `reload`: reload Hyprland and wait for the plugin to become ready again
+- `reload-open`: reload Hyprland while the overview is open, then verify the plugin still responds
 - `manual`: print the manual compositor checks that still need eyes on the result
 
 Optional environment:
 
 - `HYPRLAND_INSTANCE_SIGNATURE`: target a specific live Hyprland session. If unset, the script picks the first active instance from `hyprctl instances`.
 - `PLUGIN_PATH`: override the plugin path used by `load-unload`
+- `LOAD_UNLOAD_CYCLES`: number of unload/load cycles to run for `load-unload`
 
 ## Usage
 

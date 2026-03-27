@@ -352,6 +352,7 @@ void HTLayoutLinear::render() {
             time,
             mon_box
         );
+        HTCompat::remove_clear_passes();
     }
 
     // add blur/dim over the original workspace
@@ -402,9 +403,7 @@ void HTLayoutLinear::render() {
         g_pHyprRenderer->m_renderPass.add(makeUnique<CBorderPassElement>(data));
 
         if (workspace != nullptr) {
-            HTScopedActiveWorkspace activate_workspace(monitor, workspace);
-            HTScopedWorkspaceVisibility show_workspace(workspace, true);
-
+            HTScopedWorkspaceRender render_workspace(monitor, workspace);
             HTCompat::render_workspace_original(
                 g_pHyprRenderer.get(),
                 monitor,
@@ -412,6 +411,7 @@ void HTLayoutLinear::render() {
                 time,
                 render_box
             );
+            HTCompat::remove_clear_passes();
         } else {
             // If pWorkspace is null, then just render the layers
             HTCompat::render_workspace_original(
@@ -421,6 +421,7 @@ void HTLayoutLinear::render() {
                 time,
                 render_box
             );
+            HTCompat::remove_clear_passes();
         }
     }
 

@@ -402,9 +402,7 @@ void HTLayoutGrid::render() {
         g_pHyprRenderer->m_renderPass.add(makeUnique<CBorderPassElement>(data));
 
         if (workspace != nullptr) {
-            HTScopedActiveWorkspace activate_workspace(monitor, workspace);
-            HTScopedWorkspaceVisibility show_workspace(workspace, true);
-
+            HTScopedWorkspaceRender render_workspace(monitor, workspace);
             HTCompat::render_workspace_original(
                 g_pHyprRenderer.get(),
                 monitor,
@@ -412,6 +410,7 @@ void HTLayoutGrid::render() {
                 time,
                 render_box
             );
+            HTCompat::remove_clear_passes();
         } else {
             // If pWorkspace is null, then just render the layers
             HTCompat::render_workspace_original(
@@ -421,6 +420,7 @@ void HTLayoutGrid::render() {
                 time,
                 render_box
             );
+            HTCompat::remove_clear_passes();
         }
     }
 
@@ -454,6 +454,7 @@ void HTLayoutGrid::render() {
                 time,
                 render_box
             );
+            HTCompat::remove_clear_passes();
         }
     }
 

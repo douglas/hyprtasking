@@ -273,27 +273,34 @@ int main() {
     expect(!shouldConsumeMoveSwipe(false), "idle move swipes should not be consumed");
 
     expect(
-        resolveOpenSwipeStart(SwipeDirection::Vertical, false, false, -1.0f)
+        resolveOpenSwipeStart(SwipeDirection::Vertical, false, false, false, -1.0f)
             == OpenSwipeStartAction::ShowOverview,
         "vertical negative swipes should open inactive overviews"
     );
     expect(
-        resolveOpenSwipeStart(SwipeDirection::Vertical, false, true, 1.0f)
+        resolveOpenSwipeStart(SwipeDirection::Vertical, false, true, false, 1.0f)
             == OpenSwipeStartAction::HideOverview,
         "vertical positive swipes should close active overviews"
     );
     expect(
-        resolveOpenSwipeStart(SwipeDirection::Horizontal, false, false, -1.0f)
+        resolveOpenSwipeStart(SwipeDirection::Horizontal, false, false, false, -1.0f)
             == OpenSwipeStartAction::None,
         "horizontal swipes should not trigger open gestures"
     );
     expect(
-        resolveOpenSwipeStart(SwipeDirection::Vertical, true, true, 1.0f)
+        resolveOpenSwipeStart(SwipeDirection::Vertical, true, true, false, 1.0f)
             == OpenSwipeStartAction::None,
         "closing views should reject new open gestures"
     );
-    expect(shouldStartMoveSwipe(false), "inactive views should allow move swipes");
-    expect(!shouldStartMoveSwipe(true), "active views should reject move swipes");
+    expect(
+        resolveOpenSwipeStart(SwipeDirection::Vertical, false, false, true, -1.0f)
+            == OpenSwipeStartAction::None,
+        "navigating views should reject new open gestures"
+    );
+    expect(shouldStartMoveSwipe(false, false, false), "inactive stable views should allow move swipes");
+    expect(!shouldStartMoveSwipe(true, false, false), "active views should reject move swipes");
+    expect(!shouldStartMoveSwipe(false, true, false), "closing views should reject move swipes");
+    expect(!shouldStartMoveSwipe(false, false, true), "navigating views should reject move swipes");
 
     {
         const auto result = nextSwipeAmount(10.0f, -2.0f, 100.0f);

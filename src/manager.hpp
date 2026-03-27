@@ -29,6 +29,9 @@ class HTManager {
     void show_cursor_view();
     bool has_runtime_view();
     void refresh_cursor_override();
+    PHLWINDOW get_dragged_window();
+    void set_dragged_window(PHLWINDOW window);
+    void clear_dragged_window();
 
     bool start_window_drag();
     bool end_window_drag();
@@ -45,6 +48,7 @@ class HTManager {
     swipe_state_t swipe_state;
     float swipe_amt;
     VIEWID swipe_view_id;
+    PHLWINDOWREF dragged_window;
     PHTVIEW get_swipe_view();
     void reset_swipe_state();
     void swipe_start();

@@ -62,7 +62,7 @@ void HTLayoutBase::build_overview_layout(HTViewStage stage) {
 }
 
 void HTLayoutBase::render() {
-    HTCompat::add_clear_pass();
+    HTCompat::begin_overview_render_pass();
 }
 
 void HTLayoutBase::cancel_animation_callbacks() {

@@ -1,15 +1,7 @@
 #include "renderer_compat.hpp"
 
-// Hyprland exposes CHyprRenderer::m_renderPass publicly, but CRenderPass does not expose
-// pass-element inspection or reordering. We only need privileged access to Pass.hpp here so we
-// can prune duplicate clear passes without perturbing render order.
-#define private public
-#include <hyprland/src/render/pass/Pass.hpp>
-#undef private
-
 #include <hyprland/src/helpers/Monitor.hpp>
 #include <hyprland/src/render/Renderer.hpp>
-#include <hyprland/src/render/pass/ClearPassElement.hpp>
 #include <hyprland/src/managers/animation/DesktopAnimationManager.hpp>
 
 #include "../globals.hpp"
@@ -266,26 +258,22 @@ void set_workspace_render_visibility(PHLWORKSPACE workspace, bool visible) {
     workspace->m_visible = visible;
 }
 
-void add_clear_pass() {
+void begin_overview_render_pass() {
     if (!g_pHyprRenderer.get())
         return;
 
-    CClearPassElement::SClearData data;
-    data.color = CHyprColor {0};
-    g_pHyprRenderer->m_renderPass.add(makeUnique<CClearPassElement>(data));
+    g_pHyprRenderer->m_renderPass.add(makeUnique<HTPassElement>());
+}
+
+void remove_clear_passes() {
+    if (!g_pHyprRenderer.get())
+        return;
+
+    g_pHyprRenderer->m_renderPass.removeAllOfType(CLEAR_PASS_ELEMENT_NAME);
 }
 
 void finalize_overview_render_pass() {
-    if (!g_pHyprRenderer.get())
-        return;
-
-    bool first = true;
-    std::erase_if(g_pHyprRenderer->m_renderPass.m_passElements, [&first](const auto& e) {
-        const bool remove = e->element->passName() == CLEAR_PASS_ELEMENT_NAME && !first;
-        first = false;
-        return remove;
-    });
-    g_pHyprRenderer->m_renderPass.add(makeUnique<HTPassElement>());
+    // begin_overview_render_pass adds the simplification guard up front.
 }
 
 }

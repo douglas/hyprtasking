@@ -108,3 +108,19 @@ class HTScopedWorkspaceVisibility {
     bool         previous_visible = false;
     bool         restore_on_destroy = true;
 };
+
+class HTScopedWorkspaceRender {
+  public:
+    HTScopedWorkspaceRender(PHLMONITOR monitor, PHLWORKSPACE workspace)
+        : active_workspace(monitor, workspace),
+          visible_workspace(workspace, true) {}
+
+    void dismiss() {
+        active_workspace.dismiss();
+        visible_workspace.dismiss();
+    }
+
+  private:
+    HTScopedActiveWorkspace     active_workspace;
+    HTScopedWorkspaceVisibility visible_workspace;
+};

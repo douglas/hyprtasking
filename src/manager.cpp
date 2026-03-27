@@ -127,7 +127,20 @@ void HTManager::refresh_cursor_override() {
     }
 }
 
+PHLWINDOW HTManager::get_dragged_window() {
+    return dragged_window.lock();
+}
+
+void HTManager::set_dragged_window(PHLWINDOW window) {
+    dragged_window = window;
+}
+
+void HTManager::clear_dragged_window() {
+    dragged_window = {};
+}
+
 void HTManager::reset() {
+    clear_dragged_window();
     reset_drag_state();
     reset_swipe_state();
     views.clear();
@@ -152,6 +165,8 @@ void HTManager::reset_swipe_state() {
 }
 
 void HTManager::reset_drag_state() {
+    clear_dragged_window();
+
     if (!g_layoutManager)
         return;
 

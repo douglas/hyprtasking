@@ -1,6 +1,5 @@
 #include "render_snapshot.hpp"
 
-#include <hyprland/src/layout/LayoutManager.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
 
 #include "globals.hpp"
@@ -27,11 +26,7 @@ std::optional<HTRenderSnapshot> capture_render_snapshot(VIEWID view_id, float dr
     if (cursor_view == nullptr)
         return snapshot;
 
-    const SP<Layout::ITarget> target = g_layoutManager->dragController()->target();
-    if (target == nullptr)
-        return snapshot;
-
-    const PHLWINDOW dragged_window = target->window();
+    const PHLWINDOW dragged_window = ht_manager->get_dragged_window();
     if (dragged_window == nullptr)
         return snapshot;
 

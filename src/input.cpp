@@ -19,6 +19,8 @@
 using Hyprutils::Utils::CScopeGuard;
 
 bool HTManager::start_window_drag() {
+    clear_dragged_window();
+
     const PHLMONITOR cursor_monitor = g_pCompositor->getMonitorFromCursor();
     const PHTVIEW cursor_view = get_view_from_monitor(cursor_monitor);
     const bool manages_mouse = cursor_view != nullptr && cursor_view->layout->should_manage_mouse();
@@ -81,6 +83,7 @@ bool HTManager::start_window_drag() {
     restore_workspace.dismiss();
 
     const PHLWINDOW dragged_window = target->window();
+    set_dragged_window(dragged_window);
     if (dragged_window != nullptr) {
         if (g_layoutManager->dragController()->draggingTiled()) {
             const Vector2D pre_pos = cursor_view->layout->local_ws_unscaled_to_global(
@@ -110,6 +113,7 @@ bool HTManager::end_window_drag() {
     const PHLMONITOR cursor_monitor = g_pCompositor->getMonitorFromCursor();
     const PHTVIEW cursor_view = get_view_from_monitor(cursor_monitor);
     CScopeGuard reset_drag_mode([] { g_pKeybindManager->changeMouseBindMode(MBIND_INVALID); });
+    CScopeGuard clear_dragged_window_guard([this] { clear_dragged_window(); });
     const bool has_view = cursor_view != nullptr;
     const bool manages_mouse = cursor_view != nullptr && cursor_view->layout->should_manage_mouse();
     const bool has_layout_manager = static_cast<bool>(g_layoutManager);
@@ -244,8 +248,10 @@ void HTManager::swipe_start() {
 
 bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
     const int ENABLED = HTConfig::value<Hyprlang::INT>("gestures:enabled");
-    if (!ENABLED)
+    if (!ENABLED) {
+        reset_swipe_state();
         return false;
+    }
 
     PHTVIEW swipe_view = nullptr;
     if (swipe_state == HT_SWIPE_NONE) {
@@ -255,6 +261,10 @@ bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
         swipe_view = get_swipe_view();
     }
     if (swipe_view == nullptr) {
+        reset_swipe_state();
+        return false;
+    }
+    if (swipe_view->layout == nullptr || swipe_view->closing) {
         reset_swipe_state();
         return false;
     }
@@ -278,6 +288,7 @@ bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
                 swipe_direction,
                 swipe_view->closing,
                 swipe_view->active,
+                swipe_view->navigating,
                 deltaY
             );
             if (action == HTLogic::OpenSwipeStartAction::None) {
@@ -316,7 +327,11 @@ bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
             res = true;
 
         if (swipe_state != HT_SWIPE_MOVE) {
-            if (!HTLogic::shouldStartMoveSwipe(swipe_view->active)) {
+            if (!HTLogic::shouldStartMoveSwipe(
+                    swipe_view->active,
+                    swipe_view->closing,
+                    swipe_view->navigating
+                )) {
                 return res;
             } else {
                 swipe_state = HT_SWIPE_MOVE;
@@ -333,6 +348,10 @@ bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
         }
 
         if (swipe_state == HT_SWIPE_MOVE) {
+            if (!swipe_view->navigating) {
+                reset_swipe_state();
+                return res;
+            }
             swipe_view->layout->on_move_swipe(e.delta);
         }
     }
@@ -345,6 +364,10 @@ bool HTManager::swipe_end() {
 
     const PHTVIEW swipe_view = get_swipe_view();
     if (swipe_view == nullptr) {
+        reset_swipe_state();
+        return false;
+    }
+    if (swipe_view->layout == nullptr || swipe_view->closing) {
         reset_swipe_state();
         return false;
     }
@@ -366,6 +389,10 @@ bool HTManager::swipe_end() {
             break;
         }
         case HT_SWIPE_MOVE: {
+            if (!swipe_view->navigating) {
+                reset_swipe_state();
+                return false;
+            }
             const WORKSPACEID ws_id = swipe_view->layout->on_move_swipe_end();
             swipe_view->move_id(ws_id, false);
             break;

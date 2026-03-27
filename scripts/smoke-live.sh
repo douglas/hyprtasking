@@ -5,6 +5,7 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 PLUGIN_PATH=${PLUGIN_PATH:-"$SCRIPT_DIR/../build/libhyprtasking.so"}
 PLUGIN_PATH=$(realpath "$PLUGIN_PATH")
 MODE=${1:-all}
+LOAD_UNLOAD_CYCLES=${LOAD_UNLOAD_CYCLES:-1}
 HYPRCTL_PREFIX=()
 
 run() {
@@ -107,16 +108,31 @@ smoke_reload() {
   assert_dispatcher_ready
 }
 
+smoke_reload_open() {
+  assert_plugin_loaded
+  assert_dispatcher_ready
+  run_hyprctl dispatch hyprtasking:toggle cursor
+  run_hyprctl reload
+  wait_for_plugin_ready
+  assert_plugin_loaded
+  assert_dispatcher_ready
+  run_hyprctl dispatch hyprtasking:toggle cursor
+  run_hyprctl dispatch hyprtasking:toggle cursor
+}
+
 smoke_load_unload() {
   if [[ ! -f "$PLUGIN_PATH" ]]; then
     printf 'Plugin path does not exist: %s\n' "$PLUGIN_PATH" >&2
     exit 1
   fi
 
-  run_hyprctl plugin unload "$PLUGIN_PATH"
-  run_hyprctl plugin load "$PLUGIN_PATH"
-  wait_for_plugin_ready
-  assert_plugin_loaded
+  local cycle
+  for ((cycle = 0; cycle < LOAD_UNLOAD_CYCLES; cycle++)); do
+    run_hyprctl plugin unload "$PLUGIN_PATH"
+    run_hyprctl plugin load "$PLUGIN_PATH"
+    wait_for_plugin_ready
+    assert_plugin_loaded
+  done
 }
 
 print_manual_follow_up() {
@@ -132,6 +148,7 @@ case "$MODE" in
     smoke_load_unload
     smoke_toggle
     smoke_reload
+    smoke_reload_open
     print_manual_follow_up
     ;;
   load-unload)
@@ -143,12 +160,15 @@ case "$MODE" in
   reload)
     smoke_reload
     ;;
+  reload-open)
+    smoke_reload_open
+    ;;
   manual)
     assert_plugin_loaded
     print_manual_follow_up
     ;;
   *)
-    printf 'Usage: %s [all|load-unload|toggle|move|reload|manual]\n' "$0" >&2
+    printf 'Usage: %s [all|load-unload|toggle|move|reload|reload-open|manual]\n' "$0" >&2
     exit 1
     ;;
 esac

@@ -26,8 +26,14 @@ bool shouldConsumeMoveSwipe(bool already_move_swipe) {
 }
 
 OpenSwipeStartAction
-resolveOpenSwipeStart(SwipeDirection direction, bool closing, bool active, float delta_y) {
-    if (direction != SwipeDirection::Vertical || closing)
+resolveOpenSwipeStart(
+    SwipeDirection direction,
+    bool closing,
+    bool active,
+    bool navigating,
+    float delta_y
+) {
+    if (direction != SwipeDirection::Vertical || closing || navigating)
         return OpenSwipeStartAction::None;
 
     if (!active && delta_y <= 0.f)
@@ -38,8 +44,8 @@ resolveOpenSwipeStart(SwipeDirection direction, bool closing, bool active, float
     return OpenSwipeStartAction::None;
 }
 
-bool shouldStartMoveSwipe(bool active) {
-    return !active;
+bool shouldStartMoveSwipe(bool active, bool closing, bool navigating) {
+    return !active && !closing && !navigating;
 }
 
 std::optional<float> nextSwipeAmount(float swipe_amount, float delta, float limit) {
