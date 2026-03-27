@@ -4,7 +4,8 @@ set -euo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
 BUILD_DIR=${BUILD_DIR:-"$REPO_DIR/build"}
-SMOKE_MODE=${SMOKE_MODE:-all}
+SMOKE_MODE=${SMOKE_MODE:-stress}
+PRINT_MANUAL_CHECKLIST=${PRINT_MANUAL_CHECKLIST:-1}
 
 run() {
   printf '$ %s\n' "$*"
@@ -19,3 +20,7 @@ fi
 run meson compile -C "$BUILD_DIR"
 run meson test -C "$BUILD_DIR"
 run bash "$SCRIPT_DIR/smoke-live.sh" "$SMOKE_MODE"
+
+if [[ "$PRINT_MANUAL_CHECKLIST" == "1" ]]; then
+  run bash "$SCRIPT_DIR/manual-runtime-check.sh"
+fi

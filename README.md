@@ -154,6 +154,16 @@ For a single local release-prep command, run:
 bash scripts/release-check.sh
 ```
 
+`release-check.sh` defaults to the heavier `stress` smoke mode. Override with
+`SMOKE_MODE=all` if you want the lighter path, or set `PRINT_MANUAL_CHECKLIST=0`
+to skip printing the manual compositor checklist.
+
+The manual compositor checklist is also available directly:
+
+```
+bash scripts/manual-runtime-check.sh
+```
+
 ## Usage
 
 ### Opening Overview
