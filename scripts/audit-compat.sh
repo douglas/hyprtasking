@@ -3,6 +3,7 @@ set -euo pipefail
 
 HYPRLAND_SOURCE=${1:-${HYPRLAND_SOURCE:-/home/douglas/src/Hyprland}}
 SUPPORTED_MINOR="0.54.x"
+SUPPORTED_PREFIX="0.54."
 
 require_file() {
   local path=$1
@@ -31,16 +32,26 @@ PLUGIN_SYSTEM_CPP="$HYPRLAND_SOURCE/src/plugins/PluginSystem.cpp"
 RENDERER_CPP="$HYPRLAND_SOURCE/src/render/Renderer.cpp"
 MONITOR_HPP="$HYPRLAND_SOURCE/src/helpers/Monitor.hpp"
 HYPRLAND_PC="$HYPRLAND_SOURCE/hyprland.pc.in"
+VERSION_FILE="$HYPRLAND_SOURCE/VERSION"
 
 require_file "$PLUGIN_API_HPP"
 require_file "$PLUGIN_API_CPP"
 require_file "$PLUGIN_SYSTEM_CPP"
 require_file "$RENDERER_CPP"
 require_file "$MONITOR_HPP"
+require_file "$VERSION_FILE"
+
+TARGET_VERSION="$(tr -d '[:space:]' < "$VERSION_FILE")"
 
 printf 'Hyprtasking compat audit\n'
 printf 'Source: %s\n' "$HYPRLAND_SOURCE"
 printf 'Supported Hyprland line: %s\n' "$SUPPORTED_MINOR"
+printf 'Detected target version: %s\n' "$TARGET_VERSION"
+
+if [[ "$TARGET_VERSION" != ${SUPPORTED_PREFIX}* ]]; then
+  printf 'Unsupported Hyprland version for this plugin line: %s\n' "$TARGET_VERSION" >&2
+  exit 1
+fi
 
 if [[ -f "$HYPRLAND_PC" ]]; then
   printf 'pkg-config version line:\n'

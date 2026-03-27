@@ -139,7 +139,7 @@ Hyprtasking is maintained for one Hyprland minor line at a time. The current sup
 Update workflow:
 
 1. Point `scripts/audit-compat.sh` at the target Hyprland source tree.
-2. If the audit fails, update only the compat layer in `src/compat/`.
+2. If the audit fails, first confirm that the target tree is still on the supported `0.54.x` line, then update only the compat layer in `src/compat/`.
 3. Rebuild and run:
 
 ```
