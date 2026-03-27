@@ -91,7 +91,7 @@ const HTLayoutBase::HTWorkspace* HTLayoutBase::find_layout_workspace(WORKSPACEID
 
 WORKSPACEID HTLayoutBase::get_ws_id_from_global(Vector2D pos) {
     const PHLMONITOR monitor = get_monitor();
-    if (monitor == nullptr)
+    if (monitor == nullptr || !HTLogic::isPositiveFinite(monitor->m_scale))
         return WORKSPACE_INVALID;
 
     if (!monitor->logicalBox().containsPoint(pos))
@@ -178,12 +178,26 @@ Vector2D HTLayoutBase::global_to_local_ws_unscaled(Vector2D pos, WORKSPACEID wor
 
 Vector2D HTLayoutBase::global_to_local_ws_scaled(Vector2D pos, WORKSPACEID workspace_id) {
     const PHLMONITOR monitor = get_monitor();
-    if (monitor == nullptr)
+    if (monitor == nullptr || !HTLogic::isPositiveFinite(monitor->m_scale))
         return {};
 
     pos = global_to_local_ws_unscaled(pos, workspace_id);
     pos *= monitor->m_scale;
     return pos;
+}
+
+std::optional<Vector2D>
+HTLayoutBase::global_to_workspace_monitor_coords(Vector2D pos, WORKSPACEID workspace_id) {
+    const PHLMONITOR monitor = get_monitor();
+    if (monitor == nullptr)
+        return std::nullopt;
+
+    const Vector2D local_coords = global_to_local_ws_unscaled(pos, workspace_id);
+    const Vector2D monitor_coords = local_coords + monitor->m_position;
+    if (!std::isfinite(monitor_coords.x) || !std::isfinite(monitor_coords.y))
+        return std::nullopt;
+
+    return monitor_coords;
 }
 
 Vector2D HTLayoutBase::local_ws_unscaled_to_global(Vector2D pos, WORKSPACEID workspace_id) {

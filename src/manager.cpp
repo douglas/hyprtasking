@@ -73,18 +73,21 @@ PHLWINDOW HTManager::get_window_from_cursor(bool return_focused) {
     }
 
     const WORKSPACEID ws_id = cursor_view->layout->get_ws_id_from_global(mouse_coords);
-    const PHLWORKSPACE hovered_workspace = g_pCompositor->getWorkspaceByID(ws_id);
+    const PHLWORKSPACE hovered_workspace =
+        HTCompat::resolve_workspace_target(cursor_monitor, ws_id, false);
     if (hovered_workspace == nullptr)
         return nullptr;
 
-    const Vector2D ws_coords = cursor_view->layout->global_to_local_ws_unscaled(mouse_coords, ws_id)
-        + cursor_monitor->m_position;
+    const auto ws_coords =
+        cursor_view->layout->global_to_workspace_monitor_coords(mouse_coords, ws_id);
+    if (!ws_coords.has_value())
+        return nullptr;
 
     HTScopedMonitorWorkspace restore_workspace(cursor_monitor, true);
     cursor_monitor->changeWorkspace(hovered_workspace, true);
 
     const PHLWINDOW hovered_window = g_pCompositor->vectorToWindowUnified(
-        ws_coords,
+        *ws_coords,
         Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING
     );
 

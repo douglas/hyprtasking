@@ -29,7 +29,11 @@ bool HTManager::start_window_drag() {
     const Vector2D mouse_coords = g_pInputManager->getMouseCoordsInternal();
     const WORKSPACEID workspace_id =
         cursor_view == nullptr ? WORKSPACE_INVALID : cursor_view->layout->get_ws_id_from_global(mouse_coords);
-    PHLWORKSPACE cursor_workspace = g_pCompositor->getWorkspaceByID(workspace_id);
+    PHLWORKSPACE cursor_workspace = HTCompat::resolve_workspace_target(
+        cursor_monitor,
+        workspace_id,
+        false
+    );
 
     switch (HTLogic::decideDragStart(
         cursor_view != nullptr,
@@ -61,9 +65,10 @@ bool HTManager::start_window_drag() {
     HTScopedMonitorWorkspace restore_workspace(cursor_monitor, true);
     cursor_monitor->changeWorkspace(cursor_workspace, true);
 
-    const Vector2D workspace_coords =
-        cursor_view->layout->global_to_local_ws_unscaled(mouse_coords, workspace_id)
-        + cursor_monitor->m_position;
+    const auto workspace_coords =
+        cursor_view->layout->global_to_workspace_monitor_coords(mouse_coords, workspace_id);
+    if (!workspace_coords.has_value())
+        return false;
 
     bool reset_mouse_bind_mode = false;
     CScopeGuard reset_drag_mode([&reset_mouse_bind_mode] {
@@ -71,7 +76,7 @@ bool HTManager::start_window_drag() {
             g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
     });
 
-    g_pPointerManager->warpTo(workspace_coords);
+    g_pPointerManager->warpTo(*workspace_coords);
     g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
     reset_mouse_bind_mode = true;
     g_pPointerManager->warpTo(mouse_coords);
@@ -187,20 +192,25 @@ bool HTManager::end_window_drag() {
 
     g_pCompositor->moveWindowToWorkspaceSafe(dragged_window, cursor_workspace);
 
-    const Vector2D workspace_coords =
-        cursor_view->layout->global_to_local_ws_unscaled(use_mouse_coords, cursor_workspace->m_id)
-        + cursor_monitor->m_position;
+    const auto workspace_coords = cursor_view->layout->global_to_workspace_monitor_coords(
+        use_mouse_coords,
+        cursor_workspace->m_id
+    );
+    if (!workspace_coords.has_value())
+        return false;
 
-    const Vector2D tp_pos = cursor_view->layout->global_to_local_ws_unscaled(
+    const Vector2D warped_global_pos = cursor_view->layout->global_to_local_ws_unscaled(
                                 (dragged_window->m_realPosition->value() - use_mouse_coords)
                                         * cursor_view->layout->drag_window_scale()
                                     + use_mouse_coords,
                                 cursor_workspace->m_id
-                            )
-        + cursor_monitor->m_position;
+                            ) + cursor_monitor->m_position;
+    if (!std::isfinite(warped_global_pos.x) || !std::isfinite(warped_global_pos.y))
+        return false;
+    const Vector2D tp_pos = warped_global_pos;
     dragged_window->m_realPosition->setValueAndWarp(tp_pos);
 
-    g_pPointerManager->warpTo(workspace_coords);
+    g_pPointerManager->warpTo(*workspace_coords);
     g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
     g_pPointerManager->warpTo(mouse_coords);
 

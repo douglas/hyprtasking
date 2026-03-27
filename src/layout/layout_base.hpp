@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include <hyprland/src/SharedDefs.hpp>
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/helpers/AnimatedVariable.hpp>
@@ -80,6 +82,7 @@ class HTLayoutBase {
 
     Vector2D global_to_local_ws_scaled(Vector2D pos, WORKSPACEID workspace_id);
     Vector2D global_to_local_ws_unscaled(Vector2D pos, WORKSPACEID workspace_id);
+    std::optional<Vector2D> global_to_workspace_monitor_coords(Vector2D pos, WORKSPACEID workspace_id);
     Vector2D local_ws_scaled_to_global(Vector2D pos, WORKSPACEID workspace_id);
     Vector2D local_ws_unscaled_to_global(Vector2D pos, WORKSPACEID workspace_id);
 };
