@@ -33,7 +33,7 @@ CHyprSignalListener g_monitor_removed_listener;
 
 void onMouseButton(IPointer::SButtonEvent e, Event::SCallbackInfo& info) {
     HTPlugin::guardedCallback("on_mouse_button", [&] {
-        if (ht_manager == nullptr)
+        if (ht_manager == nullptr || !ht_manager->runtime_enabled())
             return;
 
         const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
@@ -56,7 +56,7 @@ void onMouseButton(IPointer::SButtonEvent e, Event::SCallbackInfo& info) {
 
 void onMouseMove([[maybe_unused]] Vector2D cursor, Event::SCallbackInfo& info) {
     HTPlugin::guardedCallback("on_mouse_move", [&] {
-        if (ht_manager == nullptr)
+        if (ht_manager == nullptr || !ht_manager->runtime_enabled())
             return;
 
         info.cancelled = ht_manager->on_mouse_move();
@@ -65,7 +65,7 @@ void onMouseMove([[maybe_unused]] Vector2D cursor, Event::SCallbackInfo& info) {
 
 void onMouseAxis(IPointer::SAxisEvent e, Event::SCallbackInfo& info) {
     HTPlugin::guardedCallback("on_mouse_axis", [&] {
-        if (ht_manager == nullptr)
+        if (ht_manager == nullptr || !ht_manager->runtime_enabled())
             return;
 
         info.cancelled = ht_manager->on_mouse_axis(e.delta);
@@ -74,7 +74,7 @@ void onMouseAxis(IPointer::SAxisEvent e, Event::SCallbackInfo& info) {
 
 void onSwipeBegin([[maybe_unused]] IPointer::SSwipeBeginEvent e, [[maybe_unused]] Event::SCallbackInfo& info) {
     HTPlugin::guardedCallback("on_swipe_begin", [&] {
-        if (ht_manager == nullptr)
+        if (ht_manager == nullptr || !ht_manager->runtime_enabled())
             return;
 
         ht_manager->swipe_start();
@@ -83,7 +83,7 @@ void onSwipeBegin([[maybe_unused]] IPointer::SSwipeBeginEvent e, [[maybe_unused]
 
 void onSwipeUpdate(IPointer::SSwipeUpdateEvent e, Event::SCallbackInfo& info) {
     HTPlugin::guardedCallback("on_swipe_update", [&] {
-        if (ht_manager == nullptr)
+        if (ht_manager == nullptr || !ht_manager->runtime_enabled())
             return;
 
         info.cancelled = ht_manager->swipe_update(e);
@@ -92,7 +92,7 @@ void onSwipeUpdate(IPointer::SSwipeUpdateEvent e, Event::SCallbackInfo& info) {
 
 void onSwipeEnd([[maybe_unused]] IPointer::SSwipeEndEvent e, Event::SCallbackInfo& info) {
     HTPlugin::guardedCallback("on_swipe_end", [&] {
-        if (ht_manager == nullptr)
+        if (ht_manager == nullptr || !ht_manager->runtime_enabled())
             return;
 
         info.cancelled = ht_manager->swipe_end();
@@ -100,7 +100,7 @@ void onSwipeEnd([[maybe_unused]] IPointer::SSwipeEndEvent e, Event::SCallbackInf
 }
 
 void cancelEvent(Event::SCallbackInfo& info) {
-    if (ht_manager == nullptr || !ht_manager->cursor_view_active())
+    if (ht_manager == nullptr || !ht_manager->runtime_enabled() || !ht_manager->cursor_view_active())
         return;
 
     info.cancelled = true;
@@ -133,6 +133,8 @@ void onConfigReloaded() {
         notifyConfigChanges();
 
         if (ht_manager == nullptr)
+            return;
+        if (!ht_manager->runtime_enabled())
             return;
 
         ht_manager->sync_monitor_views();
@@ -281,6 +283,8 @@ void registerCallbacks() {
 void registerMonitors() {
     HTPlugin::guardedCallback("register_monitors", [] {
         if (ht_manager == nullptr)
+            return;
+        if (!ht_manager->runtime_enabled())
             return;
 
         ht_manager->sync_monitor_views();

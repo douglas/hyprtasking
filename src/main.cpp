@@ -1,6 +1,7 @@
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprland/src/plugins/PluginSystem.hpp>
 
+#include "compat/profile.hpp"
 #include "compat/renderer_compat.hpp"
 #include "globals.hpp"
 #include "manager.hpp"
@@ -14,11 +15,9 @@ APICALL EXPORT std::string PLUGIN_API_VERSION() {
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     PHANDLE = handle;
 
-    const std::string compositor_hash = __hyprland_api_get_hash();
-    const std::string client_hash     = __hyprland_api_get_client_hash();
-
-    if (compositor_hash != client_hash)
-        fail_exit("Mismatched headers! Can't proceed.");
+    const auto compatibility = HTCompat::verify_compatibility();
+    if (!compatibility.supported)
+        fail_exit("Unsupported Hyprland runtime: {}", compatibility.error);
 
     if (ht_manager == nullptr)
         ht_manager = std::make_unique<HTManager>();

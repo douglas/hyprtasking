@@ -99,6 +99,13 @@ For a quick live smoke check after the plugin is loaded:
 bash scripts/smoke-live.sh all
 ```
 
+Before updating the plugin to a new Hyprland checkout, run the compat audit against the target
+source tree:
+
+```
+bash scripts/audit-compat.sh /path/to/Hyprland
+```
+
 Supported smoke subcommands:
 
 - `all`: unload/load the plugin, wait for dispatcher registration, run toggle/move probes, then reload Hyprland
@@ -113,6 +120,25 @@ Optional environment:
 - `HYPRLAND_INSTANCE_SIGNATURE`: target a specific live Hyprland session. If unset, the script picks the first active instance from `hyprctl instances`.
 - `PLUGIN_PATH`: override the plugin path used by `load-unload`
 - `LOAD_UNLOAD_CYCLES`: number of unload/load cycles to run for `load-unload`
+
+## Updating Hyprland Compatibility
+
+Hyprtasking is maintained for one Hyprland minor line at a time. The current supported line is
+`0.54.x`.
+
+Update workflow:
+
+1. Point `scripts/audit-compat.sh` at the target Hyprland source tree.
+2. If the audit fails, update only the compat layer in `src/compat/`.
+3. Rebuild and run:
+
+```
+meson compile -C build
+meson test -C build
+bash scripts/smoke-live.sh all
+```
+
+4. Finish with the manual compositor checks printed by `bash scripts/smoke-live.sh manual`.
 
 ## Usage
 

@@ -36,6 +36,7 @@ layout_src = [
 ]
 
 logic_src = [
+  'src/logic/compat_model.cpp',
   'src/logic/controller_state.cpp',
   'src/logic/dispatch_args.cpp',
   'src/logic/gesture_model.cpp',
@@ -50,6 +51,7 @@ pass_src = [
 ]
 
 plugin_src = [
+  'src/compat/profile.cpp',
   'src/plugin/dispatchers.cpp',
   'src/plugin/runtime.cpp',
 ]
@@ -83,6 +85,7 @@ shared_module(meson.project_name(), src,
 logic_tests = executable('logic-tests',
   [
     'tests/logic_tests.cpp',
+    'src/logic/compat_model.cpp',
     'src/logic/controller_state.cpp',
     'src/logic/dispatch_args.cpp',
     'src/logic/gesture_model.cpp',

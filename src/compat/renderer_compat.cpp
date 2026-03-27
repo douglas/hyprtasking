@@ -11,6 +11,7 @@
 #include "../pass/pass_element.hpp"
 #include "../plugin/guards.hpp"
 #include "../types.hpp"
+#include "profile.hpp"
 
 namespace {
 
@@ -29,6 +30,10 @@ void hookRenderWorkspace(
 ) {
     try {
         if (ht_manager == nullptr) {
+            HTCompat::render_workspace_original(thisptr, monitor, workspace, now, geometry);
+            return;
+        }
+        if (!ht_manager->runtime_enabled()) {
             HTCompat::render_workspace_original(thisptr, monitor, workspace, now, geometry);
             return;
         }
@@ -55,7 +60,7 @@ void hookRenderWorkspace(
 bool hookShouldRenderWindow(void* thisptr, PHLWINDOW window, PHLMONITOR monitor) {
     const bool original_result = HTCompat::should_render_window_original(thisptr, window, monitor);
     return HTPlugin::guardedValue("hook_should_render_window", original_result, [&] {
-        if (ht_manager == nullptr || !ht_manager->has_active_view())
+        if (ht_manager == nullptr || !ht_manager->runtime_enabled() || !ht_manager->has_active_view())
             return original_result;
 
         const PHTVIEW view = ht_manager->get_view_from_monitor(monitor);
@@ -72,6 +77,8 @@ uint32_t hookIsSolitaryBlocked(void* thisptr, bool full) {
         solitaryBlockedOriginal(thisptr, full),
         [&] {
             if (ht_manager == nullptr)
+                return solitaryBlockedOriginal(thisptr, full);
+            if (!ht_manager->runtime_enabled())
                 return solitaryBlockedOriginal(thisptr, full);
 
             const PHTVIEW view = ht_manager->get_view_from_cursor();
@@ -102,8 +109,10 @@ namespace HTCompat {
 void initializeRendererHooks() {
     bool success = true;
 
-    static const auto render_workspace_functions =
-        HyprlandAPI::findFunctionsByName(PHANDLE, "renderWorkspace");
+    static const auto render_workspace_functions = HyprlandAPI::findFunctionsByName(
+        PHANDLE,
+        std::string(render_workspace_spec().query)
+    );
     if (render_workspace_functions.empty())
         fail_exit("No renderWorkspace!");
     render_workspace_hook = HyprlandAPI::createFunctionHook(
@@ -120,8 +129,7 @@ void initializeRendererHooks() {
 
     static const auto should_render_window_functions = HyprlandAPI::findFunctionsByName(
         PHANDLE,
-        "_ZN13CHyprRenderer18shouldRenderWindowEN9Hyprutils6Memory14CS"
-        "haredPointerIN7Desktop4View7CWindowEEENS2_I8CMonitorEE"
+        std::string(should_render_window_spec().query)
     );
     if (should_render_window_functions.empty())
         fail_exit("No shouldRenderWindow");
@@ -139,17 +147,16 @@ void initializeRendererHooks() {
 
     static const auto render_window_functions = HyprlandAPI::findFunctionsByName(
         PHANDLE,
-        "_ZN13CHyprRenderer12renderWindowEN9Hyprutils6Memory14CSha"
-        "redPointerIN7Desktop4View7CWindowEEENS2_I8CMonitorEERKNSt"
-        "6chrono10time_pointINS9_3_V212steady_clockENS9_8durationI"
-        "lSt5ratioILl1ELl1000000000EEEEEEb15eRenderPassModebb"
+        std::string(render_window_spec().query)
     );
     if (render_window_functions.empty())
         fail_exit("No renderWindow");
     render_window = render_window_functions[0].address;
 
-    static const auto solitary_blocked_functions =
-        HyprlandAPI::findFunctionsByName(PHANDLE, "isSolitaryBlocked");
+    static const auto solitary_blocked_functions = HyprlandAPI::findFunctionsByName(
+        PHANDLE,
+        std::string(solitary_blocked_spec().query)
+    );
     if (solitary_blocked_functions.empty())
         fail_exit("No isSolitaryBlocked");
 

@@ -4,6 +4,7 @@
 #include <string_view>
 #include <vector>
 
+#include "../src/logic/compat_model.hpp"
 #include "../src/logic/controller_state.hpp"
 #include "../src/logic/dispatch_args.hpp"
 #include "../src/logic/gesture_model.hpp"
@@ -26,6 +27,27 @@ void expect(bool condition, std::string_view message) {
 
 int main() {
     using namespace HTLogic;
+
+    {
+        const auto result = decideCompatSupport(true, "0.54.2", "0.54.");
+        expect(result.supported, "compat support should accept supported build versions");
+    }
+    {
+        const auto result = decideCompatSupport(false, "0.54.2", "0.54.");
+        expect(!result.supported, "compat support should reject mismatched hashes");
+    }
+    {
+        const auto result = decideCompatSupport(true, "0.55.0", "0.54.");
+        expect(!result.supported, "compat support should reject unsupported Hyprland minors");
+    }
+    expect(
+        versionMatchesMinor("v0.54.2", "0.54."),
+        "compat version matching should accept v-prefixed supported versions"
+    );
+    expect(
+        !versionMatchesMinor("0.55.0", "0.54."),
+        "compat version matching should reject unsupported minors"
+    );
 
     {
         const auto result = parseOffsetArg("12", 3);

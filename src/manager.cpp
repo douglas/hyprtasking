@@ -9,6 +9,7 @@
 #include <hyprland/src/managers/cursor/CursorShapeOverrideController.hpp>
 #include <hyprland/src/managers/KeybindManager.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
+#include <hyprland/src/plugins/PluginAPI.hpp>
 
 #include "globals.hpp"
 #include "logic/reload_model.hpp"
@@ -144,11 +145,52 @@ void HTManager::clear_dragged_window() {
 }
 
 void HTManager::reset() {
+    runtime_disabled = false;
+    disabled_reason.clear();
     clear_dragged_window();
     reset_drag_state();
     reset_swipe_state();
     views.clear();
     refresh_cursor_override();
+}
+
+bool HTManager::runtime_enabled() const {
+    return !runtime_disabled;
+}
+
+void HTManager::disable_runtime(std::string_view source, std::string_view reason) {
+    if (runtime_disabled)
+        return;
+
+    runtime_disabled = true;
+    disabled_reason = std::string(reason);
+
+    for (const PHTVIEW& view : views) {
+        if (view == nullptr)
+            continue;
+        view->cancel_runtime_state();
+    }
+
+    reset_drag_state();
+    reset_swipe_state();
+    refresh_cursor_override();
+
+    Log::logger->log(
+        Log::ERR,
+        "[Hyprtasking] runtime disabled after {}: {}",
+        source,
+        reason
+    );
+    HyprlandAPI::addNotification(
+        PHANDLE,
+        "[Hyprtasking] Disabled for this session after an internal runtime failure.",
+        CHyprColor {1.0, 0.2, 0.2, 1.0},
+        5000
+    );
+}
+
+std::string HTManager::runtime_disable_reason() const {
+    return disabled_reason;
 }
 
 PHTVIEW HTManager::get_swipe_view() {
@@ -260,6 +302,9 @@ void HTManager::sync_monitor_views() {
 }
 
 bool HTManager::has_active_view() {
+    if (!runtime_enabled())
+        return false;
+
     for (const auto& view : views) {
         if (view == nullptr)
             continue;
@@ -270,6 +315,9 @@ bool HTManager::has_active_view() {
 }
 
 bool HTManager::cursor_view_active() {
+    if (!runtime_enabled())
+        return false;
+
     const PHTVIEW view = get_view_from_cursor();
     if (view == nullptr)
         return false;

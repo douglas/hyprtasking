@@ -18,6 +18,8 @@ SDispatchResult dispatchIf(std::string arg, bool is_active) {
     return guardedDispatch("dispatch_if", [&]() -> SDispatchResult {
         if (ht_manager == nullptr)
             return {.passEvent = true, .success = false, .error = "ht_manager is null"};
+        if (!ht_manager->runtime_enabled())
+            return {.passEvent = true, .success = false, .error = "runtime disabled"};
 
         const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
         if (cursor_view == nullptr)
@@ -61,6 +63,8 @@ SDispatchResult dispatchToggleView(std::string arg) {
     return guardedDispatch("dispatch_toggle_view", [&]() -> SDispatchResult {
         if (ht_manager == nullptr)
             return {.success = false, .error = "ht_manager is null"};
+        if (!ht_manager->runtime_enabled())
+            return {.success = false, .error = "runtime disabled"};
 
         if (arg == "all") {
             if (ht_manager->has_active_view())
@@ -84,6 +88,8 @@ SDispatchResult dispatchMove(std::string arg) {
     return guardedDispatch("dispatch_move", [&]() -> SDispatchResult {
         if (ht_manager == nullptr)
             return {.success = false, .error = "ht_manager is null"};
+        if (!ht_manager->runtime_enabled())
+            return {.success = false, .error = "runtime disabled"};
 
         const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
         if (cursor_view == nullptr)
@@ -98,6 +104,8 @@ SDispatchResult dispatchMoveWindow(std::string arg) {
     return guardedDispatch("dispatch_move_window", [&]() -> SDispatchResult {
         if (ht_manager == nullptr)
             return {.success = false, .error = "ht_manager is null"};
+        if (!ht_manager->runtime_enabled())
+            return {.success = false, .error = "runtime disabled"};
 
         const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
         if (cursor_view == nullptr)
@@ -112,6 +120,8 @@ SDispatchResult dispatchKillHover([[maybe_unused]] std::string arg) {
     return guardedDispatch("dispatch_kill_hover", [&]() -> SDispatchResult {
         if (ht_manager == nullptr)
             return {.success = false, .error = "ht_manager is null"};
+        if (!ht_manager->runtime_enabled())
+            return {.success = false, .error = "runtime disabled"};
 
         const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
         if (cursor_view == nullptr)

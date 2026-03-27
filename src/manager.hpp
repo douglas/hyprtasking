@@ -1,5 +1,8 @@
 #pragma once
 
+#include <string>
+#include <string_view>
+
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/helpers/AnimatedVariable.hpp>
 
@@ -32,6 +35,9 @@ class HTManager {
     PHLWINDOW get_dragged_window();
     void set_dragged_window(PHLWINDOW window);
     void clear_dragged_window();
+    bool runtime_enabled() const;
+    void disable_runtime(std::string_view source, std::string_view reason);
+    std::string runtime_disable_reason() const;
 
     bool start_window_drag();
     bool end_window_drag();
@@ -49,6 +55,8 @@ class HTManager {
     float swipe_amt;
     VIEWID swipe_view_id;
     PHLWINDOWREF dragged_window;
+    bool runtime_disabled = false;
+    std::string disabled_reason;
     PHTVIEW get_swipe_view();
     void reset_swipe_state();
     void swipe_start();
