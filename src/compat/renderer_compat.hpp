@@ -33,9 +33,12 @@ void render_window_original(
     bool ignore_position,
     bool standalone
 );
+Vector2D monitor_position(PHLMONITOR monitor);
 PHLWORKSPACE active_monitor_workspace(PHLMONITOR monitor);
 PHLMONITOR workspace_monitor(PHLWORKSPACE workspace);
 bool workspace_render_visible(PHLWORKSPACE workspace);
+PHLWORKSPACE window_workspace(PHLWINDOW window);
+PHLMONITOR window_monitor(PHLWINDOW window);
 bool activate_monitor_workspace(PHLMONITOR monitor, PHLWORKSPACE workspace);
 bool restore_monitor_workspace(PHLMONITOR monitor, PHLWORKSPACE workspace, bool use_change_workspace);
 void set_workspace_render_visibility(PHLWORKSPACE workspace, bool visible);

@@ -97,7 +97,8 @@ WORKSPACEID HTLayoutBase::get_ws_id_from_global(Vector2D pos) {
     if (!monitor->logicalBox().containsPoint(pos))
         return WORKSPACE_INVALID;
 
-    Vector2D relative_pos = (pos - monitor->m_position) * monitor->m_scale;
+    const Vector2D monitor_pos = HTCompat::monitor_position(monitor);
+    Vector2D relative_pos = (pos - monitor_pos) * monitor->m_scale;
     for (const auto& [id, layout] : overview_layout)
         if (layout.box.containsPoint(relative_pos))
             return id;
@@ -124,13 +125,14 @@ CBox HTLayoutBase::get_global_window_box(PHLWINDOW window, WORKSPACEID workspace
     const PHLWORKSPACE workspace = g_pCompositor->getWorkspaceByID(workspace_id);
     if (workspace == nullptr || HTCompat::workspace_monitor(workspace) != monitor)
         return {};
+    const Vector2D monitor_pos = HTCompat::monitor_position(monitor);
 
     const CBox ws_window_box = window->getWindowMainSurfaceBox();
 
     const Vector2D top_left =
-        local_ws_unscaled_to_global(ws_window_box.pos() - monitor->m_position, workspace->m_id);
+        local_ws_unscaled_to_global(ws_window_box.pos() - monitor_pos, workspace->m_id);
     const Vector2D bottom_right = local_ws_unscaled_to_global(
-        ws_window_box.pos() + ws_window_box.size() - monitor->m_position,
+        ws_window_box.pos() + ws_window_box.size() - monitor_pos,
         workspace->m_id
     );
     if (!HTLogic::isFinitePoint(top_left.x, top_left.y)
@@ -173,8 +175,9 @@ Vector2D HTLayoutBase::global_to_local_ws_unscaled(Vector2D pos, WORKSPACEID wor
         HTLogic::workspaceWidthScale(workspace_box.w, monitor->m_transformedSize.x);
     if (!width_scale.has_value())
         return {};
+    const Vector2D monitor_pos = HTCompat::monitor_position(monitor);
 
-    pos -= monitor->m_position;
+    pos -= monitor_pos;
     pos *= monitor->m_scale;
     pos -= workspace_box.pos();
     pos /= monitor->m_scale;
@@ -201,7 +204,7 @@ HTLayoutBase::global_to_workspace_monitor_coords(Vector2D pos, WORKSPACEID works
         return std::nullopt;
 
     const Vector2D local_coords = global_to_local_ws_unscaled(pos, workspace_id);
-    const Vector2D monitor_coords = local_coords + monitor->m_position;
+    const Vector2D monitor_coords = local_coords + HTCompat::monitor_position(monitor);
     if (!std::isfinite(monitor_coords.x) || !std::isfinite(monitor_coords.y))
         return std::nullopt;
 
@@ -226,12 +229,13 @@ Vector2D HTLayoutBase::local_ws_unscaled_to_global(Vector2D pos, WORKSPACEID wor
         HTLogic::workspaceWidthScale(workspace_box.w, monitor->m_transformedSize.x);
     if (!width_scale.has_value())
         return {};
+    const Vector2D monitor_pos = HTCompat::monitor_position(monitor);
 
     pos *= *width_scale;
     pos *= monitor->m_scale;
     pos += workspace_box.pos();
     pos /= monitor->m_scale;
-    pos += monitor->m_position;
+    pos += monitor_pos;
     if (!HTLogic::isFinitePoint(pos.x, pos.y))
         return {};
     return pos;

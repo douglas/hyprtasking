@@ -218,7 +218,7 @@ bool HTLayoutGrid::should_render_window(PHLWINDOW window) {
     if (ht_manager != nullptr && ht_manager->is_dragged_window(window))
         return false;
 
-    PHLWORKSPACE workspace = window->m_workspace;
+    PHLWORKSPACE workspace = HTCompat::window_workspace(window);
     if (workspace == nullptr)
         return false;
 
@@ -369,7 +369,8 @@ void HTLayoutGrid::render() {
 
     build_overview_layout(HT_VIEW_ANIMATING);
 
-    CBox global_mon_box = {monitor->m_position, monitor->m_transformedSize};
+    const Vector2D monitor_pos = HTCompat::monitor_position(monitor);
+    CBox global_mon_box = {monitor_pos, monitor->m_transformedSize};
     for (const auto& [ws_id, ws_layout] : overview_layout) {
         // Skip if the box is empty
         if (ws_layout.box.width < 0.01 || ws_layout.box.height < 0.01)
@@ -388,7 +389,7 @@ void HTLayoutGrid::render() {
         if (workspace == start_workspace && start_workspace != nullptr)
             continue;
 
-        CBox global_box = {ws_layout.box.pos() + monitor->m_position, ws_layout.box.size()};
+        CBox global_box = {ws_layout.box.pos() + monitor_pos, ws_layout.box.size()};
         if (global_box.expand(BORDERSIZE).intersection(global_mon_box).empty())
             continue;
 

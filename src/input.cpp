@@ -91,13 +91,17 @@ bool HTManager::start_window_drag() {
                 HTLogic::inverseDragWindowScale(cursor_view->layout->drag_window_scale());
             if (!inverse_drag_scale.has_value())
                 return false;
+            const PHLMONITOR dragged_monitor = HTCompat::window_monitor(dragged_window);
+            if (dragged_monitor == nullptr)
+                return false;
+            const Vector2D dragged_monitor_pos = HTCompat::monitor_position(dragged_monitor);
 
             const Vector2D pre_pos = cursor_view->layout->local_ws_unscaled_to_global(
-                dragged_window->m_realPosition->value() - dragged_window->m_monitor->m_position,
+                dragged_window->m_realPosition->value() - dragged_monitor_pos,
                 workspace_id
             );
             const Vector2D post_pos = cursor_view->layout->local_ws_unscaled_to_global(
-                dragged_window->m_realPosition->goal() - dragged_window->m_monitor->m_position,
+                dragged_window->m_realPosition->goal() - dragged_monitor_pos,
                 workspace_id
             );
             const Vector2D mapped_pre_pos =
@@ -153,9 +157,9 @@ bool HTManager::end_window_drag() {
     const Vector2D mouse_coords = cursor_context.mouse_coords;
     Vector2D use_mouse_coords = mouse_coords;
     const WORKSPACEID hovered_workspace_id = cursor_context.workspace_id;
+    const PHLWORKSPACE dragged_workspace = HTCompat::window_workspace(dragged_window);
     const std::optional<WORKSPACEID> dragged_workspace_id =
-        dragged_window->m_workspace == nullptr ? std::nullopt
-                                               : std::optional<WORKSPACEID> {dragged_window->m_workspace->m_id};
+        dragged_workspace == nullptr ? std::nullopt : std::optional<WORKSPACEID> {dragged_workspace->m_id};
     const auto drop_decision =
         HTLogic::resolveDropWorkspace(hovered_workspace_id, dragged_workspace_id);
     if (!drop_decision.valid) {
@@ -201,13 +205,14 @@ bool HTManager::end_window_drag() {
     const auto drag_scale = HTLogic::dragWindowScale(cursor_view->layout->drag_window_scale());
     if (!drag_scale.has_value())
         return false;
+    const Vector2D cursor_monitor_pos = HTCompat::monitor_position(cursor_monitor);
 
     const Vector2D warped_global_pos = cursor_view->layout->global_to_local_ws_unscaled(
                                 (dragged_window->m_realPosition->value() - use_mouse_coords)
                                         * *drag_scale
                                     + use_mouse_coords,
                                 cursor_workspace->m_id
-                            ) + cursor_monitor->m_position;
+                            ) + cursor_monitor_pos;
     if (!HTLogic::isFinitePoint(warped_global_pos.x, warped_global_pos.y))
         return false;
     const Vector2D tp_pos = warped_global_pos;

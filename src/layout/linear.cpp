@@ -194,7 +194,7 @@ bool HTLayoutLinear::should_manage_mouse() {
     };
 
     return scaled_view_box.scale(1 / monitor->m_scale)
-        .translate(monitor->m_position)
+        .translate(HTCompat::monitor_position(monitor))
         .containsPoint(mouse_coords);
 }
 
@@ -211,7 +211,7 @@ bool HTLayoutLinear::should_render_window(PHLWINDOW window) {
     if (rendering_standard_ws)
         return ori_result;
 
-    PHLWORKSPACE workspace = window->m_workspace;
+    PHLWORKSPACE workspace = HTCompat::window_workspace(window);
     if (workspace == nullptr)
         return false;
 
@@ -376,7 +376,8 @@ void HTLayoutLinear::render() {
 
     build_overview_layout(HT_VIEW_ANIMATING);
 
-    CBox global_mon_box = {monitor->m_position, monitor->m_transformedSize};
+    const Vector2D monitor_pos = HTCompat::monitor_position(monitor);
+    CBox global_mon_box = {monitor_pos, monitor->m_transformedSize};
     for (const auto& [ws_id, ws_layout] : overview_layout) {
         // Could be nullptr, in which we render only layers
         const PHLWORKSPACE workspace = g_pCompositor->getWorkspaceByID(ws_id);
@@ -390,7 +391,7 @@ void HTLayoutLinear::render() {
         if (monitor->m_transform % 2 == 1)
             std::swap(render_box.w, render_box.h);
 
-        CBox global_box = {ws_layout.box.pos() + monitor->m_position, ws_layout.box.size()};
+        CBox global_box = {ws_layout.box.pos() + monitor_pos, ws_layout.box.size()};
         if (global_box.intersection(global_mon_box).empty())
             continue;
 

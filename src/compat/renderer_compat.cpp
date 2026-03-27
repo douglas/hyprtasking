@@ -241,6 +241,13 @@ void render_window_original(
     );
 }
 
+Vector2D monitor_position(PHLMONITOR monitor) {
+    if (monitor == nullptr)
+        return {};
+
+    return monitor->m_position;
+}
+
 PHLWORKSPACE active_monitor_workspace(PHLMONITOR monitor) {
     if (monitor == nullptr)
         return nullptr;
@@ -252,7 +259,7 @@ PHLMONITOR workspace_monitor(PHLWORKSPACE workspace) {
     if (workspace == nullptr)
         return nullptr;
 
-    return workspace->m_monitor;
+    return workspace->m_monitor.lock();
 }
 
 bool workspace_render_visible(PHLWORKSPACE workspace) {
@@ -260,6 +267,20 @@ bool workspace_render_visible(PHLWORKSPACE workspace) {
         return false;
 
     return workspace->m_visible;
+}
+
+PHLWORKSPACE window_workspace(PHLWINDOW window) {
+    if (window == nullptr)
+        return nullptr;
+
+    return window->m_workspace;
+}
+
+PHLMONITOR window_monitor(PHLWINDOW window) {
+    if (window == nullptr)
+        return nullptr;
+
+    return window->m_monitor.lock();
 }
 
 bool activate_monitor_workspace(PHLMONITOR monitor, PHLWORKSPACE workspace) {
