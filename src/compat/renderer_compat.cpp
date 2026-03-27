@@ -241,6 +241,13 @@ void render_window_original(
     );
 }
 
+PHLWORKSPACE active_monitor_workspace(PHLMONITOR monitor) {
+    if (monitor == nullptr)
+        return nullptr;
+
+    return monitor->m_activeWorkspace;
+}
+
 bool activate_monitor_workspace(PHLMONITOR monitor, PHLWORKSPACE workspace) {
     return restore_monitor_workspace(monitor, workspace, true);
 }

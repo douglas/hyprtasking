@@ -48,7 +48,7 @@ void HTView::do_exit_behavior(bool exit_on_mouse) {
     const PHLMONITOR monitor = get_monitor();
     if (monitor == nullptr) //???
         return;
-    const PHLWORKSPACE active_workspace = monitor->m_activeWorkspace;
+    const PHLWORKSPACE active_workspace = HTCompat::active_monitor_workspace(monitor);
     if (active_workspace == nullptr)
         return;
 
@@ -75,7 +75,7 @@ void HTView::show() {
     const PHLMONITOR monitor = get_monitor();
     if (monitor == nullptr)
         return;
-    const PHLWORKSPACE active_workspace = monitor->m_activeWorkspace;
+    const PHLWORKSPACE active_workspace = HTCompat::active_monitor_workspace(monitor);
     if (active_workspace == nullptr)
         return;
 
@@ -91,7 +91,7 @@ void HTView::hide(bool exit_on_mouse) {
     const PHLMONITOR monitor = get_monitor();
     if (monitor == nullptr)
         return;
-    const PHLWORKSPACE active_workspace = monitor->m_activeWorkspace;
+    const PHLWORKSPACE active_workspace = HTCompat::active_monitor_workspace(monitor);
     if (active_workspace == nullptr)
         return;
 
@@ -172,7 +172,7 @@ void HTView::move_id(WORKSPACEID ws_id, bool move_window) {
     const PHLMONITOR monitor = get_monitor();
     if (monitor == nullptr)
         return;
-    const PHLWORKSPACE active_workspace = monitor->m_activeWorkspace;
+    const PHLWORKSPACE active_workspace = HTCompat::active_monitor_workspace(monitor);
     if (active_workspace == nullptr)
         return;
 
@@ -218,7 +218,7 @@ void HTView::move(std::string arg, bool move_window) {
     const PHLMONITOR monitor = get_monitor();
     if (monitor == nullptr)
         return;
-    const PHLWORKSPACE active_workspace = monitor->m_activeWorkspace;
+    const PHLWORKSPACE active_workspace = HTCompat::active_monitor_workspace(monitor);
     if (active_workspace == nullptr)
         return;
     const PHLWINDOW hovered_window = move_window ? ht_manager->get_window_from_cursor() : nullptr;

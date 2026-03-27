@@ -113,7 +113,7 @@ void HTLayoutGrid::close_open_lerp(float perc) {
     const PHLMONITOR monitor = get_monitor();
     if (monitor == nullptr)
         return;
-    const PHLWORKSPACE active_workspace = monitor->m_activeWorkspace;
+    const PHLWORKSPACE active_workspace = HTCompat::active_monitor_workspace(monitor);
     if (active_workspace == nullptr)
         return;
 
@@ -168,7 +168,7 @@ void HTLayoutGrid::on_hide(CallbackFun on_complete) {
     const PHLMONITOR monitor = get_monitor();
     if (monitor == nullptr)
         return;
-    const PHLWORKSPACE active_workspace = monitor->m_activeWorkspace;
+    const PHLWORKSPACE active_workspace = HTCompat::active_monitor_workspace(monitor);
     if (active_workspace == nullptr)
         return;
 
@@ -239,7 +239,7 @@ void HTLayoutGrid::init_position() {
     const PHLMONITOR monitor = get_monitor();
     if (monitor == nullptr)
         return;
-    const PHLWORKSPACE active_workspace = monitor->m_activeWorkspace;
+    const PHLWORKSPACE active_workspace = HTCompat::active_monitor_workspace(monitor);
     if (active_workspace == nullptr)
         return;
 
@@ -348,7 +348,7 @@ void HTLayoutGrid::render() {
     const auto time = render_snapshot.has_value() ? render_snapshot->time : Time::steadyNow();
     const PHLWORKSPACE start_workspace = render_snapshot.has_value()
         ? render_snapshot->active_workspace
-        : monitor->m_activeWorkspace;
+        : HTCompat::active_monitor_workspace(monitor);
 
 
     g_pHyprRenderer->damageMonitor(monitor);

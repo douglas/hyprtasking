@@ -324,7 +324,7 @@ void HTLayoutLinear::render() {
     const auto time = render_snapshot.has_value() ? render_snapshot->time : Time::steadyNow();
     const PHLWORKSPACE start_workspace = render_snapshot.has_value()
         ? render_snapshot->active_workspace
-        : monitor->m_activeWorkspace;
+        : HTCompat::active_monitor_workspace(monitor);
 
 
     g_pHyprRenderer->damageMonitor(monitor);

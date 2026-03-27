@@ -75,7 +75,7 @@ PHLWINDOW HTManager::get_window_from_cursor(bool return_focused) {
         return nullptr;
 
     if (return_focused) {
-        const PHLWORKSPACE active_workspace = cursor_monitor->m_activeWorkspace;
+        const PHLWORKSPACE active_workspace = HTCompat::active_monitor_workspace(cursor_monitor);
         if (active_workspace == nullptr)
             return nullptr;
         return active_workspace->getLastFocusedWindow();

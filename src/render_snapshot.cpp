@@ -2,6 +2,7 @@
 
 #include <hyprland/src/managers/input/InputManager.hpp>
 
+#include "compat/renderer_compat.hpp"
 #include "globals.hpp"
 #include "logic/geometry_model.hpp"
 #include "overview.hpp"
@@ -21,7 +22,7 @@ std::optional<HTRenderSnapshot> capture_render_snapshot(VIEWID view_id, float dr
 
     HTRenderSnapshot snapshot;
     snapshot.monitor          = monitor;
-    snapshot.active_workspace = monitor->m_activeWorkspace;
+    snapshot.active_workspace = HTCompat::active_monitor_workspace(monitor);
     snapshot.time             = Time::steadyNow();
 
     const PHLWINDOW dragged_window = ht_manager->get_dragged_window();

@@ -33,6 +33,7 @@ void render_window_original(
     bool ignore_position,
     bool standalone
 );
+PHLWORKSPACE active_monitor_workspace(PHLMONITOR monitor);
 bool activate_monitor_workspace(PHLMONITOR monitor, PHLWORKSPACE workspace);
 bool restore_monitor_workspace(PHLMONITOR monitor, PHLWORKSPACE workspace, bool use_change_workspace);
 void set_workspace_render_visibility(PHLWORKSPACE workspace, bool visible);

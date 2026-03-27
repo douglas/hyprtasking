@@ -26,7 +26,10 @@ class HTScopedMonitorWorkspace {
   public:
     HTScopedMonitorWorkspace(PHLMONITOR monitor, bool use_change_workspace)
         : monitor(monitor),
-          previous_workspace(monitor == nullptr ? PHLWORKSPACEREF {} : monitor->m_activeWorkspace),
+          previous_workspace(
+              monitor == nullptr ? PHLWORKSPACEREF {}
+                                 : PHLWORKSPACEREF {HTCompat::active_monitor_workspace(monitor)}
+          ),
           use_change_workspace(use_change_workspace) {}
 
     ~HTScopedMonitorWorkspace() {
@@ -57,7 +60,10 @@ class HTScopedActiveWorkspace {
   public:
     HTScopedActiveWorkspace(PHLMONITOR monitor, PHLWORKSPACE workspace)
         : monitor(monitor),
-          previous_workspace(monitor == nullptr ? PHLWORKSPACEREF {} : monitor->m_activeWorkspace) {
+          previous_workspace(
+              monitor == nullptr ? PHLWORKSPACEREF {}
+                                 : PHLWORKSPACEREF {HTCompat::active_monitor_workspace(monitor)}
+          ) {
         HTCompat::restore_monitor_workspace(monitor, workspace, false);
     }
 
