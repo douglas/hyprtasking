@@ -435,6 +435,36 @@ bool warp_pointer(const Vector2D& position) {
     return true;
 }
 
+void set_current_monitor_blur_should_render(bool enabled) {
+    if (!g_pHyprOpenGL || !g_pHyprOpenGL->m_renderData.pCurrentMonData)
+        return;
+
+    g_pHyprOpenGL->m_renderData.pCurrentMonData->blurFBShouldRender = enabled;
+}
+
+void add_rect_pass(const CRectPassElement::SRectData& data) {
+    if (!g_pHyprRenderer.get())
+        return;
+
+    g_pHyprRenderer->m_renderPass.add(makeUnique<CRectPassElement>(data));
+}
+
+void add_border_pass(const CBorderPassElement::SBorderData& data) {
+    if (!g_pHyprRenderer.get())
+        return;
+
+    g_pHyprRenderer->m_renderPass.add(makeUnique<CBorderPassElement>(data));
+}
+
+void add_renderer_hints_pass(const SRenderModifData& data) {
+    if (!g_pHyprRenderer.get())
+        return;
+
+    g_pHyprRenderer->m_renderPass.add(
+        makeUnique<CRendererHintsPassElement>(CRendererHintsPassElement::SData {data})
+    );
+}
+
 void begin_overview_render_pass() {
     if (!g_pHyprRenderer.get())
         return;

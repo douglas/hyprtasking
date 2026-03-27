@@ -5,6 +5,9 @@
 #include <hyprland/src/SharedDefs.hpp>
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/helpers/time/Time.hpp>
+#include <hyprland/src/render/pass/BorderPassElement.hpp>
+#include <hyprland/src/render/pass/RectPassElement.hpp>
+#include <hyprland/src/render/pass/RendererHintsPassElement.hpp>
 #include <hyprutils/math/Box.hpp>
 #include <hyprutils/math/Vector2D.hpp>
 
@@ -58,6 +61,10 @@ bool restore_monitor_workspace(PHLMONITOR monitor, PHLWORKSPACE workspace, bool 
 void set_workspace_render_visibility(PHLWORKSPACE workspace, bool visible);
 PHLWORKSPACE resolve_workspace_target(PHLMONITOR monitor, WORKSPACEID workspace_id, bool create_if_missing);
 bool warp_pointer(const Vector2D& position);
+void set_current_monitor_blur_should_render(bool enabled);
+void add_rect_pass(const CRectPassElement::SRectData& data);
+void add_border_pass(const CBorderPassElement::SBorderData& data);
+void add_renderer_hints_pass(const SRenderModifData& data);
 void begin_overview_render_pass();
 void remove_clear_passes();
 void finalize_overview_render_pass();

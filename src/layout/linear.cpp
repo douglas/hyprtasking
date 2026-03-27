@@ -340,7 +340,7 @@ void HTLayoutLinear::render() {
 
 
     g_pHyprRenderer->damageMonitor(monitor);
-    g_pHyprOpenGL->m_renderData.pCurrentMonData->blurFBShouldRender = true;
+    HTCompat::set_current_monitor_blur_should_render(true);
 
     // Do a dance with active workspaces: Hyprland will only properly render the
     // current active one so make the workspace active before rendering it, etc
@@ -374,7 +374,7 @@ void HTLayoutLinear::render() {
     blur_data.box = mon_box;
     blur_data.blur = (bool)HTConfig::value<Hyprlang::INT>("linear:blur");
     blur_data.blurA = blur_strength->value();
-    g_pHyprRenderer->m_renderPass.add(makeUnique<CRectPassElement>(blur_data));
+    HTCompat::add_rect_pass(blur_data);
 
     CBox view_box = {
         {0.f, calculate_y(HTCompat::monitor_transformed_size(monitor).y, view_offset->value(), HEIGHT)},
@@ -384,7 +384,7 @@ void HTLayoutLinear::render() {
     CRectPassElement::SRectData data;
     data.color = CHyprColor {HTConfig::value<Hyprlang::INT>("bg_color")}.stripA();
     data.box = view_box;
-    g_pHyprRenderer->m_renderPass.add(makeUnique<CRectPassElement>(data));
+    HTCompat::add_rect_pass(data);
 
     build_overview_layout(HT_VIEW_ANIMATING);
 
@@ -415,7 +415,7 @@ void HTLayoutLinear::render() {
         data.box = border_box;
         data.grad1 = border_col;
         data.borderSize = BORDERSIZE;
-        g_pHyprRenderer->m_renderPass.add(makeUnique<CBorderPassElement>(data));
+        HTCompat::add_border_pass(data);
 
         if (workspace != nullptr) {
             HTScopedWorkspaceRender render_workspace(monitor, workspace);
