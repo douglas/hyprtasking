@@ -181,7 +181,8 @@ MANUAL_SCENARIO=movewindow bash scripts/release-check.sh
 `audit-compat.sh` prints the detected Hyprland version, the accepted support
 line, and the required hook/API contracts it verified so version drift is easier
 to diagnose during updates. On failure, it also prints the missing contract list
-and the first place to patch: `src/compat/`.
+and the first place to patch. The full ownership map lives in
+`docs/compat-contract.md`.
 
 The manual compositor checklist is also available directly:
 

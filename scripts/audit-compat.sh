@@ -26,6 +26,17 @@ require_match() {
   printf 'ok: %s\n' "$label"
 }
 
+check_contract() {
+  local pattern=$1
+  local path=$2
+  local label=$3
+  local owner=$4
+
+  if ! require_match "$pattern" "$path" "$label"; then
+    record_failure "$label" "$path" "$owner"
+  fi
+}
+
 PLUGIN_API_HPP="$HYPRLAND_SOURCE/src/plugins/PluginAPI.hpp"
 PLUGIN_API_CPP="$HYPRLAND_SOURCE/src/plugins/PluginAPI.cpp"
 PLUGIN_SYSTEM_CPP="$HYPRLAND_SOURCE/src/plugins/PluginSystem.cpp"
@@ -44,6 +55,7 @@ CHECK_LABELS=(
 )
 FAILED_LABELS=()
 FAILED_PATHS=()
+FAILED_OWNERS=()
 
 require_file "$PLUGIN_API_HPP"
 require_file "$PLUGIN_API_CPP"
@@ -76,18 +88,20 @@ failures=0
 record_failure() {
   local label=$1
   local path=$2
+  local owner=$3
   FAILED_LABELS+=("$label")
   FAILED_PATHS+=("$path")
+  FAILED_OWNERS+=("$owner")
   failures=$((failures + 1))
 }
 
-require_match 'APICALL SVersionInfo getHyprlandVersion(HANDLE handle);' "$PLUGIN_API_HPP" 'public version API' || record_failure 'public version API' "$PLUGIN_API_HPP"
-require_match 'APICALL SVersionInfo HyprlandAPI::getHyprlandVersion(HANDLE handle)' "$PLUGIN_API_CPP" 'version API implementation' || record_failure 'version API implementation' "$PLUGIN_API_CPP"
-require_match 'renderWorkspace' "$RENDERER_CPP" 'renderWorkspace symbol' || record_failure 'renderWorkspace symbol' "$RENDERER_CPP"
-require_match 'shouldRenderWindow' "$RENDERER_CPP" 'shouldRenderWindow symbol' || record_failure 'shouldRenderWindow symbol' "$RENDERER_CPP"
-require_match 'renderWindow' "$RENDERER_CPP" 'renderWindow symbol' || record_failure 'renderWindow symbol' "$RENDERER_CPP"
-require_match 'isSolitaryBlocked' "$MONITOR_HPP" 'isSolitaryBlocked symbol' || record_failure 'isSolitaryBlocked symbol' "$MONITOR_HPP"
-require_match 'HYPRLAND_API_VERSION' "$PLUGIN_SYSTEM_CPP" 'plugin API version check' || record_failure 'plugin API version check' "$PLUGIN_SYSTEM_CPP"
+check_contract 'APICALL SVersionInfo getHyprlandVersion(HANDLE handle);' "$PLUGIN_API_HPP" 'public version API' 'src/compat/profile.cpp'
+check_contract 'APICALL SVersionInfo HyprlandAPI::getHyprlandVersion(HANDLE handle)' "$PLUGIN_API_CPP" 'version API implementation' 'src/compat/profile.cpp'
+check_contract 'renderWorkspace' "$RENDERER_CPP" 'renderWorkspace symbol' 'src/compat/profile.cpp, src/compat/renderer_compat.cpp'
+check_contract 'shouldRenderWindow' "$RENDERER_CPP" 'shouldRenderWindow symbol' 'src/compat/profile.cpp, src/compat/renderer_compat.cpp'
+check_contract 'renderWindow' "$RENDERER_CPP" 'renderWindow symbol' 'src/compat/profile.cpp, src/compat/renderer_compat.cpp'
+check_contract 'isSolitaryBlocked' "$MONITOR_HPP" 'isSolitaryBlocked symbol' 'src/compat/profile.cpp'
+check_contract 'HYPRLAND_API_VERSION' "$PLUGIN_SYSTEM_CPP" 'plugin API version check' 'src/compat/profile.cpp'
 
 printf '\nChecked contracts (%d):\n' "${#CHECK_LABELS[@]}"
 printf ' - %s\n' "${CHECK_LABELS[@]}"
@@ -98,8 +112,9 @@ if ((failures > 0)); then
   i=0
   for ((i = 0; i < ${#FAILED_LABELS[@]}; i++)); do
     printf ' - %s (%s)\n' "${FAILED_LABELS[i]}" "${FAILED_PATHS[i]}" >&2
+    printf '   Suggested plugin touchpoint: %s\n' "${FAILED_OWNERS[i]}" >&2
   done
-  printf 'Expected fix location: src/compat/ in this plugin tree.\n' >&2
+  printf 'Compat contract reference: docs/compat-contract.md\n' >&2
   printf 'Rerun with HYPRLAND_SOURCE set to the target Hyprland checkout after patching.\n' >&2
   exit 1
 fi
