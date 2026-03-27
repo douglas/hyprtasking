@@ -1,6 +1,7 @@
 #include "runtime_compat.hpp"
 
 #include <hyprland/src/Compositor.hpp>
+#include <hyprland/src/config/ConfigManager.hpp>
 #include <hyprland/src/desktop/state/FocusState.hpp>
 #include <hyprland/src/desktop/view/View.hpp>
 #include <hyprland/src/desktop/view/Window.hpp>
@@ -38,6 +39,40 @@ Vector2D HTCompat::mouse_coords() {
         return {};
 
     return g_pInputManager->getMouseCoordsInternal();
+}
+
+void HTCompat::create_float_animation(
+    float initial_value,
+    PHLANIMVAR<float>& animation,
+    const std::string& config_name,
+    eAVarDamagePolicy policy
+) {
+    if (!g_pAnimationManager || !g_pConfigManager)
+        return;
+
+    g_pAnimationManager->createAnimation(
+        initial_value,
+        animation,
+        g_pConfigManager->getAnimationPropertyConfig(config_name),
+        policy
+    );
+}
+
+void HTCompat::create_vector_animation(
+    const Vector2D& initial_value,
+    PHLANIMVAR<Vector2D>& animation,
+    const std::string& config_name,
+    eAVarDamagePolicy policy
+) {
+    if (!g_pAnimationManager || !g_pConfigManager)
+        return;
+
+    g_pAnimationManager->createAnimation(
+        initial_value,
+        animation,
+        g_pConfigManager->getAnimationPropertyConfig(config_name),
+        policy
+    );
 }
 
 PHLMONITOR HTCompat::focused_monitor() {

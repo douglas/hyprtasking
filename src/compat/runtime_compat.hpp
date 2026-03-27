@@ -6,6 +6,7 @@
 
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/devices/ITouch.hpp>
+#include <hyprland/src/helpers/AnimatedVariable.hpp>
 #include <hyprland/src/layout/LayoutManager.hpp>
 #include <hyprland/src/event/EventBus.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
@@ -24,6 +25,18 @@ PHLMONITOR focused_monitor();
 std::vector<PHLMONITOR> compositor_monitors();
 PHLMONITOR monitor_from_id(MONITORID monitor_id);
 std::string monitor_description(PHLMONITOR monitor);
+void create_float_animation(
+    float initial_value,
+    PHLANIMVAR<float>& animation,
+    const std::string& config_name,
+    eAVarDamagePolicy policy
+);
+void create_vector_animation(
+    const Vector2D& initial_value,
+    PHLANIMVAR<Vector2D>& animation,
+    const std::string& config_name,
+    eAVarDamagePolicy policy
+);
 PHLWINDOW window_at(const Vector2D& position, uint8_t properties, PHLWINDOW ignore_window = nullptr);
 void focus_monitor(PHLMONITOR monitor);
 void focus_window(PHLWINDOW window);

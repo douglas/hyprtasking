@@ -1,10 +1,8 @@
 #include "linear.hpp"
 
 #include <hyprland/src/Compositor.hpp>
-#include <hyprland/src/config/ConfigManager.hpp>
 #include <hyprland/src/config/ConfigValue.hpp>
 #include <hyprland/src/helpers/MiscFunctions.hpp>
-#include <hyprland/src/managers/animation/AnimationManager.hpp>
 #include <hyprland/src/managers/animation/DesktopAnimationManager.hpp>
 #include <hyprland/src/layout/LayoutManager.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
@@ -15,6 +13,7 @@
 #include <ranges>
 
 #include "../compat/renderer_compat.hpp"
+#include "../compat/runtime_compat.hpp"
 #include "../config.hpp"
 #include "../globals.hpp"
 #include "../logic/dispatch_args.hpp"
@@ -26,28 +25,28 @@
 using Hyprutils::Utils::CScopeGuard;
 
 HTLayoutLinear::HTLayoutLinear(VIEWID new_view_id) : HTLayoutBase(new_view_id) {
-    g_pAnimationManager->createAnimation(
+    HTCompat::create_float_animation(
         0.f,
         scroll_offset,
-        g_pConfigManager->getAnimationPropertyConfig("windowsMove"),
+        "windowsMove",
         AVARDAMAGE_NONE
     );
-    g_pAnimationManager->createAnimation(
+    HTCompat::create_float_animation(
         0.f,
         view_offset,
-        g_pConfigManager->getAnimationPropertyConfig("windowsMove"),
+        "windowsMove",
         AVARDAMAGE_NONE
     );
-    g_pAnimationManager->createAnimation(
+    HTCompat::create_float_animation(
         0.f,
         blur_strength,
-        g_pConfigManager->getAnimationPropertyConfig("fadeIn"),
+        "fadeIn",
         AVARDAMAGE_NONE
     );
-    g_pAnimationManager->createAnimation(
+    HTCompat::create_float_animation(
         0.f,
         dim_opacity,
-        g_pConfigManager->getAnimationPropertyConfig("fadeDim"),
+        "fadeDim",
         AVARDAMAGE_NONE
     );
 

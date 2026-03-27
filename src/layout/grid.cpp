@@ -1,11 +1,9 @@
 #include "grid.hpp"
 
 #include <hyprland/src/Compositor.hpp>
-#include <hyprland/src/config/ConfigManager.hpp>
 #include <hyprland/src/config/ConfigValue.hpp>
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/helpers/AnimatedVariable.hpp>
-#include <hyprland/src/managers/animation/AnimationManager.hpp>
 #include <hyprland/src/managers/animation/DesktopAnimationManager.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
 #include <hyprland/src/layout/LayoutManager.hpp>
@@ -17,6 +15,7 @@
 #include <hyprutils/utils/ScopeGuard.hpp>
 
 #include "../compat/renderer_compat.hpp"
+#include "../compat/runtime_compat.hpp"
 #include "../config.hpp"
 #include "../globals.hpp"
 #include "../overview.hpp"
@@ -29,16 +28,16 @@
 using Hyprutils::Utils::CScopeGuard;
 
 HTLayoutGrid::HTLayoutGrid(VIEWID new_view_id) : HTLayoutBase(new_view_id) {
-    g_pAnimationManager->createAnimation(
+    HTCompat::create_vector_animation(
         {0, 0},
         offset,
-        g_pConfigManager->getAnimationPropertyConfig("workspaces"),
+        "workspaces",
         AVARDAMAGE_NONE
     );
-    g_pAnimationManager->createAnimation(
+    HTCompat::create_float_animation(
         1.f,
         scale,
-        g_pConfigManager->getAnimationPropertyConfig("workspaces"),
+        "workspaces",
         AVARDAMAGE_NONE
     );
 
