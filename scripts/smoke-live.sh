@@ -205,7 +205,7 @@ smoke_load_unload() {
 }
 
 run_manual_follow_up() {
-  run bash "$SCRIPT_DIR/manual-runtime-check.sh"
+  run bash "$SCRIPT_DIR/manual-runtime-check.sh" all
 }
 
 print_manual_follow_up_if_enabled() {
@@ -244,10 +244,10 @@ case "$MODE" in
     ;;
   manual)
     assert_plugin_loaded
-    run_manual_follow_up
+    run bash "$SCRIPT_DIR/manual-runtime-check.sh" "${2:-all}"
     ;;
   *)
-    printf 'Usage: %s [all|stress|dispatchers|load-unload|toggle|move|reload|reload-open|manual]\n' "$0" >&2
+    printf 'Usage: %s [all|stress|dispatchers|load-unload|toggle|move|reload|reload-open|manual [all|drag|movewindow|gesture|reload-open|monitor-remove]]\n' "$0" >&2
     exit 1
     ;;
 esac

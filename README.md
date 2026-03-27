@@ -182,6 +182,15 @@ The manual compositor checklist is also available directly:
 bash scripts/manual-runtime-check.sh
 ```
 
+Supported checklist scenarios:
+
+- `all`: print the full manual checklist
+- `drag`: focus on overview drag/drop behavior
+- `movewindow`: focus on the `hyprtasking:movewindow` path and exact commands to run
+- `gesture`: focus on gesture interruption and recovery
+- `reload-open`: focus on reload while the overview is visible
+- `monitor-remove`: focus on monitor removal while runtime state is active
+
 ## Usage
 
 ### Opening Overview
