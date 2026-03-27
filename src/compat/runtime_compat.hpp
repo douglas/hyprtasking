@@ -38,6 +38,7 @@ void create_vector_animation(
     eAVarDamagePolicy policy
 );
 PHLWINDOW window_at(const Vector2D& position, uint8_t properties, PHLWINDOW ignore_window = nullptr);
+PHLWINDOW hover_target_window_at(const Vector2D& position, PHLWINDOW ignore_window = nullptr);
 void focus_monitor(PHLMONITOR monitor);
 void focus_window(PHLWINDOW window);
 bool can_warp_window_cursor(PHLWINDOW window);

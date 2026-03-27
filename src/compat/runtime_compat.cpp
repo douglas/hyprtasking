@@ -115,6 +115,15 @@ PHLWINDOW HTCompat::window_at(const Vector2D& position, uint8_t properties, PHLW
     return g_pCompositor->vectorToWindowUnified(position, properties, ignore_window);
 }
 
+PHLWINDOW HTCompat::hover_target_window_at(const Vector2D& position, PHLWINDOW ignore_window) {
+    return window_at(
+        position,
+        Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS
+            | Desktop::View::ALLOW_FLOATING,
+        ignore_window
+    );
+}
+
 void HTCompat::focus_monitor(PHLMONITOR monitor) {
     if (monitor == nullptr)
         return;
