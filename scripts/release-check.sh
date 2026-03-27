@@ -19,6 +19,7 @@ fi
 
 run meson compile -C "$BUILD_DIR"
 run meson test -C "$BUILD_DIR"
+run bash "$SCRIPT_DIR/smoke-live.sh" dispatchers
 run env "PRINT_MANUAL_FOLLOW_UP=0" bash "$SCRIPT_DIR/smoke-live.sh" "$SMOKE_MODE"
 
 if [[ "$PRINT_MANUAL_CHECKLIST" == "1" ]]; then

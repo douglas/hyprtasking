@@ -108,8 +108,9 @@ bash scripts/audit-compat.sh /path/to/Hyprland
 
 Supported smoke subcommands:
 
-- `all`: unload/load the plugin, wait for dispatcher registration, run toggle/move probes, then reload Hyprland
+- `all`: unload/load the plugin, verify dispatcher registration, run toggle/move probes, then reload Hyprland
 - `stress`: run a heavier live cycle with repeated unload/load, toggle/move, reload, and reload-open checks
+- `dispatchers`: verify that `toggle`, `move`, and `movewindow` dispatchers are registered without changing overview state
 - `load-unload`: validate one or more live unload/load cycles for `build/libhyprtasking.so`
 - `toggle`: validate toggle and directional move dispatchers
 - `reload`: reload Hyprland and wait for the plugin to become ready again
@@ -158,7 +159,9 @@ bash scripts/release-check.sh
 `release-check.sh` defaults to the heavier `stress` smoke mode. Override with
 `SMOKE_MODE=all` if you want the lighter path, or set `PRINT_MANUAL_CHECKLIST=0`
 to skip printing the manual compositor checklist. The script suppresses the
-intermediate smoke-script reminder so the manual checklist is printed once.
+intermediate smoke-script reminder so the manual checklist is printed once. It
+also runs a separate `dispatchers` probe first so hook/registration failures are
+easier to distinguish from later runtime smoke failures.
 
 The manual compositor checklist is also available directly:
 

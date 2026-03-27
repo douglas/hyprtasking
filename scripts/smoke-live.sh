@@ -82,6 +82,11 @@ assert_extended_dispatchers_ready() {
   fi
 }
 
+smoke_dispatchers() {
+  assert_plugin_loaded
+  assert_extended_dispatchers_ready
+}
+
 wait_for_plugin_ready() {
   local attempts=${1:-40}
   local delay=${2:-0.1}
@@ -112,8 +117,7 @@ init_hyprctl_prefix
 smoke_toggle() {
   local cycle
   for ((cycle = 0; cycle < TOGGLE_CYCLES; cycle++)); do
-    assert_plugin_loaded
-    assert_extended_dispatchers_ready
+    smoke_dispatchers
     run_hyprctl dispatch hyprtasking:toggle cursor
     run_hyprctl dispatch hyprtasking:move right
     run_hyprctl dispatch hyprtasking:move left
@@ -128,21 +132,18 @@ smoke_reload() {
     assert_plugin_loaded
     run_hyprctl reload
     wait_for_plugin_ready
-    assert_plugin_loaded
-    assert_extended_dispatchers_ready
+    smoke_dispatchers
   done
 }
 
 smoke_reload_open() {
   local cycle
   for ((cycle = 0; cycle < RELOAD_CYCLES; cycle++)); do
-    assert_plugin_loaded
-    assert_extended_dispatchers_ready
+    smoke_dispatchers
     run_hyprctl dispatch hyprtasking:toggle cursor
     run_hyprctl reload
     wait_for_plugin_ready
-    assert_plugin_loaded
-    assert_extended_dispatchers_ready
+    smoke_dispatchers
     run_hyprctl dispatch hyprtasking:toggle cursor
     run_hyprctl dispatch hyprtasking:toggle cursor
   done
@@ -201,6 +202,7 @@ print_manual_follow_up_if_enabled() {
 case "$MODE" in
   all)
     smoke_load_unload
+    smoke_dispatchers
     smoke_toggle
     smoke_reload
     smoke_reload_open
@@ -209,6 +211,9 @@ case "$MODE" in
   stress)
     smoke_stress
     print_manual_follow_up_if_enabled
+    ;;
+  dispatchers)
+    smoke_dispatchers
     ;;
   load-unload)
     smoke_load_unload
@@ -227,7 +232,7 @@ case "$MODE" in
     run_manual_follow_up
     ;;
   *)
-    printf 'Usage: %s [all|stress|load-unload|toggle|move|reload|reload-open|manual]\n' "$0" >&2
+    printf 'Usage: %s [all|stress|dispatchers|load-unload|toggle|move|reload|reload-open|manual]\n' "$0" >&2
     exit 1
     ;;
 esac
