@@ -227,6 +227,12 @@ The manual compositor checklist is also available directly:
 bash scripts/manual-runtime-check.sh
 ```
 
+For tooling, request the same checklist in machine-readable form:
+
+```
+CHECKLIST_FORMAT=json bash scripts/manual-runtime-check.sh typing-focus
+```
+
 Supported checklist scenarios:
 
 - `all`: print the full manual checklist
@@ -236,6 +242,11 @@ Supported checklist scenarios:
 - `gesture`: focus on gesture interruption and recovery
 - `reload-open`: focus on reload while the overview is visible
 - `monitor-remove`: focus on monitor removal while runtime state is active
+
+When `RELEASE_CHECK_FORMAT=json` is used, `release-check.sh` now includes the
+selected manual checklist as a nested `manual_checklist` object, so wrappers can
+carry the required human verification steps alongside the automated stage
+results.
 
 ## Usage
 

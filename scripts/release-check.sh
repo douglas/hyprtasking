@@ -14,6 +14,7 @@ STAGE_EXIT_CODES=()
 FAILED_STAGE=""
 FAILED_STAGE_EXIT_CODE=0
 FAILED_STAGE_OUTPUT=""
+MANUAL_CHECKLIST_JSON="null"
 
 run() {
   if [[ "$RELEASE_CHECK_FORMAT" != "json" ]]; then
@@ -86,10 +87,12 @@ emit_json_result() {
   printf '"build_dir":%s,' "$(json_string "$BUILD_DIR")"
   printf '"smoke_mode":%s,' "$(json_string "$SMOKE_MODE")"
   printf '"manual_scenario":%s,' "$(json_string "$MANUAL_SCENARIO")"
+  printf '"manual_requested":%s,' "$([[ "$PRINT_MANUAL_CHECKLIST" == "1" ]] && printf true || printf false)"
   printf '"hyprland_source":%s,' "$(json_string "$HYPRLAND_SOURCE")"
   printf '"failed_stage":%s,' "$(json_string "$FAILED_STAGE")"
   printf '"failed_stage_exit_code":%s,' "$FAILED_STAGE_EXIT_CODE"
   printf '"failed_stage_output":%s,' "$(json_string "$FAILED_STAGE_OUTPUT")"
+  printf '"manual_checklist":%s,' "$MANUAL_CHECKLIST_JSON"
   printf '"stages":['
   for ((i = 0; i < ${#STAGE_NAMES[@]}; i++)); do
     if ((i > 0)); then
@@ -133,6 +136,11 @@ run_stage dispatchers bash "$SCRIPT_DIR/smoke-live.sh" dispatchers
 run_stage smoke env "PRINT_MANUAL_FOLLOW_UP=0" bash "$SCRIPT_DIR/smoke-live.sh" "$SMOKE_MODE"
 
 if [[ "$PRINT_MANUAL_CHECKLIST" == "1" ]]; then
+  if [[ "$RELEASE_CHECK_FORMAT" == "json" ]]; then
+    MANUAL_CHECKLIST_JSON="$(
+      env CHECKLIST_FORMAT=json bash "$SCRIPT_DIR/manual-runtime-check.sh" "$MANUAL_SCENARIO"
+    )"
+  fi
   run_stage manual bash "$SCRIPT_DIR/manual-runtime-check.sh" "$MANUAL_SCENARIO"
 fi
 
