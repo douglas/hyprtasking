@@ -8,26 +8,129 @@ SMOKE_MODE=${SMOKE_MODE:-stress}
 PRINT_MANUAL_CHECKLIST=${PRINT_MANUAL_CHECKLIST:-1}
 HYPRLAND_SOURCE=${HYPRLAND_SOURCE:-}
 MANUAL_SCENARIO=${MANUAL_SCENARIO:-all}
+RELEASE_CHECK_FORMAT=${RELEASE_CHECK_FORMAT:-text}
+STAGE_NAMES=()
+STAGE_EXIT_CODES=()
+FAILED_STAGE=""
+FAILED_STAGE_EXIT_CODE=0
+FAILED_STAGE_OUTPUT=""
 
 run() {
-  printf '$ %s\n' "$*"
-  "$@"
+  if [[ "$RELEASE_CHECK_FORMAT" != "json" ]]; then
+    printf '$ %s\n' "$*"
+    "$@"
+    return
+  fi
+
+  "$@" >/tmp/release-check.out 2>&1 || {
+    cat /tmp/release-check.out
+    return 1
+  }
+}
+
+json_escape() {
+  local value=$1
+  value=${value//\\/\\\\}
+  value=${value//\"/\\\"}
+  value=${value//$'\n'/\\n}
+  value=${value//$'\r'/\\r}
+  value=${value//$'\t'/\\t}
+  printf '%s' "$value"
+}
+
+json_string() {
+  printf '"%s"' "$(json_escape "$1")"
+}
+
+record_stage() {
+  local name=$1
+  local exit_code=$2
+  STAGE_NAMES+=("$name")
+  STAGE_EXIT_CODES+=("$exit_code")
+}
+
+run_stage() {
+  local name=$1
+  shift
+
+  if [[ "$RELEASE_CHECK_FORMAT" != "json" ]]; then
+    run "$@"
+    record_stage "$name" 0
+    return
+  fi
+
+  local output
+  local exit_code=0
+  output="$("$@" 2>&1)" || exit_code=$?
+  record_stage "$name" "$exit_code"
+
+  if ((exit_code != 0)); then
+    FAILED_STAGE="$name"
+    FAILED_STAGE_EXIT_CODE=$exit_code
+    FAILED_STAGE_OUTPUT="$output"
+    emit_json_result "failed"
+    exit "$exit_code"
+  fi
+}
+
+emit_json_result() {
+  local status=$1
+  local i
+
+  if [[ "$RELEASE_CHECK_FORMAT" != "json" ]]; then
+    return
+  fi
+
+  printf '{'
+  printf '"status":%s,' "$(json_string "$status")"
+  printf '"build_dir":%s,' "$(json_string "$BUILD_DIR")"
+  printf '"smoke_mode":%s,' "$(json_string "$SMOKE_MODE")"
+  printf '"manual_scenario":%s,' "$(json_string "$MANUAL_SCENARIO")"
+  printf '"hyprland_source":%s,' "$(json_string "$HYPRLAND_SOURCE")"
+  printf '"failed_stage":%s,' "$(json_string "$FAILED_STAGE")"
+  printf '"failed_stage_exit_code":%s,' "$FAILED_STAGE_EXIT_CODE"
+  printf '"failed_stage_output":%s,' "$(json_string "$FAILED_STAGE_OUTPUT")"
+  printf '"stages":['
+  for ((i = 0; i < ${#STAGE_NAMES[@]}; i++)); do
+    if ((i > 0)); then
+      printf ','
+    fi
+    printf '{'
+    printf '"name":%s,' "$(json_string "${STAGE_NAMES[i]}")"
+    printf '"exit_code":%s' "${STAGE_EXIT_CODES[i]}"
+    printf '}'
+  done
+  printf ']'
+  printf '}\n'
 }
 
 if [[ ! -d "$BUILD_DIR" ]]; then
-  printf 'Build directory does not exist: %s\n' "$BUILD_DIR" >&2
+  if [[ "$RELEASE_CHECK_FORMAT" == "json" ]]; then
+    FAILED_STAGE="build_dir"
+    FAILED_STAGE_EXIT_CODE=1
+    FAILED_STAGE_OUTPUT="Build directory does not exist: $BUILD_DIR"
+    emit_json_result "failed"
+  else
+    printf 'Build directory does not exist: %s\n' "$BUILD_DIR" >&2
+  fi
   exit 1
 fi
 
 if [[ -n "$HYPRLAND_SOURCE" ]]; then
-  run bash "$SCRIPT_DIR/audit-compat.sh" "$HYPRLAND_SOURCE"
+  if [[ "$RELEASE_CHECK_FORMAT" == "json" ]]; then
+    run_stage audit env "AUDIT_FORMAT=json" bash "$SCRIPT_DIR/audit-compat.sh" "$HYPRLAND_SOURCE"
+  else
+    run_stage audit bash "$SCRIPT_DIR/audit-compat.sh" "$HYPRLAND_SOURCE"
+  fi
 fi
 
-run meson compile -C "$BUILD_DIR"
-run meson test -C "$BUILD_DIR"
-run bash "$SCRIPT_DIR/smoke-live.sh" dispatchers
-run env "PRINT_MANUAL_FOLLOW_UP=0" bash "$SCRIPT_DIR/smoke-live.sh" "$SMOKE_MODE"
+run_stage compile meson compile -C "$BUILD_DIR"
+run_stage test meson test -C "$BUILD_DIR"
+run_stage dispatchers bash "$SCRIPT_DIR/smoke-live.sh" dispatchers
+run_stage smoke env "PRINT_MANUAL_FOLLOW_UP=0" bash "$SCRIPT_DIR/smoke-live.sh" "$SMOKE_MODE"
 
 if [[ "$PRINT_MANUAL_CHECKLIST" == "1" ]]; then
-  run bash "$SCRIPT_DIR/manual-runtime-check.sh" "$MANUAL_SCENARIO"
+  run_stage manual bash "$SCRIPT_DIR/manual-runtime-check.sh" "$MANUAL_SCENARIO"
 fi
+
+emit_json_result "ok"

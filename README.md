@@ -178,6 +178,12 @@ To print only one manual scenario after the automated checks, set
 MANUAL_SCENARIO=movewindow bash scripts/release-check.sh
 ```
 
+For tooling, request one machine-readable result for the full release gate:
+
+```
+RELEASE_CHECK_FORMAT=json HYPRLAND_SOURCE=/path/to/Hyprland bash scripts/release-check.sh
+```
+
 `audit-compat.sh` prints the detected Hyprland version, the accepted support
 line, and the required hook/API contracts it verified so version drift is easier
 to diagnose during updates. On failure, it also prints the missing contract list
