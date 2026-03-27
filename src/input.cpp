@@ -92,6 +92,11 @@ bool HTManager::start_window_drag() {
     set_dragged_window(dragged_window);
     if (dragged_window != nullptr) {
         if (g_layoutManager->dragController()->draggingTiled()) {
+            const auto inverse_drag_scale =
+                HTLogic::inverseDragWindowScale(cursor_view->layout->drag_window_scale());
+            if (!inverse_drag_scale.has_value())
+                return false;
+
             const Vector2D pre_pos = cursor_view->layout->local_ws_unscaled_to_global(
                 dragged_window->m_realPosition->value() - dragged_window->m_monitor->m_position,
                 workspace_id
@@ -101,9 +106,9 @@ bool HTManager::start_window_drag() {
                 workspace_id
             );
             const Vector2D mapped_pre_pos =
-                (pre_pos - mouse_coords) / cursor_view->layout->drag_window_scale() + mouse_coords;
+                (pre_pos - mouse_coords) * *inverse_drag_scale + mouse_coords;
             const Vector2D mapped_post_pos =
-                (post_pos - mouse_coords) / cursor_view->layout->drag_window_scale() + mouse_coords;
+                (post_pos - mouse_coords) * *inverse_drag_scale + mouse_coords;
 
             dragged_window->m_realPosition->setValueAndWarp(mapped_pre_pos);
             *dragged_window->m_realPosition = mapped_post_pos;
@@ -198,10 +203,13 @@ bool HTManager::end_window_drag() {
     );
     if (!workspace_coords.has_value())
         return false;
+    const auto drag_scale = HTLogic::dragWindowScale(cursor_view->layout->drag_window_scale());
+    if (!drag_scale.has_value())
+        return false;
 
     const Vector2D warped_global_pos = cursor_view->layout->global_to_local_ws_unscaled(
                                 (dragged_window->m_realPosition->value() - use_mouse_coords)
-                                        * cursor_view->layout->drag_window_scale()
+                                        * *drag_scale
                                     + use_mouse_coords,
                                 cursor_workspace->m_id
                             ) + cursor_monitor->m_position;

@@ -124,6 +124,22 @@ int main() {
         expect(!result.has_value(), "workspace width scale should reject zero monitor width");
     }
     {
+        const auto result = HTLogic::dragWindowScale(1.5f);
+        expect(result.has_value() && *result == 1.5f, "drag window scale should accept positive finite values");
+    }
+    {
+        const auto result = HTLogic::dragWindowScale(0.0f);
+        expect(!result.has_value(), "drag window scale should reject zero");
+    }
+    {
+        const auto result = HTLogic::inverseDragWindowScale(2.0f);
+        expect(result.has_value() && *result == 0.5f, "inverse drag window scale should invert valid scales");
+    }
+    {
+        const auto result = HTLogic::inverseDragWindowScale(-1.0f);
+        expect(!result.has_value(), "inverse drag window scale should reject invalid scales");
+    }
+    {
         const auto result = HTLogic::windowRenderScale(150.0f, 100.0f, 75.0f, 50.0f);
         expect(result.has_value() && *result == 2.0f, "window render scale should divide valid widths");
     }

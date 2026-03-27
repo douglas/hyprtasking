@@ -15,6 +15,21 @@ std::optional<float> workspaceWidthScale(float workspace_width, float monitor_wi
     return workspace_width / monitor_width;
 }
 
+std::optional<float> dragWindowScale(float drag_scale) {
+    if (!isPositiveFinite(drag_scale))
+        return std::nullopt;
+
+    return drag_scale;
+}
+
+std::optional<float> inverseDragWindowScale(float drag_scale) {
+    const auto scale = dragWindowScale(drag_scale);
+    if (!scale.has_value())
+        return std::nullopt;
+
+    return 1.f / *scale;
+}
+
 std::optional<float> windowRenderScale(
     float box_width,
     float box_height,

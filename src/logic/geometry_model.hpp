@@ -6,6 +6,8 @@ namespace HTLogic {
 
 bool isPositiveFinite(float value);
 std::optional<float> workspaceWidthScale(float workspace_width, float monitor_width);
+std::optional<float> dragWindowScale(float drag_scale);
+std::optional<float> inverseDragWindowScale(float drag_scale);
 std::optional<float> windowRenderScale(
     float box_width,
     float box_height,
