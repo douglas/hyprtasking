@@ -276,6 +276,13 @@ bool workspace_render_visible(PHLWORKSPACE workspace) {
     return workspace->m_visible;
 }
 
+bool workspace_is_special(PHLWORKSPACE workspace) {
+    if (workspace == nullptr)
+        return false;
+
+    return workspace->m_isSpecialWorkspace;
+}
+
 WORKSPACEID workspace_id(PHLWORKSPACE workspace) {
     if (workspace == nullptr)
         return WORKSPACE_INVALID;
@@ -295,6 +302,13 @@ PHLMONITOR window_monitor(PHLWINDOW window) {
         return nullptr;
 
     return window->m_monitor.lock();
+}
+
+void warp_workspace_render_offset(PHLWORKSPACE workspace) {
+    if (workspace == nullptr)
+        return;
+
+    workspace->m_renderOffset->warp();
 }
 
 bool activate_monitor_workspace(PHLMONITOR monitor, PHLWORKSPACE workspace) {

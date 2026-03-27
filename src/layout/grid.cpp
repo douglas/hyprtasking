@@ -196,8 +196,8 @@ void HTLayoutGrid::on_move(WORKSPACEID old_id, WORKSPACEID new_id, CallbackFun o
     const PHLWORKSPACE new_workspace = g_pCompositor->getWorkspaceByID(new_id);
     if (old_workspace == nullptr || new_workspace == nullptr)
         return;
-    old_workspace->m_renderOffset->warp();
-    new_workspace->m_renderOffset->warp();
+    HTCompat::warp_workspace_render_offset(old_workspace);
+    HTCompat::warp_workspace_render_offset(new_workspace);
 
     build_overview_layout(HT_VIEW_CLOSED);
     *scale = 1.;

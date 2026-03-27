@@ -283,7 +283,7 @@ void HTLayoutLinear::build_overview_layout(HTViewStage stage) {
             continue;
         if (HTCompat::workspace_monitor(workspace) != monitor)
             continue;
-        if (workspace->m_isSpecialWorkspace)
+        if (HTCompat::workspace_is_special(workspace))
             continue;
         monitor_workspaces.push_back(HTCompat::workspace_id(workspace));
     }
