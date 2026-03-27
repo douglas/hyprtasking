@@ -142,6 +142,12 @@ bash scripts/smoke-live.sh all
 
 4. Finish with the manual compositor checks printed by `bash scripts/smoke-live.sh manual`.
 
+For a single local release-prep command, run:
+
+```
+bash scripts/release-check.sh
+```
+
 ## Usage
 
 ### Opening Overview
