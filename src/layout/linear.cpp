@@ -281,7 +281,7 @@ void HTLayoutLinear::build_overview_layout(HTViewStage stage) {
     for (PHLWORKSPACE workspace : g_pCompositor->getWorkspacesCopy()) {
         if (workspace == nullptr)
             continue;
-        if (workspace->m_monitor != monitor)
+        if (HTCompat::workspace_monitor(workspace) != monitor)
             continue;
         if (workspace->m_isSpecialWorkspace)
             continue;

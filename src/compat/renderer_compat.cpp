@@ -248,6 +248,20 @@ PHLWORKSPACE active_monitor_workspace(PHLMONITOR monitor) {
     return monitor->m_activeWorkspace;
 }
 
+PHLMONITOR workspace_monitor(PHLWORKSPACE workspace) {
+    if (workspace == nullptr)
+        return nullptr;
+
+    return workspace->m_monitor;
+}
+
+bool workspace_render_visible(PHLWORKSPACE workspace) {
+    if (workspace == nullptr)
+        return false;
+
+    return workspace->m_visible;
+}
+
 bool activate_monitor_workspace(PHLMONITOR monitor, PHLWORKSPACE workspace) {
     return restore_monitor_workspace(monitor, workspace, true);
 }

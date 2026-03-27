@@ -94,7 +94,7 @@ class HTScopedWorkspaceVisibility {
   public:
     HTScopedWorkspaceVisibility(PHLWORKSPACE workspace, bool visible)
         : workspace(workspace),
-          previous_visible(workspace == nullptr ? false : workspace->m_visible) {
+          previous_visible(HTCompat::workspace_render_visible(workspace)) {
         HTCompat::set_workspace_render_visibility(workspace, visible);
     }
 
