@@ -15,8 +15,9 @@ struct HTDraggedWindowSnapshot {
 };
 
 struct HTRenderSnapshot {
-    PHLMONITOR                         monitor = nullptr;
-    Time::steady_tp                    time;
+    PHLMONITOR                              monitor = nullptr;
+    PHLWORKSPACE                            active_workspace = nullptr;
+    Time::steady_tp                         time;
     std::optional<HTDraggedWindowSnapshot> dragged_window;
 };
 

@@ -346,6 +346,9 @@ void HTLayoutGrid::render() {
 
     const auto render_snapshot = capture_render_snapshot(view_id, drag_window_scale());
     const auto time = render_snapshot.has_value() ? render_snapshot->time : Time::steadyNow();
+    const PHLWORKSPACE start_workspace = render_snapshot.has_value()
+        ? render_snapshot->active_workspace
+        : monitor->m_activeWorkspace;
 
 
     g_pHyprRenderer->damageMonitor(monitor);
@@ -359,7 +362,6 @@ void HTLayoutGrid::render() {
 
     // Do a dance with active workspaces: Hyprland will only properly render the
     // current active one so make the workspace active before rendering it, etc
-    const PHLWORKSPACE start_workspace = monitor->m_activeWorkspace;
     if (start_workspace == nullptr)
         return;
 

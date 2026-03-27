@@ -20,12 +20,9 @@ std::optional<HTRenderSnapshot> capture_render_snapshot(VIEWID view_id, float dr
         return std::nullopt;
 
     HTRenderSnapshot snapshot;
-    snapshot.monitor = monitor;
-    snapshot.time    = Time::steadyNow();
-
-    const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
-    if (cursor_view == nullptr)
-        return snapshot;
+    snapshot.monitor          = monitor;
+    snapshot.active_workspace = monitor->m_activeWorkspace;
+    snapshot.time             = Time::steadyNow();
 
     const PHLWINDOW dragged_window = ht_manager->get_dragged_window();
     if (dragged_window == nullptr)
