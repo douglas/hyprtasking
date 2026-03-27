@@ -6,6 +6,7 @@ REPO_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
 BUILD_DIR=${BUILD_DIR:-"$REPO_DIR/build"}
 SMOKE_MODE=${SMOKE_MODE:-stress}
 PRINT_MANUAL_CHECKLIST=${PRINT_MANUAL_CHECKLIST:-1}
+HYPRLAND_SOURCE=${HYPRLAND_SOURCE:-}
 
 run() {
   printf '$ %s\n' "$*"
@@ -15,6 +16,10 @@ run() {
 if [[ ! -d "$BUILD_DIR" ]]; then
   printf 'Build directory does not exist: %s\n' "$BUILD_DIR" >&2
   exit 1
+fi
+
+if [[ -n "$HYPRLAND_SOURCE" ]]; then
+  run bash "$SCRIPT_DIR/audit-compat.sh" "$HYPRLAND_SOURCE"
 fi
 
 run meson compile -C "$BUILD_DIR"

@@ -150,6 +150,12 @@ bash scripts/smoke-live.sh all
 
 4. Finish with the manual compositor checks printed by `bash scripts/smoke-live.sh manual`.
 
+For the same flow through one command:
+
+```
+HYPRLAND_SOURCE=/path/to/Hyprland bash scripts/release-check.sh
+```
+
 For a single local release-prep command, run:
 
 ```
@@ -161,7 +167,9 @@ bash scripts/release-check.sh
 to skip printing the manual compositor checklist. The script suppresses the
 intermediate smoke-script reminder so the manual checklist is printed once. It
 also runs a separate `dispatchers` probe first so hook/registration failures are
-easier to distinguish from later runtime smoke failures.
+easier to distinguish from later runtime smoke failures. If `HYPRLAND_SOURCE`
+is set, it runs `scripts/audit-compat.sh` first and then continues with the
+normal build, test, smoke, and manual-check flow.
 
 The manual compositor checklist is also available directly:
 
