@@ -7,6 +7,7 @@ BUILD_DIR=${BUILD_DIR:-"$REPO_DIR/build"}
 SMOKE_MODE=${SMOKE_MODE:-stress}
 PRINT_MANUAL_CHECKLIST=${PRINT_MANUAL_CHECKLIST:-1}
 HYPRLAND_SOURCE=${HYPRLAND_SOURCE:-}
+MANUAL_SCENARIO=${MANUAL_SCENARIO:-all}
 
 run() {
   printf '$ %s\n' "$*"
@@ -28,5 +29,5 @@ run bash "$SCRIPT_DIR/smoke-live.sh" dispatchers
 run env "PRINT_MANUAL_FOLLOW_UP=0" bash "$SCRIPT_DIR/smoke-live.sh" "$SMOKE_MODE"
 
 if [[ "$PRINT_MANUAL_CHECKLIST" == "1" ]]; then
-  run bash "$SCRIPT_DIR/manual-runtime-check.sh"
+  run bash "$SCRIPT_DIR/manual-runtime-check.sh" "$MANUAL_SCENARIO"
 fi

@@ -171,6 +171,13 @@ easier to distinguish from later runtime smoke failures. If `HYPRLAND_SOURCE`
 is set, it runs `scripts/audit-compat.sh` first and then continues with the
 normal build, test, smoke, and manual-check flow.
 
+To print only one manual scenario after the automated checks, set
+`MANUAL_SCENARIO`:
+
+```
+MANUAL_SCENARIO=movewindow bash scripts/release-check.sh
+```
+
 `audit-compat.sh` prints the detected Hyprland version, the accepted support
 line, and the required hook/API contracts it verified so version drift is easier
 to diagnose during updates. On failure, it also prints the missing contract list
