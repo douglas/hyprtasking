@@ -104,6 +104,7 @@ source tree:
 
 ```
 bash scripts/audit-compat.sh /path/to/Hyprland
+bash scripts/audit-compat-surface.sh /path/to/Hyprland
 ```
 
 To verify the repo still keeps direct Hyprland internals behind `src/compat/`:
@@ -144,8 +145,8 @@ Hyprtasking is maintained for one Hyprland minor line at a time. The current sup
 
 Update workflow:
 
-1. Point `scripts/audit-compat.sh` at the target Hyprland source tree.
-2. If the audit fails, first confirm that the target tree is still on the supported `0.54.x` line, then update only the compat layer in `src/compat/`.
+1. Point `scripts/audit-compat.sh` and `scripts/audit-compat-surface.sh` at the target Hyprland source tree.
+2. If either audit fails, first confirm that the target tree is still on the supported `0.54.x` line, then update only the compat layer in `src/compat/`.
 3. Rebuild and run:
 
 ```
@@ -175,8 +176,9 @@ intermediate smoke-script reminder so the manual checklist is printed once. It
 also runs a repo-local compat boundary audit plus a separate `dispatchers` probe
 first so architectural regressions and hook/registration failures are
 easier to distinguish from later runtime smoke failures. If `HYPRLAND_SOURCE`
-is set, it runs `scripts/audit-compat.sh` first and then continues with the
-boundary audit, normal build, test, smoke, and manual-check flow.
+is set, it runs `scripts/audit-compat.sh` and `scripts/audit-compat-surface.sh`
+first and then continues with the boundary audit, normal build, test, smoke,
+and manual-check flow.
 
 To print only one manual scenario after the automated checks, set
 `MANUAL_SCENARIO`:
@@ -197,6 +199,11 @@ to diagnose during updates. On failure, it also prints the missing contract list
 and the first place to patch. The full ownership map lives in
 `docs/compat-contract.md`.
 
+`audit-compat-surface.sh` does the same for the runtime-sensitive wrapper
+surface under `src/compat/`, covering focus, cursor, drag-controller,
+workspace/window/monitor accessor, and render-pass contracts that previously
+required only manual review after a Hyprland bump.
+
 `audit-boundary.sh` also enforces that direct Hyprland focus mutation stays out
 of layout/render code, so overview rendering cannot silently start reasserting
 monitor focus again.
@@ -211,6 +218,7 @@ For tooling or CI wrappers, request machine-readable output:
 
 ```
 AUDIT_FORMAT=json bash scripts/audit-compat.sh /path/to/Hyprland
+AUDIT_FORMAT=json bash scripts/audit-compat-surface.sh /path/to/Hyprland
 ```
 
 The manual compositor checklist is also available directly:

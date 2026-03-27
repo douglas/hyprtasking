@@ -119,8 +119,10 @@ fi
 if [[ -n "$HYPRLAND_SOURCE" ]]; then
   if [[ "$RELEASE_CHECK_FORMAT" == "json" ]]; then
     run_stage audit env "AUDIT_FORMAT=json" bash "$SCRIPT_DIR/audit-compat.sh" "$HYPRLAND_SOURCE"
+    run_stage audit-surface env "AUDIT_FORMAT=json" bash "$SCRIPT_DIR/audit-compat-surface.sh" "$HYPRLAND_SOURCE"
   else
     run_stage audit bash "$SCRIPT_DIR/audit-compat.sh" "$HYPRLAND_SOURCE"
+    run_stage audit-surface bash "$SCRIPT_DIR/audit-compat-surface.sh" "$HYPRLAND_SOURCE"
   fi
 fi
 
