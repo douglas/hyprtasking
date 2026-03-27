@@ -8,6 +8,7 @@ MODE=${1:-all}
 LOAD_UNLOAD_CYCLES=${LOAD_UNLOAD_CYCLES:-1}
 TOGGLE_CYCLES=${TOGGLE_CYCLES:-1}
 RELOAD_CYCLES=${RELOAD_CYCLES:-1}
+PRINT_MANUAL_FOLLOW_UP=${PRINT_MANUAL_FOLLOW_UP:-1}
 HYPRCTL_PREFIX=()
 
 run() {
@@ -187,12 +188,14 @@ smoke_load_unload() {
   done
 }
 
-print_manual_follow_up() {
-  printf '\nManual follow-up:\n'
-  printf '1. Drag a tiled window across workspaces in the overview.\n'
-  printf '2. Move a hovered window with hyprtasking:movewindow.\n'
-  printf '3. Trigger a gesture open/close sequence.\n'
-  printf '4. Reload Hyprland while the overview is open.\n'
+run_manual_follow_up() {
+  run bash "$SCRIPT_DIR/manual-runtime-check.sh"
+}
+
+print_manual_follow_up_if_enabled() {
+  if [[ "$PRINT_MANUAL_FOLLOW_UP" == "1" ]]; then
+    run_manual_follow_up
+  fi
 }
 
 case "$MODE" in
@@ -201,11 +204,11 @@ case "$MODE" in
     smoke_toggle
     smoke_reload
     smoke_reload_open
-    print_manual_follow_up
+    print_manual_follow_up_if_enabled
     ;;
   stress)
     smoke_stress
-    print_manual_follow_up
+    print_manual_follow_up_if_enabled
     ;;
   load-unload)
     smoke_load_unload
@@ -221,7 +224,7 @@ case "$MODE" in
     ;;
   manual)
     assert_plugin_loaded
-    print_manual_follow_up
+    run_manual_follow_up
     ;;
   *)
     printf 'Usage: %s [all|stress|load-unload|toggle|move|reload|reload-open|manual]\n' "$0" >&2

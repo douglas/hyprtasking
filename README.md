@@ -123,6 +123,7 @@ Optional environment:
 - `LOAD_UNLOAD_CYCLES`: number of unload/load cycles to run for `load-unload`
 - `TOGGLE_CYCLES`: number of open/move/close toggle cycles to run for `toggle` or `all`
 - `RELOAD_CYCLES`: number of reload cycles to run for `reload`, `reload-open`, or `all`
+- `PRINT_MANUAL_FOLLOW_UP`: set to `0` to suppress the checklist print at the end of `all` or `stress`
 
 `stress` uses stronger defaults when the cycle variables are left at `1`:
 - `LOAD_UNLOAD_CYCLES=3`
@@ -156,7 +157,8 @@ bash scripts/release-check.sh
 
 `release-check.sh` defaults to the heavier `stress` smoke mode. Override with
 `SMOKE_MODE=all` if you want the lighter path, or set `PRINT_MANUAL_CHECKLIST=0`
-to skip printing the manual compositor checklist.
+to skip printing the manual compositor checklist. The script suppresses the
+intermediate smoke-script reminder so the manual checklist is printed once.
 
 The manual compositor checklist is also available directly:
 
