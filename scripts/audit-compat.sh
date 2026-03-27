@@ -33,6 +33,15 @@ RENDERER_CPP="$HYPRLAND_SOURCE/src/render/Renderer.cpp"
 MONITOR_HPP="$HYPRLAND_SOURCE/src/helpers/Monitor.hpp"
 HYPRLAND_PC="$HYPRLAND_SOURCE/hyprland.pc.in"
 VERSION_FILE="$HYPRLAND_SOURCE/VERSION"
+CHECK_LABELS=(
+  "public version API"
+  "version API implementation"
+  "renderWorkspace symbol"
+  "shouldRenderWindow symbol"
+  "renderWindow symbol"
+  "isSolitaryBlocked symbol"
+  "plugin API version check"
+)
 
 require_file "$PLUGIN_API_HPP"
 require_file "$PLUGIN_API_CPP"
@@ -68,9 +77,12 @@ require_match 'renderWindow' "$RENDERER_CPP" 'renderWindow symbol' || failures=$
 require_match 'isSolitaryBlocked' "$MONITOR_HPP" 'isSolitaryBlocked symbol' || failures=$((failures + 1))
 require_match 'HYPRLAND_API_VERSION' "$PLUGIN_SYSTEM_CPP" 'plugin API version check' || failures=$((failures + 1))
 
+printf '\nChecked contracts (%d):\n' "${#CHECK_LABELS[@]}"
+printf ' - %s\n' "${CHECK_LABELS[@]}"
+
 if ((failures > 0)); then
   printf '\nCompat audit failed with %d issue(s).\n' "$failures" >&2
   exit 1
 fi
 
-printf '\nCompat audit passed.\n'
+printf '\nCompat audit passed for Hyprland %s on supported line %s.\n' "$TARGET_VERSION" "$SUPPORTED_MINOR"

@@ -171,6 +171,10 @@ easier to distinguish from later runtime smoke failures. If `HYPRLAND_SOURCE`
 is set, it runs `scripts/audit-compat.sh` first and then continues with the
 normal build, test, smoke, and manual-check flow.
 
+`audit-compat.sh` prints the detected Hyprland version, the accepted support
+line, and the required hook/API contracts it verified so version drift is easier
+to diagnose during updates.
+
 The manual compositor checklist is also available directly:
 
 ```
