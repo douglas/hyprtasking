@@ -194,8 +194,8 @@ void HTLayoutGrid::on_move(WORKSPACEID old_id, WORKSPACEID new_id, CallbackFun o
         return;
 
     // prevent the thing from animating
-    const PHLWORKSPACE old_workspace = g_pCompositor->getWorkspaceByID(old_id);
-    const PHLWORKSPACE new_workspace = g_pCompositor->getWorkspaceByID(new_id);
+    const PHLWORKSPACE old_workspace = HTCompat::workspace_by_id(old_id);
+    const PHLWORKSPACE new_workspace = HTCompat::workspace_by_id(new_id);
     if (old_workspace == nullptr || new_workspace == nullptr)
         return;
     HTCompat::warp_workspace_render_offset(old_workspace);
@@ -318,9 +318,9 @@ void HTLayoutGrid::build_overview_layout(HTViewStage stage) {
     for (int y = 0; y < ROWS; y++) {
         for (int x = 0; x < COLS; x++) {
             const WORKSPACEID ws_id = (view_id * ROWS + y) * COLS + x + 1;
-            const PHLWORKSPACE workspace = g_pCompositor->getWorkspaceByID(ws_id);
+            const PHLWORKSPACE workspace = HTCompat::workspace_by_id(ws_id);
             if (workspace != nullptr && workspace->monitorID() != view_id) {
-                g_pCompositor->moveWorkspaceToMonitor(workspace, monitor);
+                HTCompat::move_workspace_to_monitor(workspace, monitor);
             }
             const CBox ws_box = calculate_ws_box(x, y, stage);
             overview_layout[ws_id] = HTWorkspace {x, y, ws_box};
@@ -382,7 +382,7 @@ void HTLayoutGrid::render() {
             continue;
 
         // Could be nullptr, in which we render only layers
-        const PHLWORKSPACE workspace = g_pCompositor->getWorkspaceByID(ws_id);
+        const PHLWORKSPACE workspace = HTCompat::workspace_by_id(ws_id);
 
         // renderModif translation used by renderWorkspace is weird so need
         // to scale the translation up as well. Geometry is also calculated from pixel size and not transformed size??

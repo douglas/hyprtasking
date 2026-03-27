@@ -119,7 +119,7 @@ void HTLayoutLinear::on_move(WORKSPACEID old_id, WORKSPACEID new_id, CallbackFun
         * HTCompat::monitor_scale(monitor);
     const Vector2D transformed_size = HTCompat::monitor_transformed_size(monitor);
 
-    const PHLWORKSPACE new_ws = g_pCompositor->getWorkspaceByID(new_id);
+    const PHLWORKSPACE new_ws = HTCompat::workspace_by_id(new_id);
     if (new_ws == nullptr)
         return;
 
@@ -289,7 +289,7 @@ void HTLayoutLinear::build_overview_layout(HTViewStage stage) {
     overview_layout.clear();
 
     std::vector<WORKSPACEID> monitor_workspaces;
-    for (PHLWORKSPACE workspace : g_pCompositor->getWorkspacesCopy()) {
+    for (PHLWORKSPACE workspace : HTCompat::compositor_workspaces()) {
         if (workspace == nullptr)
             continue;
         if (HTCompat::workspace_monitor(workspace) != monitor)
@@ -301,7 +301,7 @@ void HTLayoutLinear::build_overview_layout(HTViewStage stage) {
     std::sort(monitor_workspaces.begin(), monitor_workspaces.end());
 
     WORKSPACEID big_id = HTLogic::nextLinearDummyWorkspaceID(monitor_workspaces, 0);
-    while (g_pCompositor->getWorkspaceByID(big_id) != nullptr)
+    while (HTCompat::workspace_by_id(big_id) != nullptr)
         big_id++;
     monitor_workspaces.push_back(big_id);
 
@@ -393,7 +393,7 @@ void HTLayoutLinear::render() {
     CBox global_mon_box = {monitor_pos, transformed_size};
     for (const auto& [ws_id, ws_layout] : overview_layout) {
         // Could be nullptr, in which we render only layers
-        const PHLWORKSPACE workspace = g_pCompositor->getWorkspaceByID(ws_id);
+        const PHLWORKSPACE workspace = HTCompat::workspace_by_id(ws_id);
 
         // renderModif translation used by renderWorkspace is weird so need
         // to scale the translation up as well. Geometry is also calculated from pixel size and not transformed size??

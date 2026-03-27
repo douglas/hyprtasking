@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 #include <hyprland/src/SharedDefs.hpp>
 #include <hyprland/src/desktop/DesktopTypes.hpp>
@@ -47,6 +48,8 @@ PHLMONITOR workspace_monitor(PHLWORKSPACE workspace);
 bool workspace_render_visible(PHLWORKSPACE workspace);
 bool workspace_is_special(PHLWORKSPACE workspace);
 WORKSPACEID workspace_id(PHLWORKSPACE workspace);
+PHLWORKSPACE workspace_by_id(WORKSPACEID workspace_id);
+std::vector<PHLWORKSPACE> compositor_workspaces();
 PHLWORKSPACE window_workspace(PHLWINDOW window);
 PHLMONITOR window_monitor(PHLWINDOW window);
 Vector2D window_real_position(PHLWINDOW window);
@@ -60,6 +63,7 @@ bool activate_monitor_workspace(PHLMONITOR monitor, PHLWORKSPACE workspace);
 bool restore_monitor_workspace(PHLMONITOR monitor, PHLWORKSPACE workspace, bool use_change_workspace);
 void set_workspace_render_visibility(PHLWORKSPACE workspace, bool visible);
 PHLWORKSPACE resolve_workspace_target(PHLMONITOR monitor, WORKSPACEID workspace_id, bool create_if_missing);
+bool move_workspace_to_monitor(PHLWORKSPACE workspace, PHLMONITOR monitor, bool no_warp_cursor = false);
 bool warp_pointer(const Vector2D& position);
 void set_current_monitor_blur_should_render(bool enabled);
 void add_rect_pass(const CRectPassElement::SRectData& data);

@@ -318,6 +318,20 @@ WORKSPACEID workspace_id(PHLWORKSPACE workspace) {
     return workspace->m_id;
 }
 
+PHLWORKSPACE workspace_by_id(WORKSPACEID workspace_id) {
+    if (workspace_id == WORKSPACE_INVALID || !g_pCompositor)
+        return nullptr;
+
+    return g_pCompositor->getWorkspaceByID(workspace_id);
+}
+
+std::vector<PHLWORKSPACE> compositor_workspaces() {
+    if (!g_pCompositor)
+        return {};
+
+    return g_pCompositor->getWorkspacesCopy();
+}
+
 PHLWORKSPACE window_workspace(PHLWINDOW window) {
     if (window == nullptr)
         return nullptr;
@@ -420,11 +434,19 @@ PHLWORKSPACE resolve_workspace_target(
     if (monitor == nullptr || workspace_id == WORKSPACE_INVALID)
         return nullptr;
 
-    PHLWORKSPACE workspace = g_pCompositor->getWorkspaceByID(workspace_id);
+    PHLWORKSPACE workspace = HTCompat::workspace_by_id(workspace_id);
     if (workspace == nullptr && create_if_missing)
         workspace = g_pCompositor->createNewWorkspace(workspace_id, HTCompat::monitor_id(monitor));
 
     return workspace;
+}
+
+bool move_workspace_to_monitor(PHLWORKSPACE workspace, PHLMONITOR monitor, bool no_warp_cursor) {
+    if (workspace == nullptr || monitor == nullptr || !g_pCompositor)
+        return false;
+
+    g_pCompositor->moveWorkspaceToMonitor(workspace, monitor, no_warp_cursor);
+    return true;
 }
 
 bool warp_pointer(const Vector2D& position) {

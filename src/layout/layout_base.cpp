@@ -123,7 +123,7 @@ CBox HTLayoutBase::get_global_window_box(PHLWINDOW window, WORKSPACEID workspace
     if (monitor == nullptr)
         return {};
 
-    const PHLWORKSPACE workspace = g_pCompositor->getWorkspaceByID(workspace_id);
+    const PHLWORKSPACE workspace = HTCompat::workspace_by_id(workspace_id);
     if (workspace == nullptr || HTCompat::workspace_monitor(workspace) != monitor)
         return {};
     const Vector2D monitor_pos = HTCompat::monitor_position(monitor);
