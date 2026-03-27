@@ -52,19 +52,15 @@ void HTView::do_exit_behavior(bool exit_on_mouse) {
     if (active_workspace == nullptr)
         return;
 
-    auto try_get_hover_id = [this, &monitor]() {
-        const PHLMONITOR cursor_monitor = g_pCompositor->getMonitorFromCursor();
-        if (cursor_monitor != monitor)
-            return WORKSPACE_INVALID;
-
-        const Vector2D mouse_coords = g_pInputManager->getMouseCoordsInternal();
-        return layout->get_ws_id_from_global(mouse_coords);
-    };
+    const HTCursorWorkspaceContext cursor_context =
+        ht_manager == nullptr ? HTCursorWorkspaceContext {} : ht_manager->resolve_cursor_workspace(false);
+    const WORKSPACEID hovered_workspace_id =
+        cursor_context.monitor == monitor ? cursor_context.workspace_id : WORKSPACE_INVALID;
 
     const int EXIT_ON_HOVERED = HTConfig::value<Hyprlang::INT>("exit_on_hovered");
     const WORKSPACEID ws_id = HTLogic::resolveExitWorkspaceID(
         exit_on_mouse || EXIT_ON_HOVERED,
-        try_get_hover_id(),
+        hovered_workspace_id,
         active_workspace->m_id
     );
     const PHLWORKSPACE workspace =

@@ -9,6 +9,14 @@
 #include "logic/reload_model.hpp"
 #include "overview.hpp"
 
+struct HTCursorWorkspaceContext {
+    PHLMONITOR  monitor = nullptr;
+    PHTVIEW     view = nullptr;
+    Vector2D    mouse_coords;
+    WORKSPACEID workspace_id = WORKSPACE_INVALID;
+    PHLWORKSPACE workspace = nullptr;
+};
+
 class HTManager {
   public:
     static constexpr VIEWID INVALID_VIEW_ID = -1;
@@ -20,6 +28,7 @@ class HTManager {
     PHTVIEW get_view_from_monitor(PHLMONITOR pMonitor);
     PHTVIEW get_view_from_cursor();
     PHTVIEW get_view_from_id(VIEWID view_id);
+    HTCursorWorkspaceContext resolve_cursor_workspace(bool create_if_missing);
 
     PHLWINDOW get_window_from_cursor(bool return_focused = true);
 

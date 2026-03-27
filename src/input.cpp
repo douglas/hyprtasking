@@ -23,18 +23,13 @@ using Hyprutils::Utils::CScopeGuard;
 bool HTManager::start_window_drag() {
     clear_dragged_window();
 
-    const PHLMONITOR cursor_monitor = g_pCompositor->getMonitorFromCursor();
-    const PHTVIEW cursor_view = get_view_from_monitor(cursor_monitor);
+    const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace(false);
+    const PHLMONITOR cursor_monitor = cursor_context.monitor;
+    const PHTVIEW cursor_view = cursor_context.view;
     const bool manages_mouse = cursor_view != nullptr && cursor_view->layout->should_manage_mouse();
-
-    const Vector2D mouse_coords = g_pInputManager->getMouseCoordsInternal();
-    const WORKSPACEID workspace_id =
-        cursor_view == nullptr ? WORKSPACE_INVALID : cursor_view->layout->get_ws_id_from_global(mouse_coords);
-    PHLWORKSPACE cursor_workspace = HTCompat::resolve_workspace_target(
-        cursor_monitor,
-        workspace_id,
-        false
-    );
+    const Vector2D mouse_coords = cursor_context.mouse_coords;
+    const WORKSPACEID workspace_id = cursor_context.workspace_id;
+    PHLWORKSPACE cursor_workspace = cursor_context.workspace;
 
     switch (HTLogic::decideDragStart(
         cursor_view != nullptr,
@@ -125,8 +120,9 @@ bool HTManager::start_window_drag() {
 }
 
 bool HTManager::end_window_drag() {
-    const PHLMONITOR cursor_monitor = g_pCompositor->getMonitorFromCursor();
-    const PHTVIEW cursor_view = get_view_from_monitor(cursor_monitor);
+    const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace(false);
+    const PHLMONITOR cursor_monitor = cursor_context.monitor;
+    const PHTVIEW cursor_view = cursor_context.view;
     CScopeGuard reset_drag_mode([] { g_pKeybindManager->changeMouseBindMode(MBIND_INVALID); });
     CScopeGuard clear_dragged_window_guard([this] { clear_dragged_window(); });
     const bool has_view = cursor_view != nullptr;
@@ -154,9 +150,9 @@ bool HTManager::end_window_drag() {
     if (cursor_monitor == nullptr || cursor_view == nullptr || dragged_window == nullptr)
         return false;
 
-    const Vector2D mouse_coords = g_pInputManager->getMouseCoordsInternal();
+    const Vector2D mouse_coords = cursor_context.mouse_coords;
     Vector2D use_mouse_coords = mouse_coords;
-    const WORKSPACEID hovered_workspace_id = cursor_view->layout->get_ws_id_from_global(mouse_coords);
+    const WORKSPACEID hovered_workspace_id = cursor_context.workspace_id;
     const std::optional<WORKSPACEID> dragged_workspace_id =
         dragged_window->m_workspace == nullptr ? std::nullopt
                                                : std::optional<WORKSPACEID> {dragged_window->m_workspace->m_id};

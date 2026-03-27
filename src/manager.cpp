@@ -48,8 +48,29 @@ PHTVIEW HTManager::get_view_from_id(VIEWID view_id) {
     return nullptr;
 }
 
+HTCursorWorkspaceContext HTManager::resolve_cursor_workspace(bool create_if_missing) {
+    HTCursorWorkspaceContext context;
+    context.monitor = g_pCompositor->getMonitorFromCursor();
+    if (context.monitor == nullptr)
+        return context;
+
+    context.view = get_view_from_monitor(context.monitor);
+    context.mouse_coords = g_pInputManager->getMouseCoordsInternal();
+    if (context.view == nullptr)
+        return context;
+
+    context.workspace_id = context.view->layout->get_ws_id_from_global(context.mouse_coords);
+    context.workspace = HTCompat::resolve_workspace_target(
+        context.monitor,
+        context.workspace_id,
+        create_if_missing
+    );
+    return context;
+}
+
 PHLWINDOW HTManager::get_window_from_cursor(bool return_focused) {
-    const PHLMONITOR cursor_monitor = g_pCompositor->getMonitorFromCursor();
+    const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace(false);
+    const PHLMONITOR cursor_monitor = cursor_context.monitor;
     if (cursor_monitor == nullptr)
         return nullptr;
 
@@ -60,11 +81,10 @@ PHLWINDOW HTManager::get_window_from_cursor(bool return_focused) {
         return active_workspace->getLastFocusedWindow();
     }
 
-    const PHTVIEW cursor_view = get_view_from_monitor(cursor_monitor);
+    const PHTVIEW cursor_view = cursor_context.view;
     if (cursor_view == nullptr)
         return nullptr;
-
-    const Vector2D mouse_coords = g_pInputManager->getMouseCoordsInternal();
+    const Vector2D mouse_coords = cursor_context.mouse_coords;
 
     if (!cursor_view->active || !cursor_view->layout->should_manage_mouse()) {
         return g_pCompositor->vectorToWindowUnified(
@@ -72,10 +92,8 @@ PHLWINDOW HTManager::get_window_from_cursor(bool return_focused) {
             Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING
         );
     }
-
-    const WORKSPACEID ws_id = cursor_view->layout->get_ws_id_from_global(mouse_coords);
-    const PHLWORKSPACE hovered_workspace =
-        HTCompat::resolve_workspace_target(cursor_monitor, ws_id, false);
+    const WORKSPACEID ws_id = cursor_context.workspace_id;
+    const PHLWORKSPACE hovered_workspace = cursor_context.workspace;
     if (hovered_workspace == nullptr)
         return nullptr;
 
