@@ -6,6 +6,8 @@ PLUGIN_PATH=${PLUGIN_PATH:-"$SCRIPT_DIR/../build/libhyprtasking.so"}
 PLUGIN_PATH=$(realpath "$PLUGIN_PATH")
 MODE=${1:-all}
 LOAD_UNLOAD_CYCLES=${LOAD_UNLOAD_CYCLES:-1}
+TOGGLE_CYCLES=${TOGGLE_CYCLES:-1}
+RELOAD_CYCLES=${RELOAD_CYCLES:-1}
 HYPRCTL_PREFIX=()
 
 run() {
@@ -91,33 +93,42 @@ fi
 init_hyprctl_prefix
 
 smoke_toggle() {
-  assert_plugin_loaded
-  assert_dispatcher_ready
-  run_hyprctl dispatch hyprtasking:toggle cursor
-  run_hyprctl dispatch hyprtasking:move right
-  run_hyprctl dispatch hyprtasking:move left
-  run_hyprctl dispatch hyprtasking:toggle cursor
+  local cycle
+  for ((cycle = 0; cycle < TOGGLE_CYCLES; cycle++)); do
+    assert_plugin_loaded
+    assert_dispatcher_ready
+    run_hyprctl dispatch hyprtasking:toggle cursor
+    run_hyprctl dispatch hyprtasking:move right
+    run_hyprctl dispatch hyprtasking:move left
+    run_hyprctl dispatch hyprtasking:toggle cursor
+  done
   run_hyprctl plugin list
 }
 
 smoke_reload() {
-  assert_plugin_loaded
-  run_hyprctl reload
-  wait_for_plugin_ready
-  assert_plugin_loaded
-  assert_dispatcher_ready
+  local cycle
+  for ((cycle = 0; cycle < RELOAD_CYCLES; cycle++)); do
+    assert_plugin_loaded
+    run_hyprctl reload
+    wait_for_plugin_ready
+    assert_plugin_loaded
+    assert_dispatcher_ready
+  done
 }
 
 smoke_reload_open() {
-  assert_plugin_loaded
-  assert_dispatcher_ready
-  run_hyprctl dispatch hyprtasking:toggle cursor
-  run_hyprctl reload
-  wait_for_plugin_ready
-  assert_plugin_loaded
-  assert_dispatcher_ready
-  run_hyprctl dispatch hyprtasking:toggle cursor
-  run_hyprctl dispatch hyprtasking:toggle cursor
+  local cycle
+  for ((cycle = 0; cycle < RELOAD_CYCLES; cycle++)); do
+    assert_plugin_loaded
+    assert_dispatcher_ready
+    run_hyprctl dispatch hyprtasking:toggle cursor
+    run_hyprctl reload
+    wait_for_plugin_ready
+    assert_plugin_loaded
+    assert_dispatcher_ready
+    run_hyprctl dispatch hyprtasking:toggle cursor
+    run_hyprctl dispatch hyprtasking:toggle cursor
+  done
 }
 
 smoke_load_unload() {

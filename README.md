@@ -120,6 +120,8 @@ Optional environment:
 - `HYPRLAND_INSTANCE_SIGNATURE`: target a specific live Hyprland session. If unset, the script picks the first active instance from `hyprctl instances`.
 - `PLUGIN_PATH`: override the plugin path used by `load-unload`
 - `LOAD_UNLOAD_CYCLES`: number of unload/load cycles to run for `load-unload`
+- `TOGGLE_CYCLES`: number of open/move/close toggle cycles to run for `toggle` or `all`
+- `RELOAD_CYCLES`: number of reload cycles to run for `reload`, `reload-open`, or `all`
 
 ## Updating Hyprland Compatibility
 
