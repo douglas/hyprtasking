@@ -47,7 +47,7 @@ void render_window_at_box(PHLWINDOW window, PHLMONITOR monitor, const Time::stea
     data.modifs.push_back({SRenderModifData::eRenderModifType::RMOD_TYPE_SCALE, *scale});
     HTCompat::add_renderer_hints_pass(data);
 
-    g_pHyprRenderer->damageWindow(window);
+    HTCompat::damage_window(window);
     HTCompat::render_window_original(
         g_pHyprRenderer.get(),
         window,

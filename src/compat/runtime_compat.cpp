@@ -134,6 +134,13 @@ void HTCompat::schedule_frame_for_monitor(PHLMONITOR monitor) {
     g_pCompositor->scheduleFrameForMonitor(monitor);
 }
 
+void HTCompat::simulate_mouse_movement() {
+    if (!g_pInputManager)
+        return;
+
+    g_pInputManager->simulateMouseMovement();
+}
+
 void HTCompat::close_window(PHLWINDOW window) {
     if (window == nullptr || !g_pCompositor)
         return;

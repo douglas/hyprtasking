@@ -32,6 +32,7 @@ void warp_window_cursor(PHLWINDOW window, bool force);
 void set_cursor_override_enabled(bool enabled);
 void damage_monitor(PHLMONITOR monitor);
 void schedule_frame_for_monitor(PHLMONITOR monitor);
+void simulate_mouse_movement();
 void close_window(PHLWINDOW window);
 void move_window_to_workspace(PHLWINDOW window, PHLWORKSPACE workspace);
 void set_mouse_bind_mode(eMouseBindMode mode);

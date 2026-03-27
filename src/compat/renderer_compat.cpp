@@ -487,6 +487,13 @@ void add_renderer_hints_pass(const SRenderModifData& data) {
     );
 }
 
+void damage_window(PHLWINDOW window) {
+    if (window == nullptr || !g_pHyprRenderer.get())
+        return;
+
+    g_pHyprRenderer->damageWindow(window);
+}
+
 void begin_overview_render_pass() {
     if (!g_pHyprRenderer.get())
         return;

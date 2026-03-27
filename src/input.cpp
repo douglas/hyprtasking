@@ -113,7 +113,7 @@ bool HTManager::start_window_drag() {
             HTCompat::set_window_real_position(dragged_window, mapped_pre_pos);
             HTCompat::set_window_real_position_goal(dragged_window, mapped_post_pos);
         } else {
-            g_pInputManager->simulateMouseMovement();
+            HTCompat::simulate_mouse_movement();
         }
     }
 

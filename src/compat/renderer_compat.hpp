@@ -69,6 +69,7 @@ void set_current_monitor_blur_should_render(bool enabled);
 void add_rect_pass(const CRectPassElement::SRectData& data);
 void add_border_pass(const CBorderPassElement::SBorderData& data);
 void add_renderer_hints_pass(const SRenderModifData& data);
+void damage_window(PHLWINDOW window);
 void begin_overview_render_pass();
 void remove_clear_passes();
 void finalize_overview_render_pass();
