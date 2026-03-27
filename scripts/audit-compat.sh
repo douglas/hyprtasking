@@ -42,6 +42,8 @@ CHECK_LABELS=(
   "isSolitaryBlocked symbol"
   "plugin API version check"
 )
+FAILED_LABELS=()
+FAILED_PATHS=()
 
 require_file "$PLUGIN_API_HPP"
 require_file "$PLUGIN_API_CPP"
@@ -59,6 +61,8 @@ printf 'Detected target version: %s\n' "$TARGET_VERSION"
 
 if [[ "$TARGET_VERSION" != ${SUPPORTED_PREFIX}* ]]; then
   printf 'Unsupported Hyprland version for this plugin line: %s\n' "$TARGET_VERSION" >&2
+  printf 'Expected supported line: %s\n' "$SUPPORTED_MINOR" >&2
+  printf 'Update the plugin compat layer before attempting to load against this tree.\n' >&2
   exit 1
 fi
 
@@ -69,19 +73,34 @@ fi
 
 failures=0
 
-require_match 'APICALL SVersionInfo getHyprlandVersion(HANDLE handle);' "$PLUGIN_API_HPP" 'public version API' || failures=$((failures + 1))
-require_match 'APICALL SVersionInfo HyprlandAPI::getHyprlandVersion(HANDLE handle)' "$PLUGIN_API_CPP" 'version API implementation' || failures=$((failures + 1))
-require_match 'renderWorkspace' "$RENDERER_CPP" 'renderWorkspace symbol' || failures=$((failures + 1))
-require_match 'shouldRenderWindow' "$RENDERER_CPP" 'shouldRenderWindow symbol' || failures=$((failures + 1))
-require_match 'renderWindow' "$RENDERER_CPP" 'renderWindow symbol' || failures=$((failures + 1))
-require_match 'isSolitaryBlocked' "$MONITOR_HPP" 'isSolitaryBlocked symbol' || failures=$((failures + 1))
-require_match 'HYPRLAND_API_VERSION' "$PLUGIN_SYSTEM_CPP" 'plugin API version check' || failures=$((failures + 1))
+record_failure() {
+  local label=$1
+  local path=$2
+  FAILED_LABELS+=("$label")
+  FAILED_PATHS+=("$path")
+  failures=$((failures + 1))
+}
+
+require_match 'APICALL SVersionInfo getHyprlandVersion(HANDLE handle);' "$PLUGIN_API_HPP" 'public version API' || record_failure 'public version API' "$PLUGIN_API_HPP"
+require_match 'APICALL SVersionInfo HyprlandAPI::getHyprlandVersion(HANDLE handle)' "$PLUGIN_API_CPP" 'version API implementation' || record_failure 'version API implementation' "$PLUGIN_API_CPP"
+require_match 'renderWorkspace' "$RENDERER_CPP" 'renderWorkspace symbol' || record_failure 'renderWorkspace symbol' "$RENDERER_CPP"
+require_match 'shouldRenderWindow' "$RENDERER_CPP" 'shouldRenderWindow symbol' || record_failure 'shouldRenderWindow symbol' "$RENDERER_CPP"
+require_match 'renderWindow' "$RENDERER_CPP" 'renderWindow symbol' || record_failure 'renderWindow symbol' "$RENDERER_CPP"
+require_match 'isSolitaryBlocked' "$MONITOR_HPP" 'isSolitaryBlocked symbol' || record_failure 'isSolitaryBlocked symbol' "$MONITOR_HPP"
+require_match 'HYPRLAND_API_VERSION' "$PLUGIN_SYSTEM_CPP" 'plugin API version check' || record_failure 'plugin API version check' "$PLUGIN_SYSTEM_CPP"
 
 printf '\nChecked contracts (%d):\n' "${#CHECK_LABELS[@]}"
 printf ' - %s\n' "${CHECK_LABELS[@]}"
 
 if ((failures > 0)); then
   printf '\nCompat audit failed with %d issue(s).\n' "$failures" >&2
+  printf 'Missing or changed contracts:\n' >&2
+  i=0
+  for ((i = 0; i < ${#FAILED_LABELS[@]}; i++)); do
+    printf ' - %s (%s)\n' "${FAILED_LABELS[i]}" "${FAILED_PATHS[i]}" >&2
+  done
+  printf 'Expected fix location: src/compat/ in this plugin tree.\n' >&2
+  printf 'Rerun with HYPRLAND_SOURCE set to the target Hyprland checkout after patching.\n' >&2
   exit 1
 fi
 

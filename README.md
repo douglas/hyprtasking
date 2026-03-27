@@ -173,7 +173,8 @@ normal build, test, smoke, and manual-check flow.
 
 `audit-compat.sh` prints the detected Hyprland version, the accepted support
 line, and the required hook/API contracts it verified so version drift is easier
-to diagnose during updates.
+to diagnose during updates. On failure, it also prints the missing contract list
+and the first place to patch: `src/compat/`.
 
 The manual compositor checklist is also available directly:
 
