@@ -109,6 +109,7 @@ bash scripts/audit-compat.sh /path/to/Hyprland
 Supported smoke subcommands:
 
 - `all`: unload/load the plugin, wait for dispatcher registration, run toggle/move probes, then reload Hyprland
+- `stress`: run a heavier live cycle with repeated unload/load, toggle/move, reload, and reload-open checks
 - `load-unload`: validate one or more live unload/load cycles for `build/libhyprtasking.so`
 - `toggle`: validate toggle and directional move dispatchers
 - `reload`: reload Hyprland and wait for the plugin to become ready again
@@ -122,6 +123,11 @@ Optional environment:
 - `LOAD_UNLOAD_CYCLES`: number of unload/load cycles to run for `load-unload`
 - `TOGGLE_CYCLES`: number of open/move/close toggle cycles to run for `toggle` or `all`
 - `RELOAD_CYCLES`: number of reload cycles to run for `reload`, `reload-open`, or `all`
+
+`stress` uses stronger defaults when the cycle variables are left at `1`:
+- `LOAD_UNLOAD_CYCLES=3`
+- `TOGGLE_CYCLES=3`
+- `RELOAD_CYCLES=2`
 
 ## Updating Hyprland Compatibility
 

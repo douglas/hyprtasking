@@ -65,6 +65,22 @@ assert_dispatcher_ready() {
   fi
 }
 
+assert_extended_dispatchers_ready() {
+  assert_dispatcher_ready
+
+  run_capture_hyprctl dispatch hyprtasking:move __smoke_probe__
+  if [[ "$CAPTURED_OUTPUT" == *"Invalid dispatcher"* ]]; then
+    printf 'Hyprtasking move dispatcher is not registered yet.\n' >&2
+    exit 1
+  fi
+
+  run_capture_hyprctl dispatch hyprtasking:movewindow __smoke_probe__
+  if [[ "$CAPTURED_OUTPUT" == *"Invalid dispatcher"* ]]; then
+    printf 'Hyprtasking movewindow dispatcher is not registered yet.\n' >&2
+    exit 1
+  fi
+}
+
 wait_for_plugin_ready() {
   local attempts=${1:-40}
   local delay=${2:-0.1}
@@ -96,7 +112,7 @@ smoke_toggle() {
   local cycle
   for ((cycle = 0; cycle < TOGGLE_CYCLES; cycle++)); do
     assert_plugin_loaded
-    assert_dispatcher_ready
+    assert_extended_dispatchers_ready
     run_hyprctl dispatch hyprtasking:toggle cursor
     run_hyprctl dispatch hyprtasking:move right
     run_hyprctl dispatch hyprtasking:move left
@@ -112,7 +128,7 @@ smoke_reload() {
     run_hyprctl reload
     wait_for_plugin_ready
     assert_plugin_loaded
-    assert_dispatcher_ready
+    assert_extended_dispatchers_ready
   done
 }
 
@@ -120,15 +136,40 @@ smoke_reload_open() {
   local cycle
   for ((cycle = 0; cycle < RELOAD_CYCLES; cycle++)); do
     assert_plugin_loaded
-    assert_dispatcher_ready
+    assert_extended_dispatchers_ready
     run_hyprctl dispatch hyprtasking:toggle cursor
     run_hyprctl reload
     wait_for_plugin_ready
     assert_plugin_loaded
-    assert_dispatcher_ready
+    assert_extended_dispatchers_ready
     run_hyprctl dispatch hyprtasking:toggle cursor
     run_hyprctl dispatch hyprtasking:toggle cursor
   done
+}
+
+smoke_stress() {
+  local saved_load_cycles=${LOAD_UNLOAD_CYCLES}
+  local saved_toggle_cycles=${TOGGLE_CYCLES}
+  local saved_reload_cycles=${RELOAD_CYCLES}
+
+  if [[ "$LOAD_UNLOAD_CYCLES" == "1" ]]; then
+    LOAD_UNLOAD_CYCLES=3
+  fi
+  if [[ "$TOGGLE_CYCLES" == "1" ]]; then
+    TOGGLE_CYCLES=3
+  fi
+  if [[ "$RELOAD_CYCLES" == "1" ]]; then
+    RELOAD_CYCLES=2
+  fi
+
+  smoke_load_unload
+  smoke_toggle
+  smoke_reload
+  smoke_reload_open
+
+  LOAD_UNLOAD_CYCLES=${saved_load_cycles}
+  TOGGLE_CYCLES=${saved_toggle_cycles}
+  RELOAD_CYCLES=${saved_reload_cycles}
 }
 
 smoke_load_unload() {
@@ -162,6 +203,10 @@ case "$MODE" in
     smoke_reload_open
     print_manual_follow_up
     ;;
+  stress)
+    smoke_stress
+    print_manual_follow_up
+    ;;
   load-unload)
     smoke_load_unload
     ;;
@@ -179,7 +224,7 @@ case "$MODE" in
     print_manual_follow_up
     ;;
   *)
-    printf 'Usage: %s [all|load-unload|toggle|move|reload|reload-open|manual]\n' "$0" >&2
+    printf 'Usage: %s [all|stress|load-unload|toggle|move|reload|reload-open|manual]\n' "$0" >&2
     exit 1
     ;;
 esac
