@@ -3,24 +3,6 @@
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 
 #include "compat/renderer_compat.hpp"
-#include "compat/runtime_compat.hpp"
-
-class HTScopedMonitorFocus {
-  public:
-    explicit HTScopedMonitorFocus(PHLMONITOR monitor)
-        : previous_monitor(HTCompat::focused_monitor()) {
-        if (monitor != nullptr)
-            HTCompat::focus_monitor(monitor);
-    }
-
-    ~HTScopedMonitorFocus() {
-        if (previous_monitor != nullptr)
-            HTCompat::focus_monitor(previous_monitor);
-    }
-
-  private:
-    PHLMONITOR previous_monitor = nullptr;
-};
 
 class HTScopedMonitorWorkspace {
   public:

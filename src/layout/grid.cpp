@@ -310,8 +310,6 @@ void HTLayoutGrid::build_overview_layout(HTViewStage stage) {
     const int ROWS = HTConfig::value<Hyprlang::INT>("grid:rows");
     const int COLS = HTConfig::value<Hyprlang::INT>("grid:cols");
 
-    HTScopedMonitorFocus restore_focus(monitor);
-
     overview_layout.clear();
 
     for (int y = 0; y < ROWS; y++) {

@@ -29,6 +29,7 @@ printf 'Allowed direct Hyprland internals location: src/compat/\n'
 run_check 'Hyprland globals outside compat' 'g_p[A-Za-z0-9_]+'
 run_check 'raw m_ field access outside compat' '->m_[A-Za-z0-9_]+'
 run_check 'Event bus access outside compat' 'Event::bus\(\)'
+run_check 'monitor focus mutation outside compat' 'HTCompat::focus_monitor\(|rawMonitorFocus\('
 
 if ((failures > 0)); then
   printf '\nBoundary audit failed with %d issue(s).\n' "$failures" >&2

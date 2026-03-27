@@ -197,6 +197,10 @@ to diagnose during updates. On failure, it also prints the missing contract list
 and the first place to patch. The full ownership map lives in
 `docs/compat-contract.md`.
 
+`audit-boundary.sh` also enforces that direct Hyprland focus mutation stays out
+of layout/render code, so overview rendering cannot silently start reasserting
+monitor focus again.
+
 Audit exit codes:
 
 - `2`: required Hyprland source file missing
