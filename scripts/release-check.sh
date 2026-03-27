@@ -14,6 +14,9 @@ STAGE_EXIT_CODES=()
 FAILED_STAGE=""
 FAILED_STAGE_EXIT_CODE=0
 FAILED_STAGE_OUTPUT=""
+AUDIT_JSON="null"
+AUDIT_SURFACE_JSON="null"
+BOUNDARY_JSON="null"
 MANUAL_CHECKLIST_JSON="null"
 
 run() {
@@ -92,6 +95,11 @@ emit_json_result() {
   printf '"failed_stage":%s,' "$(json_string "$FAILED_STAGE")"
   printf '"failed_stage_exit_code":%s,' "$FAILED_STAGE_EXIT_CODE"
   printf '"failed_stage_output":%s,' "$(json_string "$FAILED_STAGE_OUTPUT")"
+  printf '"audit_results":{'
+  printf '"compat":%s,' "$AUDIT_JSON"
+  printf '"compat_surface":%s,' "$AUDIT_SURFACE_JSON"
+  printf '"boundary":%s' "$BOUNDARY_JSON"
+  printf '},'
   printf '"manual_checklist":%s,' "$MANUAL_CHECKLIST_JSON"
   printf '"stages":['
   for ((i = 0; i < ${#STAGE_NAMES[@]}; i++)); do
@@ -121,6 +129,12 @@ fi
 
 if [[ -n "$HYPRLAND_SOURCE" ]]; then
   if [[ "$RELEASE_CHECK_FORMAT" == "json" ]]; then
+    AUDIT_JSON="$(
+      env AUDIT_FORMAT=json bash "$SCRIPT_DIR/audit-compat.sh" "$HYPRLAND_SOURCE"
+    )"
+    AUDIT_SURFACE_JSON="$(
+      env AUDIT_FORMAT=json bash "$SCRIPT_DIR/audit-compat-surface.sh" "$HYPRLAND_SOURCE"
+    )"
     run_stage audit env "AUDIT_FORMAT=json" bash "$SCRIPT_DIR/audit-compat.sh" "$HYPRLAND_SOURCE"
     run_stage audit-surface env "AUDIT_FORMAT=json" bash "$SCRIPT_DIR/audit-compat-surface.sh" "$HYPRLAND_SOURCE"
   else
@@ -129,7 +143,14 @@ if [[ -n "$HYPRLAND_SOURCE" ]]; then
   fi
 fi
 
-run_stage boundary bash "$SCRIPT_DIR/audit-boundary.sh"
+if [[ "$RELEASE_CHECK_FORMAT" == "json" ]]; then
+  BOUNDARY_JSON="$(
+    env AUDIT_BOUNDARY_FORMAT=json bash "$SCRIPT_DIR/audit-boundary.sh"
+  )"
+  run_stage boundary env "AUDIT_BOUNDARY_FORMAT=json" bash "$SCRIPT_DIR/audit-boundary.sh"
+else
+  run_stage boundary bash "$SCRIPT_DIR/audit-boundary.sh"
+fi
 run_stage compile meson compile -C "$BUILD_DIR"
 run_stage test meson test -C "$BUILD_DIR"
 run_stage dispatchers bash "$SCRIPT_DIR/smoke-live.sh" dispatchers

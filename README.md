@@ -113,6 +113,12 @@ To verify the repo still keeps direct Hyprland internals behind `src/compat/`:
 bash scripts/audit-boundary.sh
 ```
 
+For tooling, the boundary audit also supports machine-readable output:
+
+```
+AUDIT_BOUNDARY_FORMAT=json bash scripts/audit-boundary.sh
+```
+
 Supported smoke subcommands:
 
 - `all`: unload/load the plugin, verify dispatcher registration, run toggle/move probes, then reload Hyprland
@@ -207,6 +213,10 @@ required only manual review after a Hyprland bump.
 `audit-boundary.sh` also enforces that direct Hyprland focus mutation stays out
 of layout/render code, so overview rendering cannot silently start reasserting
 monitor focus again.
+
+When `RELEASE_CHECK_FORMAT=json` is used, `release-check.sh` now includes
+structured `audit_results` for the compat, compat-surface, and boundary audits,
+plus the selected `manual_checklist`.
 
 Audit exit codes:
 
