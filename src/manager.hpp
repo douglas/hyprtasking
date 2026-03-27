@@ -51,6 +51,9 @@ class HTManager {
 
     bool start_window_drag();
     bool end_window_drag();
+    bool begin_workspace_select();
+    bool end_workspace_select();
+    void reset_selection_state();
     bool exit_to_workspace();
     bool on_mouse_move();
     bool on_mouse_axis(double delta);
@@ -65,6 +68,7 @@ class HTManager {
     float swipe_amt;
     VIEWID swipe_view_id;
     PHLWINDOWREF dragged_window;
+    bool selection_pending = false;
     bool runtime_disabled = false;
     std::string disabled_reason;
     PHTVIEW get_swipe_view();

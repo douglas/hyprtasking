@@ -60,7 +60,7 @@ bool HTManager::start_window_drag() {
     }
 
     HTScopedMonitorWorkspace restore_workspace(cursor_monitor, true);
-    if (!HTCompat::activate_monitor_workspace(cursor_monitor, cursor_workspace))
+    if (!HTCompat::activate_monitor_workspace_internal(cursor_monitor, cursor_workspace))
         return false;
 
     const auto workspace_coords =
@@ -223,7 +223,7 @@ bool HTManager::end_window_drag() {
     const Vector2D tp_pos = warped_global_pos;
 
     HTScopedMonitorWorkspace restore_workspace(cursor_monitor, true);
-    if (!HTCompat::activate_monitor_workspace(cursor_monitor, cursor_workspace))
+    if (!HTCompat::activate_monitor_workspace_internal(cursor_monitor, cursor_workspace))
         return false;
 
     HTCompat::move_window_to_workspace(dragged_window, cursor_workspace);
@@ -242,6 +242,55 @@ bool HTManager::end_window_drag() {
 
     // Do not return true and cancel the event! Mouse release requires some stuff to be done for
     // floating windows to be unfocused properly
+    return false;
+}
+
+bool HTManager::begin_workspace_select() {
+    const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace(false);
+    const PHTVIEW cursor_view = cursor_context.view;
+    const bool manages_mouse = cursor_view != nullptr && cursor_view->layout->should_manage_mouse();
+
+    selection_pending = false;
+
+    if (HTLogic::decideSelectStart(
+            cursor_view != nullptr,
+            cursor_view != nullptr && cursor_view->active,
+            cursor_view != nullptr && cursor_view->closing,
+            manages_mouse,
+            cursor_context.workspace != nullptr
+        )
+        != HTLogic::SelectStartAction::BeginSelect) {
+        return false;
+    }
+
+    selection_pending = true;
+    return true;
+}
+
+bool HTManager::end_workspace_select() {
+    const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace(false);
+    const PHTVIEW cursor_view = cursor_context.view;
+    const bool manages_mouse = cursor_view != nullptr && cursor_view->layout->should_manage_mouse();
+    const auto action = HTLogic::decideSelectEnd(
+        selection_pending,
+        cursor_view != nullptr,
+        cursor_view != nullptr && cursor_view->active,
+        cursor_view != nullptr && cursor_view->closing,
+        manages_mouse,
+        cursor_context.workspace != nullptr
+    );
+
+    selection_pending = false;
+
+    switch (action) {
+        case HTLogic::SelectEndAction::Ignore:
+            return false;
+        case HTLogic::SelectEndAction::CancelSelect:
+            return true;
+        case HTLogic::SelectEndAction::FinalizeSelect:
+            return exit_to_workspace();
+    }
+
     return false;
 }
 

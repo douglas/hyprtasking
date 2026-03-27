@@ -273,6 +273,26 @@ int main() {
         decideDragEnd(true, true, false, true, true, true, false) == DragEndAction::Ignore,
         "drag end should reject non-move drag modes"
     );
+    expect(
+        decideSelectStart(true, true, false, true, true) == SelectStartAction::BeginSelect,
+        "select start should begin for valid active workspace targets"
+    );
+    expect(
+        decideSelectStart(true, true, false, true, false) == SelectStartAction::Ignore,
+        "select start should ignore invalid workspace targets"
+    );
+    expect(
+        decideSelectEnd(true, true, true, false, true, true) == SelectEndAction::FinalizeSelect,
+        "select end should finalize valid pending selections"
+    );
+    expect(
+        decideSelectEnd(true, true, true, false, true, false) == SelectEndAction::CancelSelect,
+        "select end should cancel pending selections released off target"
+    );
+    expect(
+        decideSelectEnd(false, true, true, false, true, true) == SelectEndAction::Ignore,
+        "select end should ignore releases without a pending selection"
+    );
 
     {
         const auto result = decideViewReload(false, false, false, false, false);

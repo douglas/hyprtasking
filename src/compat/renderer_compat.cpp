@@ -430,7 +430,15 @@ void warp_workspace_render_offset(PHLWORKSPACE workspace) {
     workspace->m_renderOffset->warp();
 }
 
-bool activate_monitor_workspace(PHLMONITOR monitor, PHLWORKSPACE workspace) {
+bool activate_monitor_workspace_user(PHLMONITOR monitor, PHLWORKSPACE workspace) {
+    if (monitor == nullptr || workspace == nullptr)
+        return false;
+
+    monitor->changeWorkspace(workspace, false);
+    return true;
+}
+
+bool activate_monitor_workspace_internal(PHLMONITOR monitor, PHLWORKSPACE workspace) {
     return restore_monitor_workspace(monitor, workspace, true);
 }
 

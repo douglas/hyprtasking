@@ -49,7 +49,9 @@ void onMouseButton(IPointer::SButtonEvent e, Event::SCallbackInfo& info) {
         } else if (!pressed && e.button == drag_button) {
             info.cancelled = ht_manager->end_window_drag();
         } else if (pressed && e.button == select_button) {
-            info.cancelled = ht_manager->exit_to_workspace();
+            info.cancelled = ht_manager->begin_workspace_select();
+        } else if (!pressed && e.button == select_button) {
+            info.cancelled = ht_manager->end_workspace_select();
         }
     });
 }

@@ -12,7 +12,7 @@ print_drag() {
 }
 
 print_movewindow() {
-  printf '2. Run hyprtasking:movewindow in each direction from an occupied workspace.\n'
+  printf '3. Run hyprtasking:movewindow in each direction from an occupied workspace.\n'
   printf '   Setup: hover a normal tiled window in the overview.\n'
   printf '   Commands:\n'
   printf '     hyprctl dispatch hyprtasking:movewindow right\n'
@@ -24,7 +24,7 @@ print_movewindow() {
 }
 
 print_gesture() {
-  printf '3. Open and interrupt gesture navigation mid-open and mid-move.\n'
+  printf '4. Open and interrupt gesture navigation mid-open and mid-move.\n'
   printf '   Setup: ensure gestures are enabled in plugin config.\n'
   printf '   Action: begin the open gesture, stop halfway, then begin a move gesture and interrupt it before completion.\n'
   printf '   Pass: the owning overview closes or recovers cleanly, and swipe state does not stay stuck.\n'
@@ -32,7 +32,7 @@ print_gesture() {
 }
 
 print_reload_open() {
-  printf '4. Reload Hyprland while the overview is open.\n'
+  printf '5. Reload Hyprland while the overview is open.\n'
   printf '   Commands:\n'
   printf '     hyprctl dispatch hyprtasking:toggle cursor\n'
   printf '     hyprctl reload\n'
@@ -41,11 +41,19 @@ print_reload_open() {
 }
 
 print_monitor_remove() {
-  printf '5. If available, remove or disable a monitor while the overview or a gesture is active.\n'
+  printf '6. If available, remove or disable a monitor while the overview or a gesture is active.\n'
   printf '   Setup: open the overview or hold an in-progress gesture on the monitor you plan to remove.\n'
   printf '   Action: disconnect the monitor or disable it through your normal Hyprland monitor workflow.\n'
   printf '   Pass: stale views disappear cleanly and no drag/gesture state survives the topology change.\n'
   printf '   Fail: crash, frozen input, or callbacks acting on a removed monitor.\n'
+}
+
+print_typing_focus() {
+  printf '2. Right-click a workspace in grid mode, then type immediately in the selected workspace.\n'
+  printf '   Setup: open the overview in grid mode on a workspace with a terminal or Nautilus already open.\n'
+  printf '   Action: right-click to select the target workspace, then immediately type in the terminal or press Ctrl+L in Nautilus.\n'
+  printf '   Pass: typing works immediately with no extra Enter, and Nautilus path editing activates on the first Ctrl+L.\n'
+  printf '   Fail: the selected workspace is visible but does not accept immediate typing, or an extra Enter is needed before input lands.\n'
 }
 
 print_header() {
@@ -58,6 +66,8 @@ case "$MODE" in
     print_header
     print_drag
     printf '\n'
+    print_typing_focus
+    printf '\n'
     print_movewindow
     printf '\n'
     print_gesture
@@ -69,6 +79,10 @@ case "$MODE" in
   drag)
     print_header
     print_drag
+    ;;
+  typing-focus)
+    print_header
+    print_typing_focus
     ;;
   movewindow)
     print_header
@@ -87,7 +101,7 @@ case "$MODE" in
     print_monitor_remove
     ;;
   *)
-    printf 'Usage: %s [all|drag|movewindow|gesture|reload-open|monitor-remove]\n' "$0" >&2
+    printf 'Usage: %s [all|drag|typing-focus|movewindow|gesture|reload-open|monitor-remove]\n' "$0" >&2
     exit 1
     ;;
 esac

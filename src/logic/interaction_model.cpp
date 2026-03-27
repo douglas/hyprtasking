@@ -36,4 +36,33 @@ DragEndAction decideDragEnd(
     return DragEndAction::FinalizeDrop;
 }
 
+SelectStartAction decideSelectStart(
+    bool has_view,
+    bool view_active,
+    bool view_closing,
+    bool manages_mouse,
+    bool has_workspace_target
+) {
+    if (!has_view || !view_active || view_closing || !manages_mouse || !has_workspace_target)
+        return SelectStartAction::Ignore;
+
+    return SelectStartAction::BeginSelect;
+}
+
+SelectEndAction decideSelectEnd(
+    bool select_pending,
+    bool has_view,
+    bool view_active,
+    bool view_closing,
+    bool manages_mouse,
+    bool has_workspace_target
+) {
+    if (!select_pending)
+        return SelectEndAction::Ignore;
+    if (!has_view || !view_active || view_closing || !manages_mouse || !has_workspace_target)
+        return SelectEndAction::CancelSelect;
+
+    return SelectEndAction::FinalizeSelect;
+}
+
 }

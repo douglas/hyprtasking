@@ -223,6 +223,7 @@ Supported checklist scenarios:
 
 - `all`: print the full manual checklist
 - `drag`: focus on overview drag/drop behavior
+- `typing-focus`: focus on immediate typing and `Ctrl+L` after right-click workspace selection
 - `movewindow`: focus on the `hyprtasking:movewindow` path and exact commands to run
 - `gesture`: focus on gesture interruption and recovery
 - `reload-open`: focus on reload while the overview is visible

@@ -100,7 +100,7 @@ PHLWINDOW HTManager::get_window_from_cursor(bool return_focused) {
         return nullptr;
 
     HTScopedMonitorWorkspace restore_workspace(cursor_monitor, true);
-    if (!HTCompat::activate_monitor_workspace(cursor_monitor, hovered_workspace))
+    if (!HTCompat::activate_monitor_workspace_internal(cursor_monitor, hovered_workspace))
         return nullptr;
 
     const PHLWINDOW hovered_window = HTCompat::hover_target_window_at(*ws_coords);
@@ -162,6 +162,7 @@ void HTManager::clear_dragged_window() {
 void HTManager::reset() {
     runtime_disabled = false;
     disabled_reason.clear();
+    reset_selection_state();
     clear_dragged_window();
     reset_drag_state();
     reset_swipe_state();
@@ -179,6 +180,7 @@ void HTManager::disable_runtime(std::string_view source, std::string_view reason
 
     runtime_disabled = true;
     disabled_reason = std::string(reason);
+    reset_selection_state();
 
     for (const PHTVIEW& view : views) {
         if (view == nullptr)
@@ -206,6 +208,10 @@ void HTManager::disable_runtime(std::string_view source, std::string_view reason
 
 std::string HTManager::runtime_disable_reason() const {
     return disabled_reason;
+}
+
+void HTManager::reset_selection_state() {
+    selection_pending = false;
 }
 
 PHTVIEW HTManager::get_swipe_view() {
@@ -278,6 +284,7 @@ void HTManager::sync_monitor_views() {
     const bool removed_swipe_view =
         swipe_view_id != INVALID_VIEW_ID && std::ranges::find(stale_ids, swipe_view_id) != stale_ids.end();
     if (removed_runtime_view || removed_swipe_view) {
+        reset_selection_state();
         reset_drag_state();
         reset_swipe_state();
         refresh_cursor_override();
