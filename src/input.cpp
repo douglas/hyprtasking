@@ -43,7 +43,7 @@ bool HTManager::start_window_drag() {
         case HTLogic::DragStartAction::HideViews:
             // hide all views if should not manage mouse but active
             hide_all_views();
-            return true;
+            return false;
         case HTLogic::DragStartAction::BeginDrag:
             break;
     }
@@ -55,7 +55,7 @@ bool HTManager::start_window_drag() {
     if (!manages_mouse) {
         // hide all views if should not manage mouse but active
         hide_all_views();
-        return true;
+        return false;
     }
 
     HTScopedMonitorWorkspace restore_workspace(cursor_monitor, true);
