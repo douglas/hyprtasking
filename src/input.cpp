@@ -12,6 +12,7 @@
 #include "compat/renderer_compat.hpp"
 #include "logic/controller_state.hpp"
 #include "logic/gesture_model.hpp"
+#include "logic/geometry_model.hpp"
 #include "logic/interaction_model.hpp"
 #include "manager.hpp"
 #include "overview.hpp"
@@ -63,11 +64,14 @@ bool HTManager::start_window_drag() {
     }
 
     HTScopedMonitorWorkspace restore_workspace(cursor_monitor, true);
-    cursor_monitor->changeWorkspace(cursor_workspace, true);
+    if (!HTCompat::activate_monitor_workspace(cursor_monitor, cursor_workspace))
+        return false;
 
     const auto workspace_coords =
         cursor_view->layout->global_to_workspace_monitor_coords(mouse_coords, workspace_id);
     if (!workspace_coords.has_value())
+        return false;
+    if (!HTCompat::warp_pointer(*workspace_coords))
         return false;
 
     bool reset_mouse_bind_mode = false;
@@ -76,20 +80,16 @@ bool HTManager::start_window_drag() {
             g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
     });
 
-    g_pPointerManager->warpTo(*workspace_coords);
     g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
     reset_mouse_bind_mode = true;
-    g_pPointerManager->warpTo(mouse_coords);
+    if (!HTCompat::warp_pointer(mouse_coords))
+        return false;
 
     const SP<Layout::ITarget> target = g_layoutManager->dragController()->target();
     if (target == nullptr)
         return false;
 
-    reset_mouse_bind_mode = false;
-    restore_workspace.dismiss();
-
     const PHLWINDOW dragged_window = target->window();
-    set_dragged_window(dragged_window);
     if (dragged_window != nullptr) {
         if (g_layoutManager->dragController()->draggingTiled()) {
             const auto inverse_drag_scale =
@@ -116,6 +116,10 @@ bool HTManager::start_window_drag() {
             g_pInputManager->simulateMouseMovement();
         }
     }
+
+    set_dragged_window(dragged_window);
+    reset_mouse_bind_mode = false;
+    restore_workspace.dismiss();
 
     return true;
 }
@@ -192,11 +196,6 @@ bool HTManager::end_window_drag() {
 
     Log::logger->log(LOG, "[Hyprtasking] trying to drop window on ws {}", cursor_workspace->m_id);
 
-    HTScopedMonitorWorkspace restore_workspace(cursor_monitor, true);
-    cursor_monitor->changeWorkspace(cursor_workspace, true);
-
-    g_pCompositor->moveWindowToWorkspaceSafe(dragged_window, cursor_workspace);
-
     const auto workspace_coords = cursor_view->layout->global_to_workspace_monitor_coords(
         use_mouse_coords,
         cursor_workspace->m_id
@@ -213,14 +212,22 @@ bool HTManager::end_window_drag() {
                                     + use_mouse_coords,
                                 cursor_workspace->m_id
                             ) + cursor_monitor->m_position;
-    if (!std::isfinite(warped_global_pos.x) || !std::isfinite(warped_global_pos.y))
+    if (!HTLogic::isFinitePoint(warped_global_pos.x, warped_global_pos.y))
         return false;
     const Vector2D tp_pos = warped_global_pos;
+
+    HTScopedMonitorWorkspace restore_workspace(cursor_monitor, true);
+    if (!HTCompat::activate_monitor_workspace(cursor_monitor, cursor_workspace))
+        return false;
+
+    g_pCompositor->moveWindowToWorkspaceSafe(dragged_window, cursor_workspace);
     dragged_window->m_realPosition->setValueAndWarp(tp_pos);
 
-    g_pPointerManager->warpTo(*workspace_coords);
+    if (!HTCompat::warp_pointer(*workspace_coords))
+        return false;
     g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
-    g_pPointerManager->warpTo(mouse_coords);
+    if (!HTCompat::warp_pointer(mouse_coords))
+        return false;
 
     // otherwise the window leaves blur (?) artifacts on all
     // workspaces

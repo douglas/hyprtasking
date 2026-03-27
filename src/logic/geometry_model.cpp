@@ -8,6 +8,10 @@ bool isPositiveFinite(float value) {
     return std::isfinite(value) && value > 0.f;
 }
 
+bool isFinitePoint(float x, float y) {
+    return std::isfinite(x) && std::isfinite(y);
+}
+
 std::optional<float> workspaceWidthScale(float workspace_width, float monitor_width) {
     if (!isPositiveFinite(workspace_width) || !isPositiveFinite(monitor_width))
         return std::nullopt;

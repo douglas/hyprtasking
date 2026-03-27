@@ -84,7 +84,8 @@ PHLWINDOW HTManager::get_window_from_cursor(bool return_focused) {
         return nullptr;
 
     HTScopedMonitorWorkspace restore_workspace(cursor_monitor, true);
-    cursor_monitor->changeWorkspace(hovered_workspace, true);
+    if (!HTCompat::activate_monitor_workspace(cursor_monitor, hovered_workspace))
+        return nullptr;
 
     const PHLWINDOW hovered_window = g_pCompositor->vectorToWindowUnified(
         *ws_coords,

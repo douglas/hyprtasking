@@ -1,3 +1,4 @@
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
 #include <string_view>
@@ -115,6 +116,9 @@ int main() {
     expect(HTLogic::isPositiveFinite(1.0f), "positive finite values should be accepted");
     expect(!HTLogic::isPositiveFinite(0.0f), "zero should be rejected as invalid geometry");
     expect(!HTLogic::isPositiveFinite(-1.0f), "negative values should be rejected as invalid geometry");
+    expect(HTLogic::isFinitePoint(1.0f, 2.0f), "finite points should be accepted");
+    expect(!HTLogic::isFinitePoint(INFINITY, 2.0f), "non-finite x should be rejected");
+    expect(!HTLogic::isFinitePoint(1.0f, -INFINITY), "non-finite y should be rejected");
     {
         const auto result = HTLogic::workspaceWidthScale(200.0f, 100.0f);
         expect(result.has_value() && *result == 2.0f, "workspace width scale should divide valid widths");

@@ -3,6 +3,7 @@
 #include <hyprland/src/managers/input/InputManager.hpp>
 
 #include "globals.hpp"
+#include "logic/geometry_model.hpp"
 #include "overview.hpp"
 #include "render.hpp"
 
@@ -30,11 +31,21 @@ std::optional<HTRenderSnapshot> capture_render_snapshot(VIEWID view_id, float dr
     if (dragged_window == nullptr)
         return snapshot;
 
+    const auto scale = HTLogic::dragWindowScale(drag_window_scale);
+    if (!scale.has_value())
+        return snapshot;
+
     const Vector2D mouse_coords = g_pInputManager->getMouseCoordsInternal();
+    if (!HTLogic::isFinitePoint(mouse_coords.x, mouse_coords.y))
+        return snapshot;
+
     const CBox window_box = dragged_window->getWindowMainSurfaceBox()
                                 .translate(-mouse_coords)
-                                .scale(drag_window_scale)
+                                .scale(*scale)
                                 .translate(mouse_coords);
+    if (window_box.empty() || !HTLogic::isFinitePoint(window_box.x, window_box.y)
+        || !HTLogic::isFinitePoint(window_box.w, window_box.h))
+        return snapshot;
     if (window_box.intersection(monitor->logicalBox()).empty())
         return snapshot;
 

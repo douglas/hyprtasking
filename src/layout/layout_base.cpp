@@ -133,6 +133,9 @@ CBox HTLayoutBase::get_global_window_box(PHLWINDOW window, WORKSPACEID workspace
         ws_window_box.pos() + ws_window_box.size() - monitor->m_position,
         workspace->m_id
     );
+    if (!HTLogic::isFinitePoint(top_left.x, top_left.y)
+        || !HTLogic::isFinitePoint(bottom_right.x, bottom_right.y))
+        return {};
 
     return {top_left, bottom_right - top_left};
 }
@@ -146,6 +149,9 @@ CBox HTLayoutBase::get_global_ws_box(WORKSPACEID workspace_id) {
     const Vector2D top_left = local_ws_scaled_to_global(scaled_ws_box.pos(), workspace_id);
     const Vector2D bottom_right =
         local_ws_scaled_to_global(scaled_ws_box.pos() + scaled_ws_box.size(), workspace_id);
+    if (!HTLogic::isFinitePoint(top_left.x, top_left.y)
+        || !HTLogic::isFinitePoint(bottom_right.x, bottom_right.y))
+        return {};
     return {top_left, bottom_right - top_left};
 }
 
@@ -173,6 +179,8 @@ Vector2D HTLayoutBase::global_to_local_ws_unscaled(Vector2D pos, WORKSPACEID wor
     pos -= workspace_box.pos();
     pos /= monitor->m_scale;
     pos /= *width_scale;
+    if (!HTLogic::isFinitePoint(pos.x, pos.y))
+        return {};
     return pos;
 }
 
@@ -224,6 +232,8 @@ Vector2D HTLayoutBase::local_ws_unscaled_to_global(Vector2D pos, WORKSPACEID wor
     pos += workspace_box.pos();
     pos /= monitor->m_scale;
     pos += monitor->m_position;
+    if (!HTLogic::isFinitePoint(pos.x, pos.y))
+        return {};
     return pos;
 }
 

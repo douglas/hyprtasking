@@ -1,10 +1,12 @@
 #include "renderer_compat.hpp"
 
 #include <hyprland/src/helpers/Monitor.hpp>
+#include <hyprland/src/managers/PointerManager.hpp>
 #include <hyprland/src/render/Renderer.hpp>
 #include <hyprland/src/managers/animation/DesktopAnimationManager.hpp>
 
 #include "../globals.hpp"
+#include "../logic/geometry_model.hpp"
 #include "../overview.hpp"
 #include "../pass/pass_element.hpp"
 #include "../plugin/guards.hpp"
@@ -232,6 +234,10 @@ void render_window_original(
     );
 }
 
+bool activate_monitor_workspace(PHLMONITOR monitor, PHLWORKSPACE workspace) {
+    return restore_monitor_workspace(monitor, workspace, true);
+}
+
 bool restore_monitor_workspace(PHLMONITOR monitor, PHLWORKSPACE workspace, bool use_change_workspace) {
     if (monitor == nullptr || workspace == nullptr)
         return false;
@@ -271,6 +277,14 @@ PHLWORKSPACE resolve_workspace_target(
         workspace = g_pCompositor->createNewWorkspace(workspace_id, monitor->m_id);
 
     return workspace;
+}
+
+bool warp_pointer(const Vector2D& position) {
+    if (!HTLogic::isFinitePoint(position.x, position.y) || !g_pPointerManager)
+        return false;
+
+    g_pPointerManager->warpTo(position);
+    return true;
 }
 
 void begin_overview_render_pass() {

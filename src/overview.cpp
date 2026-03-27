@@ -72,7 +72,7 @@ void HTView::do_exit_behavior(bool exit_on_mouse) {
     if (workspace == nullptr)
         return;
 
-    monitor->changeWorkspace(workspace);
+    HTCompat::activate_monitor_workspace(monitor, workspace);
 }
 
 void HTView::show() {
@@ -197,7 +197,8 @@ void HTView::move_id(WORKSPACEID ws_id, bool move_window) {
 
     Hyprlang::INT warp;
 
-    monitor->changeWorkspace(other_workspace);
+    if (!HTCompat::activate_monitor_workspace(monitor, other_workspace))
+        return;
     if (move_execution.focus_moved_window) {
         Desktop::focusState()->fullWindowFocus(hovered_window, Desktop::FOCUS_REASON_CLICK);
     }
