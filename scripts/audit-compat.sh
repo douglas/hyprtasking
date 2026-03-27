@@ -120,6 +120,8 @@ VERSION_FILE="$HYPRLAND_SOURCE/VERSION"
 CHECK_LABELS=(
   "public version API"
   "version API implementation"
+  "signature fallback API"
+  "signature fallback implementation"
   "renderWorkspace symbol"
   "shouldRenderWindow symbol"
   "renderWindow symbol"
@@ -173,6 +175,8 @@ record_failure() {
 
 check_contract 'APICALL SVersionInfo getHyprlandVersion(HANDLE handle);' "$PLUGIN_API_HPP" 'public version API' 'src/compat/profile.cpp'
 check_contract 'APICALL SVersionInfo HyprlandAPI::getHyprlandVersion(HANDLE handle)' "$PLUGIN_API_CPP" 'version API implementation' 'src/compat/profile.cpp'
+check_contract 'APICALL [[deprecated]] void* getFunctionAddressFromSignature(HANDLE handle, const std::string& sig);' "$PLUGIN_API_HPP" 'signature fallback API' 'src/compat/profile.cpp'
+check_contract 'APICALL void* HyprlandAPI::getFunctionAddressFromSignature(HANDLE handle, const std::string& sig)' "$PLUGIN_API_CPP" 'signature fallback implementation' 'src/compat/profile.cpp'
 check_contract 'renderWorkspace' "$RENDERER_CPP" 'renderWorkspace symbol' 'src/compat/profile.cpp, src/compat/renderer_compat.cpp'
 check_contract 'shouldRenderWindow' "$RENDERER_CPP" 'shouldRenderWindow symbol' 'src/compat/profile.cpp, src/compat/renderer_compat.cpp'
 check_contract 'renderWindow' "$RENDERER_CPP" 'renderWindow symbol' 'src/compat/profile.cpp, src/compat/renderer_compat.cpp'

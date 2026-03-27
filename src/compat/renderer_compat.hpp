@@ -87,6 +87,7 @@ void add_rect_pass(const CRectPassElement::SRectData& data);
 void add_border_pass(const CBorderPassElement::SBorderData& data);
 void add_renderer_hints_pass(const SRenderModifData& data);
 void damage_window(PHLWINDOW window);
+void reset_overview_render_guard();
 void begin_overview_render_pass();
 void remove_clear_passes();
 void finalize_overview_render_pass();

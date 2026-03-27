@@ -179,9 +179,10 @@ bash scripts/release-check.sh
 `SMOKE_MODE=all` if you want the lighter path, or set `PRINT_MANUAL_CHECKLIST=0`
 to skip printing the manual compositor checklist. The script suppresses the
 intermediate smoke-script reminder so the manual checklist is printed once. It
-also runs a repo-local compat boundary audit plus a separate `dispatchers` probe
-first so architectural regressions and hook/registration failures are
-easier to distinguish from later runtime smoke failures. If `HYPRLAND_SOURCE`
+also runs a repo-local compat boundary audit plus a `load-unload` cycle and
+separate `dispatchers` probe first so architectural regressions and
+hook/registration failures are easier to distinguish from later runtime smoke
+failures. If `HYPRLAND_SOURCE`
 is set, it runs `scripts/audit-compat.sh` and `scripts/audit-compat-surface.sh`
 first and then continues with the boundary audit, normal build, test, smoke,
 and manual-check flow.
@@ -205,6 +206,11 @@ to diagnose during updates. On failure, it also prints the missing contract list
 and the first place to patch. The full ownership map lives in
 `docs/compat-contract.md`.
 
+Hook discovery prefers `findFunctionsByName()` and falls back to
+`getFunctionAddressFromSignature()` when Hyprland cannot enumerate symbols from
+the live compositor process. That keeps audited `0.54.x` patch releases working
+even when `/proc/self/exe` lookup is unavailable in the running session.
+
 `audit-compat-surface.sh` does the same for the runtime-sensitive wrapper
 surface under `src/compat/`, covering focus, cursor, drag-controller,
 workspace/window/monitor accessor, and render-pass contracts that previously
@@ -212,7 +218,9 @@ required only manual review after a Hyprland bump.
 
 `audit-boundary.sh` also enforces that direct Hyprland focus mutation stays out
 of layout/render code, so overview rendering cannot silently start reasserting
-monitor focus again.
+monitor focus again. It also fails if render-stage style entrypoints reappear
+outside `src/compat/`, which helps catch render-recursion regressions before
+release.
 
 When `RELEASE_CHECK_FORMAT=json` is used, `release-check.sh` now includes
 structured `audit_results` for the compat, compat-surface, and boundary audits,
@@ -252,6 +260,7 @@ Supported checklist scenarios:
 - `gesture`: focus on gesture interruption and recovery
 - `reload-open`: focus on reload while the overview is visible
 - `monitor-remove`: focus on monitor removal while runtime state is active
+- `render-reentry`: focus on reopening the overview immediately after workspace selection and reload
 
 When `RELEASE_CHECK_FORMAT=json` is used, `release-check.sh` now includes the
 selected manual checklist as a nested `manual_checklist` object, so wrappers can

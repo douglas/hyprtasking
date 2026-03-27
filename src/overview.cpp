@@ -108,9 +108,21 @@ void HTView::hide(bool exit_on_mouse) {
 }
 
 void HTView::set_runtime_state(bool new_active, bool new_closing, bool new_navigating) {
+    const bool changed = active != new_active || closing != new_closing || navigating != new_navigating;
     active = new_active;
     closing = new_closing;
     navigating = new_navigating;
+
+    if (changed) {
+        Log::logger->log(
+            LOG,
+            "[Hyprtasking] view {} runtime state -> active={} closing={} navigating={}",
+            monitor_id,
+            active,
+            closing,
+            navigating
+        );
+    }
 
     if (ht_manager != nullptr)
         ht_manager->refresh_cursor_override();

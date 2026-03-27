@@ -14,7 +14,7 @@ These files are the plugin-side compatibility boundary:
 
 - `src/compat/profile.cpp`
   - Supported Hyprland line gating
-  - Hook/symbol contract resolution
+  - Hook/symbol contract resolution, including fallback signature lookup
   - Plugin API version compatibility assumptions
 - `src/compat/renderer_compat.cpp`
   - Renderer hook wrappers
@@ -31,6 +31,8 @@ The compat audit currently checks these Hyprland-side contracts:
 | --- | --- | --- |
 | public version API | `src/plugins/PluginAPI.hpp` | `src/compat/profile.cpp` |
 | version API implementation | `src/plugins/PluginAPI.cpp` | `src/compat/profile.cpp` |
+| signature fallback API | `src/plugins/PluginAPI.hpp` | `src/compat/profile.cpp` |
+| signature fallback implementation | `src/plugins/PluginAPI.cpp` | `src/compat/profile.cpp` |
 | `renderWorkspace` symbol | `src/render/Renderer.cpp` | `src/compat/profile.cpp`, `src/compat/renderer_compat.cpp` |
 | `shouldRenderWindow` symbol | `src/render/Renderer.cpp` | `src/compat/profile.cpp`, `src/compat/renderer_compat.cpp` |
 | `renderWindow` symbol | `src/render/Renderer.cpp` | `src/compat/profile.cpp`, `src/compat/renderer_compat.cpp` |
@@ -63,7 +65,7 @@ These still usually require inspection after a Hyprland bump even if both audits
 
 - event bus listener wiring in `src/compat/runtime_compat.cpp`
 - animation/config-backed helper wiring in `src/compat/runtime_compat.cpp`
-- renderer hook behavior in `src/compat/renderer_compat.cpp`
+- renderer hook behavior in `src/compat/renderer_compat.cpp`, especially whether `findFunctionsByName` or fallback signature lookup is being used at runtime
 - `changeWorkspace` semantics and visibility animation behavior in `src/compat/renderer_compat.cpp`
 
 If a Hyprland update breaks runtime behavior without failing the audit, start with those files.

@@ -98,6 +98,7 @@ run_check 'Hyprland globals outside compat' 'g_p[A-Za-z0-9_]+'
 run_check 'raw m_ field access outside compat' '->m_[A-Za-z0-9_]+'
 run_check 'Event bus access outside compat' 'Event::bus\(\)'
 run_check 'monitor focus mutation outside compat' 'HTCompat::focus_monitor\(|rawMonitorFocus\('
+run_check 'render stage hooks outside compat' 'on_render_stage|renderStage'
 
 if ((failures > 0)); then
   print_err "\nBoundary audit failed with $failures issue(s).\n"

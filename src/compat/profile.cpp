@@ -1,5 +1,7 @@
 #include "profile.hpp"
 
+#include <filesystem>
+
 #include <hyprland/src/plugins/PluginAPI.hpp>
 
 #include "../globals.hpp"
@@ -12,12 +14,15 @@ constexpr std::string_view SUPPORTED_HYPRLAND_MINOR = "0.54.";
 constexpr HTCompat::HookSpec RENDER_WORKSPACE_HOOK = {
     .label = "renderWorkspace",
     .query = "renderWorkspace",
+    .fallback_query = "_ZN13CHyprRenderer15renderWorkspaceEN9Hyprutils6Memory14CSharedPointerI8CMonitorEENS2_I10CWorkspaceEERKNSt6chrono10time_pointINS7_3_V212steady_clockENS7_8durationIlSt5ratioILl1ELl1000000000EEEEEERKNS0_4Math4CBoxE",
 };
 
 constexpr HTCompat::HookSpec SHOULD_RENDER_WINDOW_HOOK = {
     .label = "shouldRenderWindow",
     .query = "_ZN13CHyprRenderer18shouldRenderWindowEN9Hyprutils6Memory14CS"
              "haredPointerIN7Desktop4View7CWindowEEENS2_I8CMonitorEE",
+    .fallback_query = "_ZN13CHyprRenderer18shouldRenderWindowEN9Hyprutils6Memory14CS"
+                      "haredPointerIN7Desktop4View7CWindowEEENS2_I8CMonitorEE",
 };
 
 constexpr HTCompat::HookSpec RENDER_WINDOW_SYMBOL = {
@@ -26,15 +31,34 @@ constexpr HTCompat::HookSpec RENDER_WINDOW_SYMBOL = {
              "redPointerIN7Desktop4View7CWindowEEENS2_I8CMonitorEERKNSt"
              "6chrono10time_pointINS9_3_V212steady_clockENS9_8durationI"
              "lSt5ratioILl1ELl1000000000EEEEEEb15eRenderPassModebb",
+    .fallback_query = "_ZN13CHyprRenderer12renderWindowEN9Hyprutils6Memory14CSha"
+                      "redPointerIN7Desktop4View7CWindowEEENS2_I8CMonitorEERKNSt"
+                      "6chrono10time_pointINS9_3_V212steady_clockENS9_8durationI"
+                      "lSt5ratioILl1ELl1000000000EEEEEEb15eRenderPassModebb",
 };
 
 constexpr HTCompat::HookSpec SOLITARY_BLOCKED_HOOK = {
     .label = "isSolitaryBlocked",
     .query = "isSolitaryBlocked",
+    .fallback_query = "_ZN8CMonitor17isSolitaryBlockedEb",
 };
 
-bool hookAvailable(const HTCompat::HookSpec& hook) {
-    return !HyprlandAPI::findFunctionsByName(PHANDLE, std::string(hook.query)).empty();
+void* lookup_hook_fallback(std::string_view query) {
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+    const auto address =
+        HyprlandAPI::getFunctionAddressFromSignature(PHANDLE, std::string(query));
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+    return address;
 }
 
 } // namespace
@@ -59,6 +83,40 @@ const HookSpec& render_window_spec() {
 
 const HookSpec& solitary_blocked_spec() {
     return SOLITARY_BLOCKED_HOOK;
+}
+
+HookLookupResult resolve_hook_address(const HookSpec& hook) {
+    std::string lookup_error;
+
+    try {
+        const auto functions = HyprlandAPI::findFunctionsByName(PHANDLE, std::string(hook.query));
+        if (!functions.empty()) {
+            return {
+                .address = functions[0].address,
+                .signature = functions[0].signature,
+                .method = "findFunctionsByName",
+            };
+        }
+    } catch (const std::filesystem::filesystem_error& e) {
+        lookup_error = "findFunctionsByName failed: " + std::string(e.what());
+    } catch (const std::exception& e) {
+        lookup_error = "findFunctionsByName failed: " + std::string(e.what());
+    }
+
+    const auto fallback = lookup_hook_fallback(hook.fallback_query);
+    if (fallback != nullptr) {
+        return {
+            .address = fallback,
+            .signature = std::string(hook.fallback_query),
+            .method = "getFunctionAddressFromSignature",
+        };
+    }
+
+    return {
+        .error = lookup_error.empty()
+            ? "findFunctionsByName returned no matches and fallback lookup returned null"
+            : lookup_error + "; fallback lookup returned null",
+    };
 }
 
 CompatibilityResult verify_compatibility() {
@@ -89,8 +147,12 @@ std::vector<std::string> audit_compatibility_issues() {
              render_window_spec(),
              solitary_blocked_spec(),
          }) {
-        if (!hookAvailable(hook))
-            issues.push_back("missing required hook " + std::string(hook.label));
+        const auto result = resolve_hook_address(hook);
+        if (result.address == nullptr) {
+            issues.push_back(
+                "missing required hook " + std::string(hook.label) + ": " + result.error
+            );
+        }
     }
 
     return issues;

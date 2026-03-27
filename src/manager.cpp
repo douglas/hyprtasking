@@ -1,6 +1,7 @@
 #include "manager.hpp"
 
 #include <algorithm>
+#include <format>
 
 #include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/config/ConfigManager.hpp>
@@ -11,6 +12,7 @@
 #include <hyprland/src/plugins/PluginAPI.hpp>
 
 #include "globals.hpp"
+#include "compat/renderer_compat.hpp"
 #include "compat/runtime_compat.hpp"
 #include "logic/reload_model.hpp"
 #include "overview.hpp"
@@ -18,6 +20,23 @@
 
 HTManager::HTManager() {
     reset_swipe_state();
+}
+
+namespace {
+
+const char* swipe_state_name(HTManager::swipe_state_t state) {
+    switch (state) {
+        case HTManager::HT_SWIPE_OPEN:
+            return "open";
+        case HTManager::HT_SWIPE_MOVE:
+            return "move";
+        case HTManager::HT_SWIPE_NONE:
+            return "none";
+    }
+
+    return "unknown";
+}
+
 }
 
 PHTVIEW HTManager::get_view_from_monitor(PHLMONITOR monitor) {
@@ -162,6 +181,7 @@ void HTManager::clear_dragged_window() {
 void HTManager::reset() {
     runtime_disabled = false;
     disabled_reason.clear();
+    HTCompat::reset_overview_render_guard();
     reset_selection_state();
     clear_dragged_window();
     reset_drag_state();
@@ -180,6 +200,17 @@ void HTManager::disable_runtime(std::string_view source, std::string_view reason
 
     runtime_disabled = true;
     disabled_reason = std::string(reason);
+    const std::string state_snapshot = std::format(
+        "views={}, active_view={}, cursor_view={}, selection_pending={}, swipe_state={}, swipe_amt={}, dragged_window={}",
+        views.size(),
+        has_active_view(),
+        cursor_view_active(),
+        selection_pending,
+        swipe_state_name(swipe_state),
+        swipe_amt,
+        get_dragged_window() != nullptr
+    );
+    HTCompat::reset_overview_render_guard();
     reset_selection_state();
 
     for (const PHTVIEW& view : views) {
@@ -194,9 +225,10 @@ void HTManager::disable_runtime(std::string_view source, std::string_view reason
 
     Log::logger->log(
         Log::ERR,
-        "[Hyprtasking] runtime disabled after {}: {}",
+        "[Hyprtasking] runtime disabled after {}: {} ({})",
         source,
-        reason
+        reason,
+        state_snapshot
     );
     HyprlandAPI::addNotification(
         PHANDLE,

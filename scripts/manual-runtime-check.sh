@@ -137,6 +137,17 @@ print_monitor_remove() {
     'crash, frozen input, or callbacks acting on a removed monitor.'
 }
 
+print_render_reentry() {
+  emit_text_scenario \
+    7 \
+    'Repeatedly reopen the overview, select a workspace, and reopen immediately.' \
+    'use grid layout on a monitor with several populated workspaces.' \
+    'open the overview, select a workspace, reopen it immediately, repeat several times, then run a reload-open cycle and repeat once more.' \
+    $'hyprctl dispatch hyprtasking:toggle cursor\nhyprctl reload' \
+    'Hyprland stays alive, the overview keeps rendering normally, and Hyprtasking does not disable itself for the session.' \
+    'crash, blank overview, repeated self-disable notification, or any recursion-like flicker/lockup when reopening after selection.'
+}
+
 print_typing_focus() {
   emit_text_scenario \
     2 \
@@ -225,6 +236,18 @@ json_monitor_remove() {
     'crash, frozen input, or callbacks acting on a removed monitor.'
 }
 
+json_render_reentry() {
+  emit_json_scenario \
+    "render-reentry" \
+    7 \
+    'Repeatedly reopen the overview, select a workspace, and reopen immediately.' \
+    'use grid layout on a monitor with several populated workspaces.' \
+    'open the overview, select a workspace, reopen it immediately, repeat several times, then run a reload-open cycle and repeat once more.' \
+    $'hyprctl dispatch hyprtasking:toggle cursor\nhyprctl reload' \
+    'Hyprland stays alive, the overview keeps rendering normally, and Hyprtasking does not disable itself for the session.' \
+    'crash, blank overview, repeated self-disable notification, or any recursion-like flicker/lockup when reopening after selection.'
+}
+
 emit_json_mode() {
   local scenarios=""
 
@@ -244,6 +267,7 @@ emit_json_mode() {
       append_scenario "$(json_gesture)"
       append_scenario "$(json_reload_open)"
       append_scenario "$(json_monitor_remove)"
+      append_scenario "$(json_render_reentry)"
       ;;
     drag)
       append_scenario "$(json_drag)"
@@ -263,8 +287,11 @@ emit_json_mode() {
     monitor-remove)
       append_scenario "$(json_monitor_remove)"
       ;;
+    render-reentry)
+      append_scenario "$(json_render_reentry)"
+      ;;
     *)
-      printf 'Usage: %s [all|drag|typing-focus|movewindow|gesture|reload-open|monitor-remove]\n' "$0" >&2
+      printf 'Usage: %s [all|drag|typing-focus|movewindow|gesture|reload-open|monitor-remove|render-reentry]\n' "$0" >&2
       exit 1
       ;;
   esac
@@ -294,6 +321,8 @@ case "$MODE" in
     print_reload_open
     printf '\n'
     print_monitor_remove
+    printf '\n'
+    print_render_reentry
     ;;
   drag)
     print_header
@@ -319,8 +348,12 @@ case "$MODE" in
     print_header
     print_monitor_remove
     ;;
+  render-reentry)
+    print_header
+    print_render_reentry
+    ;;
   *)
-    printf 'Usage: %s [all|drag|typing-focus|movewindow|gesture|reload-open|monitor-remove]\n' "$0" >&2
+    printf 'Usage: %s [all|drag|typing-focus|movewindow|gesture|reload-open|monitor-remove|render-reentry]\n' "$0" >&2
     exit 1
     ;;
 esac

@@ -1,9 +1,13 @@
 #include "renderer_compat.hpp"
 
+#include <format>
+#include <string_view>
+
 #include <hyprland/src/helpers/Monitor.hpp>
 #include <hyprland/src/managers/PointerManager.hpp>
 #include <hyprland/src/render/Renderer.hpp>
 #include <hyprland/src/managers/animation/DesktopAnimationManager.hpp>
+#include <hyprutils/utils/ScopeGuard.hpp>
 
 #include "../globals.hpp"
 #include "../logic/geometry_model.hpp"
@@ -16,6 +20,49 @@
 namespace {
 
 const std::string CLEAR_PASS_ELEMENT_NAME = "CClearPassElement";
+thread_local int g_overview_render_scope_depth = 0;
+thread_local int g_overview_render_pass_depth = 0;
+
+using Hyprutils::Utils::CScopeGuard;
+
+void disable_runtime_for_render_failure(std::string_view source, std::string_view reason) {
+    Log::logger->log(Log::ERR, "[Hyprtasking] {}: {}", source, reason);
+    if (ht_manager != nullptr)
+        ht_manager->disable_runtime(source, reason);
+}
+
+bool begin_overview_render_scope(PHLMONITOR monitor, PHLWORKSPACE workspace) {
+    if (g_overview_render_scope_depth > 0) {
+        disable_runtime_for_render_failure(
+            "hook_render_workspace",
+            std::format(
+                "overview render re-entry detected for monitor {} workspace {}",
+                HTCompat::monitor_id(monitor),
+                HTCompat::workspace_id(workspace)
+            )
+        );
+        return false;
+    }
+
+    g_overview_render_scope_depth++;
+    return true;
+}
+
+void end_overview_render_scope() {
+    if (g_overview_render_scope_depth <= 0) {
+        Log::logger->log(
+            Log::WARN,
+            "[Hyprtasking] finalize_overview_render_scope called with no active scope"
+        );
+        g_overview_render_scope_depth = 0;
+        g_overview_render_pass_depth = 0;
+        return;
+    }
+
+    g_overview_render_scope_depth--;
+    if (g_overview_render_scope_depth == 0)
+        g_overview_render_pass_depth = 0;
+}
 
 uint32_t solitaryBlockedOriginal(void* thisptr, bool full) {
     return (*(origIsSolitaryBlocked)is_solitary_blocked_hook->m_original)(thisptr, full);
@@ -40,6 +87,12 @@ void hookRenderWorkspace(
 
         const PHTVIEW view = ht_manager->get_view_from_monitor(monitor);
         if (view != nullptr && (view->navigating || ht_manager->has_active_view())) {
+            if (!begin_overview_render_scope(monitor, workspace)) {
+                HTCompat::render_workspace_original(thisptr, monitor, workspace, now, geometry);
+                return;
+            }
+
+            CScopeGuard render_scope([] { end_overview_render_scope(); });
             view->layout->render();
             return;
         }
@@ -109,66 +162,67 @@ namespace HTCompat {
 void initializeRendererHooks() {
     bool success = true;
 
-    static const auto render_workspace_functions = HyprlandAPI::findFunctionsByName(
-        PHANDLE,
-        std::string(render_workspace_spec().query)
-    );
-    if (render_workspace_functions.empty())
-        fail_exit("No renderWorkspace!");
+    const auto render_workspace = resolve_hook_address(render_workspace_spec());
+    if (render_workspace.address == nullptr)
+        fail_exit("No {}: {}", render_workspace_spec().label, render_workspace.error);
     render_workspace_hook = HyprlandAPI::createFunctionHook(
         PHANDLE,
-        render_workspace_functions[0].address,
+        render_workspace.address,
         (void*)hookRenderWorkspace
     );
     Log::logger->log(
         LOG,
-        "[Hyprtasking] Attempting hook {}",
-        render_workspace_functions[0].signature
+        "[Hyprtasking] Attempting hook {} via {}",
+        render_workspace.signature,
+        render_workspace.method
     );
     success = render_workspace_hook->hook();
 
-    static const auto should_render_window_functions = HyprlandAPI::findFunctionsByName(
-        PHANDLE,
-        std::string(should_render_window_spec().query)
-    );
-    if (should_render_window_functions.empty())
-        fail_exit("No shouldRenderWindow");
+    const auto should_render_window = resolve_hook_address(should_render_window_spec());
+    if (should_render_window.address == nullptr)
+        fail_exit(
+            "No {}: {}",
+            should_render_window_spec().label,
+            should_render_window.error
+        );
     should_render_window_hook = HyprlandAPI::createFunctionHook(
         PHANDLE,
-        should_render_window_functions[0].address,
+        should_render_window.address,
         (void*)hookShouldRenderWindow
     );
     Log::logger->log(
         LOG,
-        "[Hyprtasking] Attempting hook {}",
-        should_render_window_functions[0].signature
+        "[Hyprtasking] Attempting hook {} via {}",
+        should_render_window.signature,
+        should_render_window.method
     );
     success = should_render_window_hook->hook() && success;
 
-    static const auto render_window_functions = HyprlandAPI::findFunctionsByName(
-        PHANDLE,
-        std::string(render_window_spec().query)
+    const auto render_window_symbol = resolve_hook_address(render_window_spec());
+    if (render_window_symbol.address == nullptr)
+        fail_exit("No {}: {}", render_window_spec().label, render_window_symbol.error);
+    render_window = render_window_symbol.address;
+    Log::logger->log(
+        LOG,
+        "[Hyprtasking] Resolved {} via {}",
+        render_window_symbol.signature,
+        render_window_symbol.method
     );
-    if (render_window_functions.empty())
-        fail_exit("No renderWindow");
-    render_window = render_window_functions[0].address;
 
-    static const auto solitary_blocked_functions = HyprlandAPI::findFunctionsByName(
-        PHANDLE,
-        std::string(solitary_blocked_spec().query)
-    );
-    if (solitary_blocked_functions.empty())
-        fail_exit("No isSolitaryBlocked");
+    const auto solitary_blocked = resolve_hook_address(solitary_blocked_spec());
+    if (solitary_blocked.address == nullptr)
+        fail_exit("No {}: {}", solitary_blocked_spec().label, solitary_blocked.error);
 
     is_solitary_blocked_hook = HyprlandAPI::createFunctionHook(
         PHANDLE,
-        solitary_blocked_functions[0].address,
+        solitary_blocked.address,
         (void*)hookIsSolitaryBlocked
     );
     Log::logger->log(
         LOG,
-        "[Hyprtasking] Attempting hook {}",
-        solitary_blocked_functions[0].signature
+        "[Hyprtasking] Attempting hook {} via {}",
+        solitary_blocked.signature,
+        solitary_blocked.method
     );
     success = is_solitary_blocked_hook->hook() && success;
 
@@ -536,10 +590,32 @@ void damage_window(PHLWINDOW window) {
     g_pHyprRenderer->damageWindow(window);
 }
 
+void reset_overview_render_guard() {
+    g_overview_render_scope_depth = 0;
+    g_overview_render_pass_depth = 0;
+}
+
 void begin_overview_render_pass() {
     if (!g_pHyprRenderer.get())
         return;
 
+    if (g_overview_render_scope_depth <= 0) {
+        disable_runtime_for_render_failure(
+            "begin_overview_render_pass",
+            "overview render pass started outside render scope"
+        );
+        return;
+    }
+
+    if (g_overview_render_pass_depth > 0) {
+        disable_runtime_for_render_failure(
+            "begin_overview_render_pass",
+            "nested overview render pass detected"
+        );
+        return;
+    }
+
+    g_overview_render_pass_depth++;
     g_pHyprRenderer->m_renderPass.add(makeUnique<HTPassElement>());
 }
 
@@ -551,7 +627,18 @@ void remove_clear_passes() {
 }
 
 void finalize_overview_render_pass() {
-    // begin_overview_render_pass adds the simplification guard up front.
+    if (g_overview_render_pass_depth <= 0) {
+        if (g_overview_render_scope_depth > 0) {
+            disable_runtime_for_render_failure(
+                "finalize_overview_render_pass",
+                "overview render pass finalized without a matching begin"
+            );
+        }
+        g_overview_render_pass_depth = 0;
+        return;
+    }
+
+    g_overview_render_pass_depth--;
 }
 
 }

@@ -149,10 +149,11 @@ if [[ "$RELEASE_CHECK_FORMAT" == "json" ]]; then
   )"
   run_stage boundary env "AUDIT_BOUNDARY_FORMAT=json" bash "$SCRIPT_DIR/audit-boundary.sh"
 else
-  run_stage boundary bash "$SCRIPT_DIR/audit-boundary.sh"
+run_stage boundary bash "$SCRIPT_DIR/audit-boundary.sh"
 fi
 run_stage compile meson compile -C "$BUILD_DIR"
 run_stage test meson test -C "$BUILD_DIR"
+run_stage load-unload bash "$SCRIPT_DIR/smoke-live.sh" load-unload
 run_stage dispatchers bash "$SCRIPT_DIR/smoke-live.sh" dispatchers
 run_stage smoke env "PRINT_MANUAL_FOLLOW_UP=0" bash "$SCRIPT_DIR/smoke-live.sh" "$SMOKE_MODE"
 
