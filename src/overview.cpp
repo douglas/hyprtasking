@@ -11,6 +11,7 @@
 #include <hyprutils/math/Box.hpp>
 
 #include "config.hpp"
+#include "compat/renderer_compat.hpp"
 #include "globals.hpp"
 #include "layout/grid.hpp"
 #include "layout/linear.hpp"
@@ -66,10 +67,8 @@ void HTView::do_exit_behavior(bool exit_on_mouse) {
         try_get_hover_id(),
         active_workspace->m_id
     );
-    PHLWORKSPACE workspace = g_pCompositor->getWorkspaceByID(ws_id);
-
-    if (workspace == nullptr && ws_id != WORKSPACE_INVALID)
-        workspace = g_pCompositor->createNewWorkspace(ws_id, monitor->m_id);
+    const PHLWORKSPACE workspace =
+        HTCompat::resolve_workspace_target(monitor, ws_id, true);
     if (workspace == nullptr)
         return;
 
@@ -187,9 +186,8 @@ void HTView::move_id(WORKSPACEID ws_id, bool move_window) {
     if (!move_execution.valid)
         return;
 
-    PHLWORKSPACE other_workspace = g_pCompositor->getWorkspaceByID(ws_id);
-    if (other_workspace == nullptr && ws_id != WORKSPACE_INVALID)
-        other_workspace = g_pCompositor->createNewWorkspace(ws_id, monitor->m_id);
+    const PHLWORKSPACE other_workspace =
+        HTCompat::resolve_workspace_target(monitor, ws_id, true);
     if (other_workspace == nullptr)
         return;
 

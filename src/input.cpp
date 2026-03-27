@@ -9,6 +9,7 @@
 #include <hyprutils/utils/ScopeGuard.hpp>
 
 #include "config.hpp"
+#include "compat/renderer_compat.hpp"
 #include "logic/controller_state.hpp"
 #include "logic/gesture_model.hpp"
 #include "logic/interaction_model.hpp"
@@ -152,11 +153,11 @@ bool HTManager::end_window_drag() {
         return false;
     }
 
-    PHLWORKSPACE cursor_workspace = g_pCompositor->getWorkspaceByID(drop_decision.workspace_id);
-    if (cursor_workspace == nullptr && drop_decision.create_if_missing) {
-        cursor_workspace =
-            g_pCompositor->createNewWorkspace(drop_decision.workspace_id, cursor_monitor->m_id);
-    }
+    PHLWORKSPACE cursor_workspace = HTCompat::resolve_workspace_target(
+        cursor_monitor,
+        drop_decision.workspace_id,
+        drop_decision.create_if_missing
+    );
 
     if (cursor_workspace == nullptr) {
         Log::logger->log(

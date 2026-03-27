@@ -258,6 +258,21 @@ void set_workspace_render_visibility(PHLWORKSPACE workspace, bool visible) {
     workspace->m_visible = visible;
 }
 
+PHLWORKSPACE resolve_workspace_target(
+    PHLMONITOR monitor,
+    WORKSPACEID workspace_id,
+    bool create_if_missing
+) {
+    if (monitor == nullptr || workspace_id == WORKSPACE_INVALID)
+        return nullptr;
+
+    PHLWORKSPACE workspace = g_pCompositor->getWorkspaceByID(workspace_id);
+    if (workspace == nullptr && create_if_missing)
+        workspace = g_pCompositor->createNewWorkspace(workspace_id, monitor->m_id);
+
+    return workspace;
+}
+
 void begin_overview_render_pass() {
     if (!g_pHyprRenderer.get())
         return;

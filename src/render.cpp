@@ -3,6 +3,7 @@
 #include "render.hpp"
 
 #include "compat/renderer_compat.hpp"
+#include "logic/geometry_model.hpp"
 #include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/config/ConfigValue.hpp>
 #include <hyprland/src/desktop/DesktopTypes.hpp>
@@ -25,20 +26,23 @@ void render_window_at_box(PHLWINDOW window, PHLMONITOR monitor, const Time::stea
     box.y -= monitor->m_position.y;
 
     const Vector2D window_size = window->m_realSize->value();
-    if (window_size.x <= 0.f || window_size.y <= 0.f || box.w <= 0.f || box.h <= 0.f)
+    if (!HTLogic::isPositiveFinite(monitor->m_scale))
         return;
 
-    const float scale = box.w / window_size.x;
-    if (!std::isfinite(scale) || scale <= 0.f)
+    const auto scale =
+        HTLogic::windowRenderScale(box.w, box.h, window_size.x, window_size.y);
+    if (!scale.has_value())
         return;
 
     const Vector2D transform =
-        (monitor->m_position - window->m_realPosition->value() + box.pos() / scale)
+        (monitor->m_position - window->m_realPosition->value() + box.pos() / *scale)
         * monitor->m_scale;
+    if (!std::isfinite(transform.x) || !std::isfinite(transform.y))
+        return;
 
     SRenderModifData data {};
     data.modifs.push_back({SRenderModifData::eRenderModifType::RMOD_TYPE_TRANSLATE, transform});
-    data.modifs.push_back({SRenderModifData::eRenderModifType::RMOD_TYPE_SCALE, scale});
+    data.modifs.push_back({SRenderModifData::eRenderModifType::RMOD_TYPE_SCALE, *scale});
     g_pHyprRenderer->m_renderPass.add(
         makeUnique<CRendererHintsPassElement>(CRendererHintsPassElement::SData {data})
     );

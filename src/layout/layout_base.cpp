@@ -4,6 +4,7 @@
 
 #include "../compat/renderer_compat.hpp"
 #include "../globals.hpp"
+#include "../logic/geometry_model.hpp"
 #include "layout_base.hpp"
 
 HTLayoutBase::HTLayoutBase(VIEWID new_view_id) : view_id(new_view_id) {
@@ -152,6 +153,8 @@ Vector2D HTLayoutBase::global_to_local_ws_unscaled(Vector2D pos, WORKSPACEID wor
     const PHLMONITOR monitor = get_monitor();
     if (monitor == nullptr)
         return {};
+    if (!HTLogic::isPositiveFinite(monitor->m_scale))
+        return {};
 
     const auto* layout_workspace = find_layout_workspace(workspace_id);
     if (layout_workspace == nullptr)
@@ -160,11 +163,16 @@ Vector2D HTLayoutBase::global_to_local_ws_unscaled(Vector2D pos, WORKSPACEID wor
     CBox workspace_box = layout_workspace->box;
     if (workspace_box.empty())
         return {};
+    const auto width_scale =
+        HTLogic::workspaceWidthScale(workspace_box.w, monitor->m_transformedSize.x);
+    if (!width_scale.has_value())
+        return {};
+
     pos -= monitor->m_position;
     pos *= monitor->m_scale;
     pos -= workspace_box.pos();
     pos /= monitor->m_scale;
-    pos /= workspace_box.w / monitor->m_transformedSize.x;
+    pos /= *width_scale;
     return pos;
 }
 
@@ -182,6 +190,8 @@ Vector2D HTLayoutBase::local_ws_unscaled_to_global(Vector2D pos, WORKSPACEID wor
     const PHLMONITOR monitor = get_monitor();
     if (monitor == nullptr)
         return {};
+    if (!HTLogic::isPositiveFinite(monitor->m_scale))
+        return {};
 
     const auto* layout_workspace = find_layout_workspace(workspace_id);
     if (layout_workspace == nullptr)
@@ -190,7 +200,12 @@ Vector2D HTLayoutBase::local_ws_unscaled_to_global(Vector2D pos, WORKSPACEID wor
     CBox workspace_box = layout_workspace->box;
     if (workspace_box.empty())
         return {};
-    pos *= workspace_box.w / monitor->m_transformedSize.x;
+    const auto width_scale =
+        HTLogic::workspaceWidthScale(workspace_box.w, monitor->m_transformedSize.x);
+    if (!width_scale.has_value())
+        return {};
+
+    pos *= *width_scale;
     pos *= monitor->m_scale;
     pos += workspace_box.pos();
     pos /= monitor->m_scale;
@@ -200,7 +215,7 @@ Vector2D HTLayoutBase::local_ws_unscaled_to_global(Vector2D pos, WORKSPACEID wor
 
 Vector2D HTLayoutBase::local_ws_scaled_to_global(Vector2D pos, WORKSPACEID workspace_id) {
     const PHLMONITOR monitor = get_monitor();
-    if (monitor == nullptr)
+    if (monitor == nullptr || !HTLogic::isPositiveFinite(monitor->m_scale))
         return {};
 
     pos /= monitor->m_scale;

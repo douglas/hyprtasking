@@ -6,6 +6,7 @@
 #include "../src/logic/controller_state.hpp"
 #include "../src/logic/dispatch_args.hpp"
 #include "../src/logic/gesture_model.hpp"
+#include "../src/logic/geometry_model.hpp"
 #include "../src/logic/interaction_model.hpp"
 #include "../src/logic/layout_model.hpp"
 #include "../src/logic/reload_model.hpp"
@@ -110,6 +111,26 @@ int main() {
         gridWorkspaceID(1, 6, 2, 3, 2, 1) == 24,
         "grid workspace ids should match offset views"
     );
+
+    expect(HTLogic::isPositiveFinite(1.0f), "positive finite values should be accepted");
+    expect(!HTLogic::isPositiveFinite(0.0f), "zero should be rejected as invalid geometry");
+    expect(!HTLogic::isPositiveFinite(-1.0f), "negative values should be rejected as invalid geometry");
+    {
+        const auto result = HTLogic::workspaceWidthScale(200.0f, 100.0f);
+        expect(result.has_value() && *result == 2.0f, "workspace width scale should divide valid widths");
+    }
+    {
+        const auto result = HTLogic::workspaceWidthScale(200.0f, 0.0f);
+        expect(!result.has_value(), "workspace width scale should reject zero monitor width");
+    }
+    {
+        const auto result = HTLogic::windowRenderScale(150.0f, 100.0f, 75.0f, 50.0f);
+        expect(result.has_value() && *result == 2.0f, "window render scale should divide valid widths");
+    }
+    {
+        const auto result = HTLogic::windowRenderScale(150.0f, 100.0f, 0.0f, 50.0f);
+        expect(!result.has_value(), "window render scale should reject zero window width");
+    }
 
     expect(
         resolveExitWorkspaceID(true, 9, 3) == 9,
