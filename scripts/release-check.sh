@@ -124,6 +124,7 @@ if [[ -n "$HYPRLAND_SOURCE" ]]; then
   fi
 fi
 
+run_stage boundary bash "$SCRIPT_DIR/audit-boundary.sh"
 run_stage compile meson compile -C "$BUILD_DIR"
 run_stage test meson test -C "$BUILD_DIR"
 run_stage dispatchers bash "$SCRIPT_DIR/smoke-live.sh" dispatchers
