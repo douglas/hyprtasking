@@ -3,9 +3,9 @@
 #include <string>
 
 #include <hyprland/src/Compositor.hpp>
-#include <hyprland/src/managers/KeybindManager.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
 
+#include "../compat/runtime_compat.hpp"
 #include "../globals.hpp"
 #include "../overview.hpp"
 #include "guards.hpp"
@@ -33,11 +33,7 @@ SDispatchResult dispatchIf(std::string arg, bool is_active) {
         if ((int)arg.find_first_of(' ') != -1)
             dispatch_arg = arg.substr(arg.find_first_of(' ') + 1);
 
-        const auto dispatcher = g_pKeybindManager->m_dispatchers.find(dispatch_str);
-        if (dispatcher == g_pKeybindManager->m_dispatchers.end())
-            return {.success = false, .error = "invalid dispatcher"};
-
-        SDispatchResult res = dispatcher->second(dispatch_arg);
+        SDispatchResult res = HTCompat::invoke_dispatcher(dispatch_str, dispatch_arg);
 
         Log::logger->log(
             LOG,

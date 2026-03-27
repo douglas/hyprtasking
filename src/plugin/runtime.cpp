@@ -3,12 +3,12 @@
 #include <linux/input-event-codes.h>
 
 #include <hyprland/src/Compositor.hpp>
-#include <hyprland/src/event/EventBus.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprlang.hpp>
 #include <hyprutils/signal/Listener.hpp>
 
+#include "../compat/runtime_compat.hpp"
 #include "../config.hpp"
 #include "../globals.hpp"
 #include "../overview.hpp"
@@ -257,27 +257,30 @@ void unregisterCallbacks() {
 void registerCallbacks() {
     unregisterCallbacks();
 
-    g_mouse_button_listener = Event::bus()->m_events.input.mouse.button.listen(onMouseButton);
-    g_mouse_move_listener = Event::bus()->m_events.input.mouse.move.listen(onMouseMove);
-    g_mouse_axis_listener = Event::bus()->m_events.input.mouse.axis.listen(onMouseAxis);
+    HTCompat::listen_mouse_button(g_mouse_button_listener, onMouseButton);
+    HTCompat::listen_mouse_move(g_mouse_move_listener, onMouseMove);
+    HTCompat::listen_mouse_axis(g_mouse_axis_listener, onMouseAxis);
 
-    g_touch_down_listener = Event::bus()->m_events.input.touch.down.listen(
+    HTCompat::listen_touch_down(
+        g_touch_down_listener,
         []([[maybe_unused]] ITouch::SDownEvent e, Event::SCallbackInfo i) { cancelEvent(i); }
     );
-    g_touch_up_listener = Event::bus()->m_events.input.touch.up.listen(
+    HTCompat::listen_touch_up(
+        g_touch_up_listener,
         []([[maybe_unused]] ITouch::SUpEvent e, Event::SCallbackInfo i) { cancelEvent(i); }
     );
-    g_touch_motion_listener = Event::bus()->m_events.input.touch.motion.listen(
+    HTCompat::listen_touch_motion(
+        g_touch_motion_listener,
         []([[maybe_unused]] ITouch::SMotionEvent e, Event::SCallbackInfo i) { cancelEvent(i); }
     );
 
-    g_swipe_begin_listener = Event::bus()->m_events.gesture.swipe.begin.listen(onSwipeBegin);
-    g_swipe_update_listener = Event::bus()->m_events.gesture.swipe.update.listen(onSwipeUpdate);
-    g_swipe_end_listener = Event::bus()->m_events.gesture.swipe.end.listen(onSwipeEnd);
+    HTCompat::listen_swipe_begin(g_swipe_begin_listener, onSwipeBegin);
+    HTCompat::listen_swipe_update(g_swipe_update_listener, onSwipeUpdate);
+    HTCompat::listen_swipe_end(g_swipe_end_listener, onSwipeEnd);
 
-    g_config_reloaded_listener = Event::bus()->m_events.config.reloaded.listen(onConfigReloaded);
-    g_monitor_added_listener = Event::bus()->m_events.monitor.added.listen(registerMonitors);
-    g_monitor_removed_listener = Event::bus()->m_events.monitor.removed.listen(registerMonitors);
+    HTCompat::listen_config_reloaded(g_config_reloaded_listener, onConfigReloaded);
+    HTCompat::listen_monitor_added(g_monitor_added_listener, registerMonitors);
+    HTCompat::listen_monitor_removed(g_monitor_removed_listener, registerMonitors);
 }
 
 void registerMonitors() {

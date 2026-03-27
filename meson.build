@@ -21,6 +21,7 @@ add_project_arguments(
 
 core_src = [
   'src/compat/renderer_compat.cpp',
+  'src/compat/runtime_compat.cpp',
   'src/input.cpp',
   'src/main.cpp',
   'src/manager.cpp',
