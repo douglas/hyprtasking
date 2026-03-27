@@ -19,6 +19,7 @@
 #include "../globals.hpp"
 #include "../logic/dispatch_args.hpp"
 #include "../render.hpp"
+#include "../render_snapshot.hpp"
 #include "../state_guards.hpp"
 #include "layout_base.hpp"
 
@@ -320,7 +321,8 @@ void HTLayoutLinear::render() {
     const float BORDERSIZE = HTConfig::value<Hyprlang::FLOAT>("border_size");
     const float HEIGHT = HTConfig::value<Hyprlang::FLOAT>("linear:height") * monitor->m_scale;
 
-    const auto time = Time::steadyNow();
+    const auto render_snapshot = capture_render_snapshot(view_id, drag_window_scale());
+    const auto time = render_snapshot.has_value() ? render_snapshot->time : Time::steadyNow();
 
 
     g_pHyprRenderer->damageMonitor(monitor);
@@ -423,27 +425,11 @@ void HTLayoutLinear::render() {
     }
 
     hide_start_workspace.dismiss();
-    set_workspace_render_visibility(start_workspace, true);
+    HTCompat::set_workspace_render_visibility(start_workspace, true);
 
     // Render dragged window at mouse cursor
-    const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
-    if (cursor_view == nullptr)
-        return;
-
-    const SP<Layout::ITarget> target = g_layoutManager->dragController()->target();
-    if (target == nullptr)
-        return;
-
-    const PHLWINDOW dragged_window = target->window();
-    if (dragged_window == nullptr)
-        return;
-    const Vector2D mouse_coords = g_pInputManager->getMouseCoordsInternal();
-    const CBox window_box = dragged_window->getWindowMainSurfaceBox()
-                                .translate(-mouse_coords)
-                                .scale(cursor_view->layout->drag_window_scale())
-                                .translate(mouse_coords);
-    if (!window_box.intersection(monitor->logicalBox()).empty())
-        render_window_at_box(dragged_window, monitor, time, window_box);
+    if (render_snapshot.has_value())
+        render_dragged_window_snapshot(*render_snapshot);
 }
 
 void HTLayoutLinear::cancel_animation_callbacks() {

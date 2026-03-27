@@ -1,0 +1,39 @@
+#include "interaction_model.hpp"
+
+namespace HTLogic {
+
+DragStartAction decideDragStart(
+    bool has_view,
+    bool view_active,
+    bool view_closing,
+    bool manages_mouse,
+    bool has_workspace_target
+) {
+    if (!has_view || !view_active || view_closing)
+        return DragStartAction::Ignore;
+    if (!manages_mouse)
+        return DragStartAction::HideViews;
+    if (!has_workspace_target)
+        return DragStartAction::Ignore;
+
+    return DragStartAction::BeginDrag;
+}
+
+DragEndAction decideDragEnd(
+    bool has_view,
+    bool view_active,
+    bool view_closing,
+    bool manages_mouse,
+    bool has_target,
+    bool has_dragged_window,
+    bool move_mode
+) {
+    if (!has_view || !view_active || view_closing)
+        return DragEndAction::Ignore;
+    if (!manages_mouse || !has_target || !has_dragged_window || !move_mode)
+        return DragEndAction::Ignore;
+
+    return DragEndAction::FinalizeDrop;
+}
+
+}

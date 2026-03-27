@@ -109,7 +109,7 @@ Supported smoke subcommands:
 
 Optional environment:
 
-- `HYPRLAND_INSTANCE_SIGNATURE`: target a specific live Hyprland session
+- `HYPRLAND_INSTANCE_SIGNATURE`: target a specific live Hyprland session. If unset, the script picks the first active instance from `hyprctl instances`.
 - `PLUGIN_PATH`: override the plugin path used by `load-unload`
 
 ## Usage

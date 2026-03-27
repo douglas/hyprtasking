@@ -5,6 +5,7 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 PLUGIN_PATH=${PLUGIN_PATH:-"$SCRIPT_DIR/../build/libhyprtasking.so"}
 PLUGIN_PATH=$(realpath "$PLUGIN_PATH")
 MODE=${1:-all}
+HYPRCTL_PREFIX=()
 
 run() {
   printf '$ %s\n' "$*"
@@ -17,8 +18,36 @@ run_capture() {
   printf '%s\n' "$CAPTURED_OUTPUT"
 }
 
+init_hyprctl_prefix() {
+  local runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+
+  if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then
+    if [[ -S "${runtime_dir}/hypr/${HYPRLAND_INSTANCE_SIGNATURE}/.socket.sock" ]]; then
+      HYPRCTL_PREFIX=(env "HYPRLAND_INSTANCE_SIGNATURE=${HYPRLAND_INSTANCE_SIGNATURE}" hyprctl)
+      return
+    fi
+  fi
+
+  local detected_signature
+  detected_signature="$(hyprctl instances 2>/dev/null | sed -n 's/^instance \(.*\):$/\1/p' | head -n 1)"
+  if [[ -n "$detected_signature" ]]; then
+    HYPRCTL_PREFIX=(env "HYPRLAND_INSTANCE_SIGNATURE=${detected_signature}" hyprctl)
+    return
+  fi
+
+  HYPRCTL_PREFIX=(hyprctl)
+}
+
+run_hyprctl() {
+  run "${HYPRCTL_PREFIX[@]}" "$@"
+}
+
+run_capture_hyprctl() {
+  run_capture "${HYPRCTL_PREFIX[@]}" "$@"
+}
+
 assert_plugin_loaded() {
-  run_capture hyprctl plugin list
+  run_capture_hyprctl plugin list
   if ! printf '%s\n' "$CAPTURED_OUTPUT" | rg -q '^Plugin Hyprtasking by '; then
     printf 'Hyprtasking is not loaded.\n' >&2
     exit 1
@@ -26,7 +55,7 @@ assert_plugin_loaded() {
 }
 
 assert_dispatcher_ready() {
-  run_capture hyprctl dispatch hyprtasking:toggle __smoke_probe__
+  run_capture_hyprctl dispatch hyprtasking:toggle __smoke_probe__
   if [[ "$CAPTURED_OUTPUT" == *"Invalid dispatcher"* ]]; then
     printf 'Hyprtasking dispatchers are not registered yet.\n' >&2
     exit 1
@@ -39,9 +68,9 @@ wait_for_plugin_ready() {
   local i
 
   for ((i = 0; i < attempts; i++)); do
-    run_capture hyprctl plugin list
+    run_capture_hyprctl plugin list
     if printf '%s\n' "$CAPTURED_OUTPUT" | rg -q '^Plugin Hyprtasking by '; then
-      run_capture hyprctl dispatch hyprtasking:toggle __smoke_probe__
+      run_capture_hyprctl dispatch hyprtasking:toggle __smoke_probe__
       if [[ "$CAPTURED_OUTPUT" != *"Invalid dispatcher"* ]]; then
         return 0
       fi
@@ -58,19 +87,21 @@ if ! command -v hyprctl >/dev/null 2>&1; then
   exit 1
 fi
 
+init_hyprctl_prefix
+
 smoke_toggle() {
   assert_plugin_loaded
   assert_dispatcher_ready
-  run hyprctl dispatch hyprtasking:toggle cursor
-  run hyprctl dispatch hyprtasking:move right
-  run hyprctl dispatch hyprtasking:move left
-  run hyprctl dispatch hyprtasking:toggle cursor
-  run hyprctl plugin list
+  run_hyprctl dispatch hyprtasking:toggle cursor
+  run_hyprctl dispatch hyprtasking:move right
+  run_hyprctl dispatch hyprtasking:move left
+  run_hyprctl dispatch hyprtasking:toggle cursor
+  run_hyprctl plugin list
 }
 
 smoke_reload() {
   assert_plugin_loaded
-  run hyprctl reload
+  run_hyprctl reload
   wait_for_plugin_ready
   assert_plugin_loaded
   assert_dispatcher_ready
@@ -82,8 +113,8 @@ smoke_load_unload() {
     exit 1
   fi
 
-  run hyprctl plugin unload "$PLUGIN_PATH"
-  run hyprctl plugin load "$PLUGIN_PATH"
+  run_hyprctl plugin unload "$PLUGIN_PATH"
+  run_hyprctl plugin load "$PLUGIN_PATH"
   wait_for_plugin_ready
   assert_plugin_loaded
 }

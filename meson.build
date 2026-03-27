@@ -26,6 +26,7 @@ core_src = [
   'src/manager.cpp',
   'src/overview.cpp',
   'src/render.cpp',
+  'src/render_snapshot.cpp',
 ]
 
 layout_src = [
@@ -38,6 +39,7 @@ logic_src = [
   'src/logic/controller_state.cpp',
   'src/logic/dispatch_args.cpp',
   'src/logic/gesture_model.cpp',
+  'src/logic/interaction_model.cpp',
   'src/logic/layout_model.cpp',
   'src/logic/reload_model.cpp',
 ]
@@ -46,7 +48,12 @@ pass_src = [
   'src/pass/pass_element.cpp',
 ]
 
-src = core_src + layout_src + logic_src + pass_src
+plugin_src = [
+  'src/plugin/dispatchers.cpp',
+  'src/plugin/runtime.cpp',
+]
+
+src = core_src + layout_src + logic_src + plugin_src + pass_src
 
 incdir = []
 dependencies = [
@@ -78,6 +85,7 @@ logic_tests = executable('logic-tests',
     'src/logic/controller_state.cpp',
     'src/logic/dispatch_args.cpp',
     'src/logic/gesture_model.cpp',
+    'src/logic/interaction_model.cpp',
     'src/logic/layout_model.cpp',
     'src/logic/reload_model.cpp',
   ],

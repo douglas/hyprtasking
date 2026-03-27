@@ -11,6 +11,9 @@ enum eRenderPassMode : uint8_t;
 
 namespace HTCompat {
 
+void initializeRendererHooks();
+void shutdownRendererHooks();
+
 bool should_render_window_original(void* renderer, PHLWINDOW window, PHLMONITOR monitor);
 void render_workspace_original(
     void* thisptr,
@@ -29,6 +32,8 @@ void render_window_original(
     bool ignore_position,
     bool standalone
 );
+bool restore_monitor_workspace(PHLMONITOR monitor, PHLWORKSPACE workspace, bool use_change_workspace);
+void set_workspace_render_visibility(PHLWORKSPACE workspace, bool visible);
 void add_clear_pass();
 void finalize_overview_render_pass();
 

@@ -21,6 +21,7 @@
 #include "../globals.hpp"
 #include "../overview.hpp"
 #include "../render.hpp"
+#include "../render_snapshot.hpp"
 #include "../state_guards.hpp"
 #include "../types.hpp"
 #include "src/layout/target/Target.hpp"
@@ -187,7 +188,7 @@ void HTLayoutGrid::on_move(WORKSPACEID old_id, WORKSPACEID new_id, CallbackFun o
     });
 
     const PHTVIEW par_view = ht_manager->get_view_from_id(view_id);
-    if (par_view == nullptr || par_view->active)
+    if (par_view == nullptr)
         return;
 
     // prevent the thing from animating
@@ -344,7 +345,8 @@ void HTLayoutGrid::render() {
 
     const float BORDERSIZE = HTConfig::value<Hyprlang::FLOAT>("border_size");
 
-    const auto time = Time::steadyNow();
+    const auto render_snapshot = capture_render_snapshot(view_id, drag_window_scale());
+    const auto time = render_snapshot.has_value() ? render_snapshot->time : Time::steadyNow();
 
 
     g_pHyprRenderer->damageMonitor(monitor);
@@ -423,7 +425,7 @@ void HTLayoutGrid::render() {
     }
 
     hide_start_workspace.dismiss();
-    set_workspace_render_visibility(start_workspace, true);
+    HTCompat::set_workspace_render_visibility(start_workspace, true);
 
     // Render active workspace last so the dragging window is always on top when let go of
     if (const auto* start_layout = find_layout_workspace(start_workspace->m_id); start_layout != nullptr) {
@@ -455,22 +457,8 @@ void HTLayoutGrid::render() {
         }
     }
 
-    const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
-    if (cursor_view == nullptr)
-        return;
-    const SP<Layout::ITarget> target = g_layoutManager->dragController()->target();
-    if (target == nullptr)
-        return;
-    const PHLWINDOW dragged_window = target->window();
-    if (dragged_window == nullptr)
-        return;
-    const Vector2D mouse_coords = g_pInputManager->getMouseCoordsInternal();
-    const CBox window_box = dragged_window->getWindowMainSurfaceBox()
-                                .translate(-mouse_coords)
-                                .scale(cursor_view->layout->drag_window_scale())
-                                .translate(mouse_coords);
-    if (!window_box.intersection(monitor->logicalBox()).empty())
-        render_window_at_box(dragged_window, monitor, time, window_box);
+    if (render_snapshot.has_value())
+        render_dragged_window_snapshot(*render_snapshot);
 }
 
 void HTLayoutGrid::cancel_animation_callbacks() {

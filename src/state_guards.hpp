@@ -2,7 +2,8 @@
 
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/desktop/state/FocusState.hpp>
-#include <hyprland/src/managers/animation/DesktopAnimationManager.hpp>
+
+#include "compat/renderer_compat.hpp"
 
 class HTScopedMonitorFocus {
   public:
@@ -21,20 +22,6 @@ class HTScopedMonitorFocus {
     PHLMONITOR previous_monitor = nullptr;
 };
 
-inline void set_workspace_render_visibility(PHLWORKSPACE workspace, bool visible) {
-    if (workspace == nullptr)
-        return;
-
-    g_pDesktopAnimationManager->startAnimation(
-        workspace,
-        visible ? CDesktopAnimationManager::ANIMATION_TYPE_IN
-                : CDesktopAnimationManager::ANIMATION_TYPE_OUT,
-        false,
-        true
-    );
-    workspace->m_visible = visible;
-}
-
 class HTScopedMonitorWorkspace {
   public:
     HTScopedMonitorWorkspace(PHLMONITOR monitor, bool use_change_workspace)
@@ -52,10 +39,7 @@ class HTScopedMonitorWorkspace {
         if (workspace == nullptr)
             return;
 
-        if (use_change_workspace)
-            monitor->changeWorkspace(workspace, true);
-        else
-            monitor->m_activeWorkspace = workspace;
+        HTCompat::restore_monitor_workspace(monitor, workspace, use_change_workspace);
     }
 
     void dismiss() {
@@ -74,8 +58,7 @@ class HTScopedActiveWorkspace {
     HTScopedActiveWorkspace(PHLMONITOR monitor, PHLWORKSPACE workspace)
         : monitor(monitor),
           previous_workspace(monitor == nullptr ? PHLWORKSPACEREF {} : monitor->m_activeWorkspace) {
-        if (monitor != nullptr && workspace != nullptr)
-            monitor->m_activeWorkspace = workspace;
+        HTCompat::restore_monitor_workspace(monitor, workspace, false);
     }
 
     ~HTScopedActiveWorkspace() {
@@ -88,7 +71,7 @@ class HTScopedActiveWorkspace {
         if (workspace == nullptr)
             return;
 
-        monitor->m_activeWorkspace = workspace;
+        HTCompat::restore_monitor_workspace(monitor, workspace, false);
     }
 
     void dismiss() {
@@ -106,14 +89,14 @@ class HTScopedWorkspaceVisibility {
     HTScopedWorkspaceVisibility(PHLWORKSPACE workspace, bool visible)
         : workspace(workspace),
           previous_visible(workspace == nullptr ? false : workspace->m_visible) {
-        set_workspace_render_visibility(workspace, visible);
+        HTCompat::set_workspace_render_visibility(workspace, visible);
     }
 
     ~HTScopedWorkspaceVisibility() {
         if (!restore_on_destroy)
             return;
 
-        set_workspace_render_visibility(workspace, previous_visible);
+        HTCompat::set_workspace_render_visibility(workspace, previous_visible);
     }
 
     void dismiss() {
