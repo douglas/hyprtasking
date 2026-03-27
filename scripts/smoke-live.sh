@@ -64,6 +64,11 @@ assert_dispatcher_ready() {
     printf 'Hyprtasking dispatchers are not registered yet.\n' >&2
     exit 1
   fi
+
+  if [[ "$CAPTURED_OUTPUT" != *"invalid arg"* ]]; then
+    printf 'Unexpected hyprtasking:toggle probe response: %s\n' "$CAPTURED_OUTPUT" >&2
+    exit 1
+  fi
 }
 
 assert_extended_dispatchers_ready() {
@@ -75,9 +80,19 @@ assert_extended_dispatchers_ready() {
     exit 1
   fi
 
+  if [[ "$CAPTURED_OUTPUT" != "ok" ]]; then
+    printf 'Unexpected hyprtasking:move probe response: %s\n' "$CAPTURED_OUTPUT" >&2
+    exit 1
+  fi
+
   run_capture_hyprctl dispatch hyprtasking:movewindow __smoke_probe__
   if [[ "$CAPTURED_OUTPUT" == *"Invalid dispatcher"* ]]; then
     printf 'Hyprtasking movewindow dispatcher is not registered yet.\n' >&2
+    exit 1
+  fi
+
+  if [[ "$CAPTURED_OUTPUT" != "ok" ]]; then
+    printf 'Unexpected hyprtasking:movewindow probe response: %s\n' "$CAPTURED_OUTPUT" >&2
     exit 1
   fi
 }

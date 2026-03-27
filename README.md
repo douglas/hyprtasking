@@ -110,7 +110,7 @@ Supported smoke subcommands:
 
 - `all`: unload/load the plugin, verify dispatcher registration, run toggle/move probes, then reload Hyprland
 - `stress`: run a heavier live cycle with repeated unload/load, toggle/move, reload, and reload-open checks
-- `dispatchers`: verify that `toggle`, `move`, and `movewindow` dispatchers are registered without changing overview state
+- `dispatchers`: verify that `toggle`, `move`, and `movewindow` dispatchers are registered and still return the expected probe responses without changing overview state
 - `load-unload`: validate one or more live unload/load cycles for `build/libhyprtasking.so`
 - `toggle`: validate toggle and directional move dispatchers
 - `reload`: reload Hyprland and wait for the plugin to become ready again
