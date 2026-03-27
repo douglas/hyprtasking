@@ -33,6 +33,7 @@ class HTManager {
     bool has_runtime_view();
     void refresh_cursor_override();
     PHLWINDOW get_dragged_window();
+    bool is_dragged_window(PHLWINDOW window);
     void set_dragged_window(PHLWINDOW window);
     void clear_dragged_window();
     bool runtime_enabled() const;

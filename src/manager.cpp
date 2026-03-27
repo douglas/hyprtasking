@@ -136,6 +136,13 @@ PHLWINDOW HTManager::get_dragged_window() {
     return dragged_window.lock();
 }
 
+bool HTManager::is_dragged_window(PHLWINDOW window) {
+    if (window == nullptr)
+        return false;
+
+    return get_dragged_window() == window;
+}
+
 void HTManager::set_dragged_window(PHLWINDOW window) {
     dragged_window = window;
 }

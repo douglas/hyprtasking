@@ -215,8 +215,7 @@ bool HTLayoutGrid::should_render_window(PHLWINDOW window) {
     if (window == nullptr || monitor == nullptr)
         return ori_result;
 
-    const SP<Layout::ITarget> target = g_layoutManager->dragController()->target();
-    if (target != nullptr && window == target->window())
+    if (ht_manager != nullptr && ht_manager->is_dragged_window(window))
         return false;
 
     PHLWORKSPACE workspace = window->m_workspace;
