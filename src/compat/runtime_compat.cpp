@@ -1,11 +1,16 @@
 #include "runtime_compat.hpp"
 
+#include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/desktop/state/FocusState.hpp>
 #include <hyprland/src/desktop/view/View.hpp>
 #include <hyprland/src/desktop/view/Window.hpp>
 #include <hyprland/src/event/EventBus.hpp>
+#include <hyprland/src/helpers/Monitor.hpp>
+#include <hyprland/src/managers/cursor/CursorShapeOverrideController.hpp>
 #include <hyprland/src/managers/KeybindManager.hpp>
 #include <hyprland/src/managers/SeatManager.hpp>
+#include <hyprland/src/managers/input/InputManager.hpp>
+#include <hyprland/src/render/Renderer.hpp>
 
 SDispatchResult HTCompat::invoke_dispatcher(
     const std::string& dispatch_name,
@@ -21,8 +26,57 @@ SDispatchResult HTCompat::invoke_dispatcher(
     return dispatcher->second(dispatch_arg);
 }
 
+PHLMONITOR HTCompat::cursor_monitor() {
+    if (!g_pCompositor)
+        return nullptr;
+
+    return g_pCompositor->getMonitorFromCursor();
+}
+
+Vector2D HTCompat::mouse_coords() {
+    if (!g_pInputManager)
+        return {};
+
+    return g_pInputManager->getMouseCoordsInternal();
+}
+
 PHLMONITOR HTCompat::focused_monitor() {
     return Desktop::focusState()->monitor();
+}
+
+std::vector<PHLMONITOR> HTCompat::compositor_monitors() {
+    if (!g_pCompositor)
+        return {};
+
+    std::vector<PHLMONITOR> monitors;
+    monitors.reserve(g_pCompositor->m_monitors.size());
+    for (const PHLMONITOR& monitor : g_pCompositor->m_monitors) {
+        if (monitor != nullptr)
+            monitors.push_back(monitor);
+    }
+
+    return monitors;
+}
+
+PHLMONITOR HTCompat::monitor_from_id(MONITORID monitor_id) {
+    if (!g_pCompositor)
+        return nullptr;
+
+    return g_pCompositor->getMonitorFromID(monitor_id);
+}
+
+std::string HTCompat::monitor_description(PHLMONITOR monitor) {
+    if (monitor == nullptr)
+        return {};
+
+    return monitor->m_description;
+}
+
+PHLWINDOW HTCompat::window_at(const Vector2D& position, uint8_t properties, PHLWINDOW ignore_window) {
+    if (!g_pCompositor)
+        return nullptr;
+
+    return g_pCompositor->vectorToWindowUnified(position, properties, ignore_window);
 }
 
 void HTCompat::focus_monitor(PHLMONITOR monitor) {
@@ -53,6 +107,45 @@ void HTCompat::warp_window_cursor(PHLWINDOW window, bool force) {
         return;
 
     window->warpCursor(force);
+}
+
+void HTCompat::set_cursor_override_enabled(bool enabled) {
+    if (!Cursor::overrideController)
+        return;
+
+    if (enabled) {
+        Cursor::overrideController->setOverride("left_ptr", Cursor::CURSOR_OVERRIDE_UNKNOWN);
+    } else {
+        Cursor::overrideController->unsetOverride(Cursor::CURSOR_OVERRIDE_UNKNOWN);
+    }
+}
+
+void HTCompat::damage_monitor(PHLMONITOR monitor) {
+    if (monitor == nullptr || !g_pHyprRenderer)
+        return;
+
+    g_pHyprRenderer->damageMonitor(monitor);
+}
+
+void HTCompat::schedule_frame_for_monitor(PHLMONITOR monitor) {
+    if (monitor == nullptr || !g_pCompositor)
+        return;
+
+    g_pCompositor->scheduleFrameForMonitor(monitor);
+}
+
+void HTCompat::close_window(PHLWINDOW window) {
+    if (window == nullptr || !g_pCompositor)
+        return;
+
+    g_pCompositor->closeWindow(window);
+}
+
+void HTCompat::move_window_to_workspace(PHLWINDOW window, PHLWORKSPACE workspace) {
+    if (window == nullptr || workspace == nullptr || !g_pCompositor)
+        return;
+
+    g_pCompositor->moveWindowToWorkspaceSafe(window, workspace);
 }
 
 void HTCompat::set_mouse_bind_mode(eMouseBindMode mode) {

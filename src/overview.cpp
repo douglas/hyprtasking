@@ -83,8 +83,8 @@ void HTView::show() {
 
     layout->on_show();
 
-    g_pHyprRenderer->damageMonitor(monitor);
-    g_pCompositor->scheduleFrameForMonitor(monitor);
+    HTCompat::damage_monitor(monitor);
+    HTCompat::schedule_frame_for_monitor(monitor);
 }
 
 void HTView::hide(bool exit_on_mouse) {
@@ -103,8 +103,8 @@ void HTView::hide(bool exit_on_mouse) {
         set_runtime_state(false, false, false);
     });
 
-    g_pHyprRenderer->damageMonitor(monitor);
-    g_pCompositor->scheduleFrameForMonitor(monitor);
+    HTCompat::damage_monitor(monitor);
+    HTCompat::schedule_frame_for_monitor(monitor);
 }
 
 void HTView::set_runtime_state(bool new_active, bool new_closing, bool new_navigating) {
@@ -149,8 +149,8 @@ void HTView::reload_config(bool close_overview_on_reload, const std::string& new
 
     const PHLMONITOR monitor = get_monitor();
     if (monitor != nullptr) {
-        g_pHyprRenderer->damageMonitor(monitor);
-        g_pCompositor->scheduleFrameForMonitor(monitor);
+        HTCompat::damage_monitor(monitor);
+        HTCompat::schedule_frame_for_monitor(monitor);
     }
 }
 
@@ -182,7 +182,7 @@ void HTView::move_id(WORKSPACEID ws_id, bool move_window) {
         return;
 
     if (move_execution.move_hovered_window) {
-        g_pCompositor->moveWindowToWorkspaceSafe(hovered_window, other_workspace);
+        HTCompat::move_window_to_workspace(hovered_window, other_workspace);
     }
 
     Hyprlang::INT warp;
@@ -245,7 +245,7 @@ void HTView::move(std::string arg, bool move_window) {
 }
 
 PHLMONITOR HTView::get_monitor() {
-    const PHLMONITOR monitor = g_pCompositor->getMonitorFromID(monitor_id);
+    const PHLMONITOR monitor = HTCompat::monitor_from_id(monitor_id);
     if (monitor == nullptr)
         Log::logger->log(Log::WARN, "[Hyprtasking] Returning null monitor from get_monitor!");
     return monitor;

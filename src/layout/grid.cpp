@@ -355,7 +355,7 @@ void HTLayoutGrid::render() {
         : HTCompat::active_monitor_workspace(monitor);
 
 
-    g_pHyprRenderer->damageMonitor(monitor);
+    HTCompat::damage_monitor(monitor);
     HTCompat::set_current_monitor_blur_should_render(true);
     const Vector2D transformed_size = HTCompat::monitor_transformed_size(monitor);
     CBox monitor_box = {{0, 0}, transformed_size};

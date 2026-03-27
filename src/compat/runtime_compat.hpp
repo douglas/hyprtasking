@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <string>
+#include <vector>
 
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/devices/ITouch.hpp>
@@ -17,11 +18,22 @@ namespace HTCompat {
 using Hyprutils::Signal::CHyprSignalListener;
 
 SDispatchResult invoke_dispatcher(const std::string& dispatch_name, const std::string& dispatch_arg);
+PHLMONITOR cursor_monitor();
+Vector2D mouse_coords();
 PHLMONITOR focused_monitor();
+std::vector<PHLMONITOR> compositor_monitors();
+PHLMONITOR monitor_from_id(MONITORID monitor_id);
+std::string monitor_description(PHLMONITOR monitor);
+PHLWINDOW window_at(const Vector2D& position, uint8_t properties, PHLWINDOW ignore_window = nullptr);
 void focus_monitor(PHLMONITOR monitor);
 void focus_window(PHLWINDOW window);
 bool can_warp_window_cursor(PHLWINDOW window);
 void warp_window_cursor(PHLWINDOW window, bool force);
+void set_cursor_override_enabled(bool enabled);
+void damage_monitor(PHLMONITOR monitor);
+void schedule_frame_for_monitor(PHLMONITOR monitor);
+void close_window(PHLWINDOW window);
+void move_window_to_workspace(PHLWINDOW window, PHLWORKSPACE workspace);
 void set_mouse_bind_mode(eMouseBindMode mode);
 SP<Layout::ITarget> drag_controller_target();
 bool drag_controller_is_tiled();

@@ -2,7 +2,6 @@
 
 #include <string>
 
-#include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
 
 #include "../compat/runtime_compat.hpp"
@@ -127,7 +126,7 @@ SDispatchResult dispatchKillHover([[maybe_unused]] std::string arg) {
         if (hovered_window == nullptr)
             return {.success = false, .error = "hovered_window is null"};
 
-        g_pCompositor->closeWindow(hovered_window);
+        HTCompat::close_window(hovered_window);
         return {};
     });
 }

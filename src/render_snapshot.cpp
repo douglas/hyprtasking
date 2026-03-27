@@ -1,8 +1,7 @@
 #include "render_snapshot.hpp"
 
-#include <hyprland/src/managers/input/InputManager.hpp>
-
 #include "compat/renderer_compat.hpp"
+#include "compat/runtime_compat.hpp"
 #include "globals.hpp"
 #include "logic/geometry_model.hpp"
 #include "overview.hpp"
@@ -33,7 +32,7 @@ std::optional<HTRenderSnapshot> capture_render_snapshot(VIEWID view_id, float dr
     if (!scale.has_value())
         return snapshot;
 
-    const Vector2D mouse_coords = g_pInputManager->getMouseCoordsInternal();
+    const Vector2D mouse_coords = HTCompat::mouse_coords();
     if (!HTLogic::isFinitePoint(mouse_coords.x, mouse_coords.y))
         return snapshot;
 

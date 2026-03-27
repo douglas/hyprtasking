@@ -226,7 +226,7 @@ bool HTManager::end_window_drag() {
     if (!HTCompat::activate_monitor_workspace(cursor_monitor, cursor_workspace))
         return false;
 
-    g_pCompositor->moveWindowToWorkspaceSafe(dragged_window, cursor_workspace);
+    HTCompat::move_window_to_workspace(dragged_window, cursor_workspace);
     HTCompat::set_window_real_position(dragged_window, tp_pos);
 
     if (!HTCompat::warp_pointer(*workspace_coords))
@@ -286,7 +286,7 @@ bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
 
     PHTVIEW swipe_view = nullptr;
     if (swipe_state == HT_SWIPE_NONE) {
-        const PHLMONITOR cursor_monitor = g_pCompositor->getMonitorFromCursor();
+        const PHLMONITOR cursor_monitor = HTCompat::cursor_monitor();
         swipe_view = get_view_from_monitor(cursor_monitor);
     } else {
         swipe_view = get_swipe_view();
@@ -372,8 +372,8 @@ bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
                 // need to schedule frames for monitor, otherwise the screen doesn't re-render
                 const PHLMONITOR swipe_monitor = swipe_view->get_monitor();
                 if (swipe_monitor != nullptr) {
-                    g_pHyprRenderer->damageMonitor(swipe_monitor);
-                    g_pCompositor->scheduleFrameForMonitor(swipe_monitor);
+                    HTCompat::damage_monitor(swipe_monitor);
+                    HTCompat::schedule_frame_for_monitor(swipe_monitor);
                 }
             }
         }

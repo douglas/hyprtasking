@@ -6,7 +6,6 @@
 #include <hyprland/src/config/ConfigManager.hpp>
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/layout/LayoutManager.hpp>
-#include <hyprland/src/managers/cursor/CursorShapeOverrideController.hpp>
 #include <hyprland/src/managers/KeybindManager.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
@@ -35,7 +34,7 @@ PHTVIEW HTManager::get_view_from_monitor(PHLMONITOR monitor) {
 }
 
 PHTVIEW HTManager::get_view_from_cursor() {
-    return get_view_from_monitor(g_pCompositor->getMonitorFromCursor());
+    return get_view_from_monitor(HTCompat::cursor_monitor());
 }
 
 PHTVIEW HTManager::get_view_from_id(VIEWID view_id) {
@@ -51,12 +50,12 @@ PHTVIEW HTManager::get_view_from_id(VIEWID view_id) {
 
 HTCursorWorkspaceContext HTManager::resolve_cursor_workspace(bool create_if_missing) {
     HTCursorWorkspaceContext context;
-    context.monitor = g_pCompositor->getMonitorFromCursor();
+    context.monitor = HTCompat::cursor_monitor();
     if (context.monitor == nullptr)
         return context;
 
     context.view = get_view_from_monitor(context.monitor);
-    context.mouse_coords = g_pInputManager->getMouseCoordsInternal();
+    context.mouse_coords = HTCompat::mouse_coords();
     if (context.view == nullptr)
         return context;
 
@@ -88,7 +87,7 @@ PHLWINDOW HTManager::get_window_from_cursor(bool return_focused) {
     const Vector2D mouse_coords = cursor_context.mouse_coords;
 
     if (!cursor_view->active || !cursor_view->layout->should_manage_mouse()) {
-        return g_pCompositor->vectorToWindowUnified(
+        return HTCompat::window_at(
             mouse_coords,
             Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING
         );
@@ -107,7 +106,7 @@ PHLWINDOW HTManager::get_window_from_cursor(bool return_focused) {
     if (!HTCompat::activate_monitor_workspace(cursor_monitor, hovered_workspace))
         return nullptr;
 
-    const PHLWINDOW hovered_window = g_pCompositor->vectorToWindowUnified(
+    const PHLWINDOW hovered_window = HTCompat::window_at(
         *ws_coords,
         Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING
     );
@@ -144,11 +143,7 @@ bool HTManager::has_runtime_view() {
 }
 
 void HTManager::refresh_cursor_override() {
-    if (has_runtime_view()) {
-        Cursor::overrideController->setOverride("left_ptr", Cursor::CURSOR_OVERRIDE_UNKNOWN);
-    } else {
-        Cursor::overrideController->unsetOverride(Cursor::CURSOR_OVERRIDE_UNKNOWN);
-    }
+    HTCompat::set_cursor_override_enabled(has_runtime_view());
 }
 
 PHLWINDOW HTManager::get_dragged_window() {
@@ -261,10 +256,9 @@ void HTManager::sync_monitor_views() {
     }
 
     std::vector<HTLogic::MonitorID> monitor_ids;
-    monitor_ids.reserve(g_pCompositor->m_monitors.size());
-    for (const PHLMONITOR& monitor : g_pCompositor->m_monitors) {
-        if (monitor == nullptr)
-            continue;
+    const std::vector<PHLMONITOR> monitors = HTCompat::compositor_monitors();
+    monitor_ids.reserve(monitors.size());
+    for (const PHLMONITOR& monitor : monitors) {
         monitor_ids.push_back(HTCompat::monitor_id(monitor));
     }
 
@@ -297,7 +291,7 @@ void HTManager::sync_monitor_views() {
 
     const auto missing_ids = HTLogic::missingMonitorViewIDs(view_ids, monitor_ids);
     for (const auto missing_id : missing_ids) {
-        const PHLMONITOR monitor = g_pCompositor->getMonitorFromID(missing_id);
+        const PHLMONITOR monitor = HTCompat::monitor_from_id(missing_id);
         if (monitor == nullptr)
             continue;
 
@@ -306,13 +300,13 @@ void HTManager::sync_monitor_views() {
         Log::logger->log(
             LOG,
             "[Hyprtasking] Registering view for monitor {} with resolution {}x{}",
-            monitor->m_description,
+            HTCompat::monitor_description(monitor),
             monitor_size.x,
             monitor_size.y
         );
     }
 
-    for (const PHLMONITOR& monitor : g_pCompositor->m_monitors) {
+    for (const PHLMONITOR& monitor : monitors) {
         const PHTVIEW view = get_view_from_monitor(monitor);
         if (view == nullptr || view->active)
             continue;

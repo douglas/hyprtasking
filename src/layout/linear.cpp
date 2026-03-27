@@ -195,7 +195,7 @@ bool HTLayoutLinear::should_manage_mouse() {
         * HTCompat::monitor_scale(monitor);
     const Vector2D transformed_size = HTCompat::monitor_transformed_size(monitor);
 
-    const Vector2D mouse_coords = g_pInputManager->getMouseCoordsInternal();
+    const Vector2D mouse_coords = HTCompat::mouse_coords();
     CBox scaled_view_box = {
         Vector2D {0.f, calculate_y(transformed_size.y, view_offset->value(), HEIGHT)},
         {transformed_size.x, (float)HEIGHT}
@@ -339,7 +339,7 @@ void HTLayoutLinear::render() {
         : HTCompat::active_monitor_workspace(monitor);
 
 
-    g_pHyprRenderer->damageMonitor(monitor);
+    HTCompat::damage_monitor(monitor);
     HTCompat::set_current_monitor_blur_should_render(true);
 
     // Do a dance with active workspaces: Hyprland will only properly render the
