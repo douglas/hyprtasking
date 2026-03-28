@@ -17,6 +17,7 @@ These files are the plugin-side compatibility boundary:
 - `src/compat/profile.cpp`
   - Supported Hyprland line gating
   - Hook/symbol contract resolution, including fallback signature lookup
+  - Input hook contract resolution for `CInputManager::onMouseButton`
   - Plugin API version compatibility assumptions
 - `src/compat/renderer_compat.cpp`
   - Renderer hook wrappers
@@ -24,6 +25,7 @@ These files are the plugin-side compatibility boundary:
   - Damage and render-pass helpers
 - `src/compat/runtime_compat.cpp`
   - Focus, cursor, seat, drag-controller, and compositor action wrappers
+  - Original call-through helpers for drift-prone runtime hooks
 
 ## Audited Contracts
 
@@ -39,6 +41,7 @@ The compat audit currently checks these Hyprland-side contracts:
 | `shouldRenderWindow` symbol | `src/render/Renderer.cpp` | `src/compat/profile.cpp`, `src/compat/renderer_compat.cpp` |
 | `renderWindow` symbol | `src/render/Renderer.cpp` | `src/compat/profile.cpp`, `src/compat/renderer_compat.cpp` |
 | `isSolitaryBlocked` symbol | `src/helpers/Monitor.hpp` | `src/compat/profile.cpp` |
+| `onMouseButton` symbol | `src/managers/input/InputManager.cpp` | `src/compat/profile.cpp`, `src/plugin/runtime.cpp` |
 | plugin API version check | `src/plugins/PluginSystem.cpp` | `src/compat/profile.cpp` |
 
 ## Non-Audited Compat Surface
@@ -65,6 +68,8 @@ Not every update-sensitive path is covered by the current audits.
 
 These still usually require inspection after a Hyprland bump even if both audits pass:
 
+- direct input hook behavior for `CInputManager::onMouseButton` versus the
+  cancellable event-bus mouse-button path
 - event bus listener wiring in `src/compat/runtime_compat.cpp`
 - animation/config-backed helper wiring in `src/compat/runtime_compat.cpp`
 - renderer hook behavior in `src/compat/renderer_compat.cpp`, especially whether `findFunctionsByName` or fallback signature lookup is being used at runtime

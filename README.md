@@ -145,6 +145,19 @@ Optional environment:
 - `TOGGLE_CYCLES=3`
 - `RELOAD_CYCLES=2`
 
+## Maintainer Docs
+
+The repo-specific maintenance and debugging docs live under `docs/`:
+
+- [`docs/debugging-playbook.md`](docs/debugging-playbook.md): step-by-step
+  workflow for diagnosing build, compat, hook, input, render, and focus
+  regressions
+- [`docs/overview-input-regression.md`](docs/overview-input-regression.md):
+  distilled lessons from the overview click/drag regression that required
+  moving click handling to the direct `CInputManager::onMouseButton` hook
+- [`docs/compat-contract.md`](docs/compat-contract.md): the Hyprland-facing
+  compat ownership map and drift-prone contracts
+
 ## Updating Hyprland Compatibility
 
 Hyprtasking is maintained for one Hyprland minor line at a time. The current supported line is
@@ -211,7 +224,7 @@ RELEASE_CHECK_FORMAT=json HYPRLAND_SOURCE=/path/to/Hyprland bash scripts/release
 line, and the required hook/API contracts it verified so version drift is easier
 to diagnose during updates. On failure, it also prints the missing contract list
 and the first place to patch. The full ownership map lives in
-`docs/compat-contract.md`.
+[`docs/compat-contract.md`](docs/compat-contract.md).
 
 Hook discovery prefers `findFunctionsByName()` and falls back to
 `getFunctionAddressFromSignature()` when Hyprland cannot enumerate symbols from
@@ -392,6 +405,7 @@ All options should are prefixed with `plugin:hyprtasking:`.
 | `exit_on_hovered` | `Hyprlang::INT` | If true, hiding the workspace will exit to the hovered workspace instead of the active workspace. | `false` |
 | `warp_on_move_window` | `Hyprlang::INT` | Works the same as `cursor:warp_on_change_workspace` (see [wiki](https://wiki.hypr.land/Configuring/Variables/#cursor)) but with `hyprtasking:movewindow` dispathcer. <br> `cursor:warp_on_change_workspace` works only with `hyprtasking:move` dispathcer | `1` |
 | `close_overview_on_reload ` | `Hyprlang::INT` | Whether to close the overview if its type didn't type didn't change after hyprland config reload | `true` |
+| `debug:trace` | `Hyprlang::INT` | Enables runtime trace output to `/tmp/hyprtasking-trace.log` for debugging. `hyprctl keyword plugin:hyprtasking:debug:trace 1` enables it for the currently loaded plugin instance, while a config entry keeps it enabled across plugin reloads. | `0` |
 | `drag_button` | `Hyprlang::INT` | The mouse button to use to drag windows around | `0x110` |
 | `select_button` | `Hyprlang::INT` | The mouse button to use to select a workspace | `0x111` |
 | `gestures:enabled` | `Hyprlang::INT` | Whether or not to enable gestures | `true` |
