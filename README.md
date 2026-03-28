@@ -6,6 +6,36 @@
 > [!Important]
 > - Maintained for Hyprland `v0.54.x`.
 
+## This Fork
+
+This repository started from the original Hyprtasking project and has diverged
+into a narrower, maintenance-first branch.
+
+The main differences from the upstream fork source are:
+
+- this branch is maintained for one Hyprland minor line at a time, currently
+  `0.54.x`, instead of trying to span a wide range of compositor releases
+- Hyprland-sensitive behavior is pushed behind `src/compat/`, with explicit
+  compat ownership, runtime wrappers, and audited hook contracts
+- release validation is much stricter, with version-contract checks, compat
+  audits, boundary audits, smoke tests, manual runtime checklists, and
+  machine-readable outputs for tooling
+- overview stability has been hardened around renderer re-entry, focus handoff,
+  hover and keyboard selection, and runtime lifecycle edge cases
+- overview mouse interaction now uses a direct `CInputManager::onMouseButton`
+  hook on the supported runtime, which fixed the drag and right-click selection
+  regression that appeared after the earlier refactors
+- gated runtime tracing is built in through
+  `plugin:hyprtasking:debug:trace`, so maintainers can enable deep diagnostics
+  without re-adding ad hoc logging
+- maintainer documentation now lives in `docs/`, including the debugging
+  playbook, compat contract, and the incident write-up for the overview input
+  regression
+
+If you want the original wider-compatibility project posture, read the upstream
+repository. If you want the branch that tracks the current maintenance work,
+testing, and debugging workflow described in this README, use this repository.
+
 https://github.com/user-attachments/assets/8d6cdfd2-2b17-4240-a117-1dbd2231ed4e
 
 #### [Jump To Installation](#Installation)
@@ -41,7 +71,7 @@ https://github.com/user-attachments/assets/8d6cdfd2-2b17-4240-a117-1dbd2231ed4e
 ### Hyprpm
 
 ```
-hyprpm add https://github.com/raybbian/hyprtasking
+hyprpm add https://github.com/douglas/hyprtasking
 hyprpm enable hyprtasking
 ```
 
@@ -55,7 +85,7 @@ Add hyprtasking to your flake inputs
     hyprland.url = "github:hyprwm/Hyprland/v0.49.0";
 
     hyprtasking = {
-      url = "github:raybbian/hyprtasking";
+      url = "github:douglas/hyprtasking";
       inputs.hyprland.follows = "hyprland";
     };
   };
@@ -157,6 +187,24 @@ The repo-specific maintenance and debugging docs live under `docs/`:
   moving click handling to the direct `CInputManager::onMouseButton` hook
 - [`docs/compat-contract.md`](docs/compat-contract.md): the Hyprland-facing
   compat ownership map and drift-prone contracts
+
+## Current Status
+
+This branch is no longer just the original feature set with small local fixes.
+The current maintenance work has added:
+
+- a dedicated compatibility layer for Hyprland-facing runtime and renderer
+  contracts
+- repo-local release gates and smoke scripts that distinguish version drift,
+  hook startup failures, dispatcher registration failures, and runtime behavior
+  regressions
+- structured JSON output for release, compat, boundary, and manual-check flows
+- explicit maintainer docs for debugging, incident learnings, and compat
+  ownership
+- a built-in trace path at `/tmp/hyprtasking-trace.log`, gated by
+  `plugin:hyprtasking:debug:trace`
+- the direct input-manager mouse-button hook that restored stable drag and
+  right-click workspace selection on the supported Hyprland line
 
 ## Updating Hyprland Compatibility
 

@@ -1,6 +1,6 @@
 [repository]
 name = "hyprtasking"
-authors = ["raybbian"]
+authors = ["douglas"]
 commit_pins = [
     ["dd220efe7b1e292415bd0ea7161f63df9c95bfd3", "40e6f615c6e2f7f016d1ee6cfa34668edbeb0cc1"], #v0.53.3
     ["39f3feddbee4a66be9608ed1eb7e73878d596b50", "40e6f615c6e2f7f016d1ee6cfa34668edbeb0cc1"], #v0.53.2
@@ -24,7 +24,7 @@ commit_pins = [
 
 [hyprtasking]
 description = "A workspace management plugin."
-authors = ["raybbian"]
+authors = ["douglas"]
 output = "build/libhyprtasking.so"
 build = [
     "meson setup build --buildtype=debug",

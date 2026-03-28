@@ -36,7 +36,7 @@
           buildInputs = [hyprlandPkg] ++ hyprlandPkg.buildInputs;
 
           meta = with lib; {
-            homepage = "https://github.com/raybbian/hyprtasking";
+            homepage = "https://github.com/douglas/hyprtasking";
             description = "Powerful workspace management plugin, packed with features ";
             license = licenses.bsd3;
             platforms = platforms.linux;
