@@ -12,6 +12,12 @@ namespace {
 
 constexpr std::string_view SUPPORTED_HYPRLAND_MINOR = "0.54.";
 
+constexpr HTCompat::HookSpec INPUT_MOUSE_BUTTON_HOOK = {
+    .label = "onMouseButton",
+    .query = "onMouseButton",
+    .fallback_query = "_ZN13CInputManager13onMouseButtonEN8IPointer12SButtonEventE",
+};
+
 constexpr HTCompat::HookSpec RENDER_WORKSPACE_HOOK = {
     .label = "renderWorkspace",
     .query = "renderWorkspace",
@@ -68,6 +74,10 @@ namespace HTCompat {
 
 std::string_view supported_hyprland_minor() {
     return SUPPORTED_HYPRLAND_MINOR;
+}
+
+const HookSpec& input_mouse_button_spec() {
+    return INPUT_MOUSE_BUTTON_HOOK;
 }
 
 const HookSpec& render_workspace_spec() {
@@ -144,6 +154,7 @@ std::vector<std::string> audit_compatibility_issues() {
     std::vector<std::string> issues;
 
     for (const auto& hook : {
+             input_mouse_button_spec(),
              render_workspace_spec(),
              should_render_window_spec(),
              render_window_spec(),

@@ -184,6 +184,7 @@ void HTManager::reset() {
     disabled_reason.clear();
     HTCompat::reset_overview_render_guard();
     reset_selection_state();
+    reset_mouse_button_state();
     clear_dragged_window();
     reset_drag_state();
     reset_swipe_state();
@@ -245,6 +246,9 @@ std::string HTManager::runtime_disable_reason() const {
 
 void HTManager::reset_selection_state() {
     selection_pending = false;
+    pending_mouse_selection_workspace_id = WORKSPACE_INVALID;
+    if (claimed_mouse_interaction == HT_MOUSE_SELECT)
+        reset_mouse_button_state();
 }
 
 PHTVIEW HTManager::get_swipe_view() {
@@ -265,6 +269,7 @@ void HTManager::reset_swipe_state() {
 }
 
 void HTManager::reset_drag_state() {
+    drag_interaction_started = false;
     clear_dragged_window();
 
     const auto target = HTCompat::drag_controller_target();
@@ -277,6 +282,8 @@ void HTManager::reset_drag_state() {
         HTCompat::end_drag_controller();
 
     HTCompat::set_mouse_bind_mode(MBIND_INVALID);
+    if (claimed_mouse_interaction == HT_MOUSE_DRAG)
+        reset_mouse_button_state();
 }
 
 void HTManager::sync_monitor_views() {

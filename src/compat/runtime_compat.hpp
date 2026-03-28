@@ -6,6 +6,7 @@
 
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/devices/ITouch.hpp>
+#include <hyprland/src/devices/Tablet.hpp>
 #include <hyprland/src/helpers/AnimatedVariable.hpp>
 #include <hyprland/src/layout/LayoutManager.hpp>
 #include <hyprland/src/event/EventBus.hpp>
@@ -47,6 +48,7 @@ void set_cursor_override_enabled(bool enabled);
 void damage_monitor(PHLMONITOR monitor);
 void schedule_frame_for_monitor(PHLMONITOR monitor);
 void simulate_mouse_movement();
+void do_later(const std::function<void()>& callback);
 void close_window(PHLWINDOW window);
 void move_window_to_workspace(PHLWINDOW window, PHLWORKSPACE workspace);
 void set_mouse_bind_mode(eMouseBindMode mode);
@@ -55,6 +57,7 @@ SP<Layout::ITarget> drag_controller_target();
 bool drag_controller_is_tiled();
 eMouseBindMode drag_controller_mode();
 void end_drag_controller();
+void invoke_mouse_button_original(void* thisptr, IPointer::SButtonEvent event);
 
 void listen_mouse_button(
     CHyprSignalListener& listener,
@@ -79,6 +82,18 @@ void listen_touch_up(
 void listen_touch_motion(
     CHyprSignalListener& listener,
     const std::function<void(ITouch::SMotionEvent, Event::SCallbackInfo)>& callback
+);
+void listen_tablet_button(
+    CHyprSignalListener& listener,
+    const std::function<void(CTablet::SButtonEvent, Event::SCallbackInfo&)>& callback
+);
+void listen_tablet_tip(
+    CHyprSignalListener& listener,
+    const std::function<void(CTablet::STipEvent, Event::SCallbackInfo&)>& callback
+);
+void listen_tablet_proximity(
+    CHyprSignalListener& listener,
+    const std::function<void(CTablet::SProximityEvent, Event::SCallbackInfo&)>& callback
 );
 void listen_swipe_begin(
     CHyprSignalListener& listener,

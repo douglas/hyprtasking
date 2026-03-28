@@ -65,4 +65,27 @@ SelectEndAction decideSelectEnd(
     return SelectEndAction::FinalizeSelect;
 }
 
+bool shouldConsumeManagedMouseButton(
+    bool has_view,
+    bool view_active,
+    bool view_closing,
+    bool manages_mouse,
+    bool matching_button
+) {
+    return has_view && view_active && !view_closing && manages_mouse && matching_button;
+}
+
+MouseButtonResult resolveClaimedMouseRelease(
+    bool button_claimed,
+    bool drag_started,
+    bool allow_release_passthrough
+) {
+    if (!button_claimed)
+        return MouseButtonResult::Ignore;
+    if (drag_started && allow_release_passthrough)
+        return MouseButtonResult::PassThrough;
+
+    return MouseButtonResult::Consume;
+}
+
 }

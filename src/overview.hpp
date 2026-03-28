@@ -38,6 +38,7 @@ class HTView {
     void show();
     void hide(bool exit_on_mouse);
     bool commit_selection();
+    bool commit_mouse_selection(WORKSPACEID target_workspace_id);
     void set_runtime_state(bool new_active, bool new_closing, bool new_navigating);
     void cancel_runtime_state();
     bool has_runtime_activity() const;

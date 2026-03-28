@@ -2,6 +2,8 @@
 
 #include <linux/input-event-codes.h>
 
+#include <format>
+
 #include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
@@ -9,21 +11,25 @@
 #include <hyprutils/signal/Listener.hpp>
 
 #include "../compat/runtime_compat.hpp"
+#include "../compat/profile.hpp"
 #include "../config.hpp"
 #include "../globals.hpp"
 #include "../overview.hpp"
+#include "../trace.hpp"
 #include "guards.hpp"
 
 using Hyprutils::Signal::CHyprSignalListener;
 
 namespace {
 
-CHyprSignalListener g_mouse_button_listener;
 CHyprSignalListener g_mouse_move_listener;
 CHyprSignalListener g_mouse_axis_listener;
 CHyprSignalListener g_touch_down_listener;
 CHyprSignalListener g_touch_up_listener;
 CHyprSignalListener g_touch_motion_listener;
+CHyprSignalListener g_tablet_button_listener;
+CHyprSignalListener g_tablet_tip_listener;
+CHyprSignalListener g_tablet_proximity_listener;
 CHyprSignalListener g_swipe_begin_listener;
 CHyprSignalListener g_swipe_update_listener;
 CHyprSignalListener g_swipe_end_listener;
@@ -31,28 +37,218 @@ CHyprSignalListener g_config_reloaded_listener;
 CHyprSignalListener g_monitor_added_listener;
 CHyprSignalListener g_monitor_removed_listener;
 
+template <class... Args>
+void trace_log(std::format_string<Args...> fmt, Args&&... args) {
+    if (!HTTrace::enabled())
+        return;
+
+    HTTrace::log(fmt, std::forward<Args>(args)...);
+}
+
+void cancelEvent(Event::SCallbackInfo& info);
+void shutdownMouseButtonHook();
+
 void onMouseButton(IPointer::SButtonEvent e, Event::SCallbackInfo& info) {
     HTPlugin::guardedCallback("on_mouse_button", [&] {
         if (ht_manager == nullptr || !ht_manager->runtime_enabled())
             return;
 
         const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
-        if (cursor_view == nullptr)
-            return;
-
         const bool pressed = e.state == WL_POINTER_BUTTON_STATE_PRESSED;
         const unsigned int drag_button = HTConfig::value<Hyprlang::INT>("drag_button");
         const unsigned int select_button = HTConfig::value<Hyprlang::INT>("select_button");
 
+        if (cursor_view == nullptr) {
+            trace_log(
+                "[Hyprtasking][trace] mouse button={} pressed={} ignored: cursor view is null",
+                e.button,
+                pressed
+            );
+            return;
+        }
+
+        const bool manages_mouse = cursor_view->layout != nullptr && cursor_view->layout->should_manage_mouse();
+        trace_log(
+            "[Hyprtasking][trace] mouse button={} pressed={} mouse_device={} drag_button={} select_button={} view={} active={} closing={} manages_mouse={}",
+            e.button,
+            pressed,
+            e.mouse,
+            drag_button,
+            select_button,
+            cursor_view->monitor_id,
+            cursor_view->active,
+            cursor_view->closing,
+            manages_mouse
+        );
+
         if (pressed && e.button == drag_button) {
             info.cancelled = ht_manager->start_window_drag();
+            trace_log(
+                "[Hyprtasking][trace] drag press result cancelled={}",
+                info.cancelled
+            );
         } else if (!pressed && e.button == drag_button) {
             info.cancelled = ht_manager->end_window_drag();
+            trace_log(
+                "[Hyprtasking][trace] drag release result cancelled={}",
+                info.cancelled
+            );
         } else if (pressed && e.button == select_button) {
-            info.cancelled = ht_manager->begin_workspace_select();
-        } else if (!pressed && e.button == select_button) {
-            info.cancelled = ht_manager->end_workspace_select();
+            info.cancelled = ht_manager->exit_to_workspace();
+            trace_log(
+                "[Hyprtasking][trace] select press result cancelled={}",
+                info.cancelled
+            );
+        } else {
+            trace_log(
+                "[Hyprtasking][trace] mouse button={} pressed={} left unhandled by hyprtasking",
+                e.button,
+                pressed
+            );
         }
+    });
+}
+
+void hookMouseButton(void* thisptr, IPointer::SButtonEvent e) {
+    const bool cancelled = HTPlugin::guardedValue("hook_mouse_button", false, [&] {
+        Event::SCallbackInfo info;
+        onMouseButton(e, info);
+        return info.cancelled;
+    });
+    if (cancelled)
+        return;
+
+    HTCompat::invoke_mouse_button_original(thisptr, e);
+}
+
+void initializeMouseButtonHook() {
+    const auto mouse_button = HTCompat::resolve_hook_address(HTCompat::input_mouse_button_spec());
+    if (mouse_button.address == nullptr) {
+        fail_exit(
+            "No {}: {}",
+            HTCompat::input_mouse_button_spec().label,
+            mouse_button.error
+        );
+    }
+
+    input_mouse_button_hook = HyprlandAPI::createFunctionHook(
+        PHANDLE,
+        mouse_button.address,
+        (void*)hookMouseButton
+    );
+    Log::logger->log(
+        LOG,
+        "[Hyprtasking] Attempting hook {} via {}",
+        mouse_button.signature,
+        mouse_button.method
+    );
+
+    if (!input_mouse_button_hook->hook()) {
+        shutdownMouseButtonHook();
+        fail_exit("Failed initializing onMouseButton hook");
+    }
+}
+
+void shutdownMouseButtonHook() {
+    if (input_mouse_button_hook == nullptr)
+        return;
+
+    if (!input_mouse_button_hook->unhook())
+        Log::logger->log(Log::WARN, "[Hyprtasking] Failed to unhook onMouseButton");
+
+    input_mouse_button_hook = nullptr;
+}
+
+void onTouchDown(ITouch::SDownEvent e, Event::SCallbackInfo info) {
+    HTPlugin::guardedCallback("on_touch_down", [&] {
+        trace_log(
+            "[Hyprtasking][trace] touch down id={} pos=({}, {}) cancelled_before={} cursor_view_active={}",
+            e.touchID,
+            e.pos.x,
+            e.pos.y,
+            info.cancelled,
+            ht_manager != nullptr && ht_manager->cursor_view_active()
+        );
+        cancelEvent(info);
+        trace_log(
+            "[Hyprtasking][trace] touch down id={} cancelled_after={}",
+            e.touchID,
+            info.cancelled
+        );
+    });
+}
+
+void onTouchUp(ITouch::SUpEvent e, Event::SCallbackInfo info) {
+    HTPlugin::guardedCallback("on_touch_up", [&] {
+        trace_log(
+            "[Hyprtasking][trace] touch up id={} cancelled_before={} cursor_view_active={}",
+            e.touchID,
+            info.cancelled,
+            ht_manager != nullptr && ht_manager->cursor_view_active()
+        );
+        cancelEvent(info);
+        trace_log(
+            "[Hyprtasking][trace] touch up id={} cancelled_after={}",
+            e.touchID,
+            info.cancelled
+        );
+    });
+}
+
+void onTouchMotion(ITouch::SMotionEvent e, Event::SCallbackInfo info) {
+    HTPlugin::guardedCallback("on_touch_motion", [&] {
+        trace_log(
+            "[Hyprtasking][trace] touch motion id={} pos=({}, {}) cancelled_before={} cursor_view_active={}",
+            e.touchID,
+            e.pos.x,
+            e.pos.y,
+            info.cancelled,
+            ht_manager != nullptr && ht_manager->cursor_view_active()
+        );
+        cancelEvent(info);
+        trace_log(
+            "[Hyprtasking][trace] touch motion id={} cancelled_after={}",
+            e.touchID,
+            info.cancelled
+        );
+    });
+}
+
+void onTabletButton(CTablet::SButtonEvent e, Event::SCallbackInfo& info) {
+    HTPlugin::guardedCallback("on_tablet_button", [&] {
+        trace_log(
+            "[Hyprtasking][trace] tablet button={} down={} cancelled_before={} cursor_view_active={}",
+            e.button,
+            e.down,
+            info.cancelled,
+            ht_manager != nullptr && ht_manager->cursor_view_active()
+        );
+    });
+}
+
+void onTabletTip(CTablet::STipEvent e, Event::SCallbackInfo& info) {
+    HTPlugin::guardedCallback("on_tablet_tip", [&] {
+        trace_log(
+            "[Hyprtasking][trace] tablet tip in={} tip=({}, {}) cancelled_before={} cursor_view_active={}",
+            e.in,
+            e.tip.x,
+            e.tip.y,
+            info.cancelled,
+            ht_manager != nullptr && ht_manager->cursor_view_active()
+        );
+    });
+}
+
+void onTabletProximity(CTablet::SProximityEvent e, Event::SCallbackInfo& info) {
+    HTPlugin::guardedCallback("on_tablet_proximity", [&] {
+        trace_log(
+            "[Hyprtasking][trace] tablet proximity in={} proximity=({}, {}) cancelled_before={} cursor_view_active={}",
+            e.in,
+            e.proximity.x,
+            e.proximity.y,
+            info.cancelled,
+            ht_manager != nullptr && ht_manager->cursor_view_active()
+        );
     });
 }
 
@@ -132,6 +328,7 @@ void notifyConfigChanges() {
 
 void onConfigReloaded() {
     HTPlugin::guardedCallback("on_config_reloaded", [] {
+        HTTrace::refresh();
         notifyConfigChanges();
 
         if (ht_manager == nullptr)
@@ -173,6 +370,11 @@ void initializeConfig() {
         PHANDLE,
         "plugin:hyprtasking:close_overview_on_reload",
         Hyprlang::INT {1}
+    );
+    HyprlandAPI::addConfigValue(
+        PHANDLE,
+        "plugin:hyprtasking:debug:trace",
+        Hyprlang::INT {0}
     );
 
     HyprlandAPI::addConfigValue(
@@ -239,15 +441,19 @@ void initializeConfig() {
     HyprlandAPI::addConfigValue(PHANDLE, "plugin:hyprtasking:exit_behavior", Hyprlang::STRING {""});
 
     HyprlandAPI::reloadConfig();
+    HTTrace::refresh();
 }
 
 void unregisterCallbacks() {
-    g_mouse_button_listener.reset();
+    shutdownMouseButtonHook();
     g_mouse_move_listener.reset();
     g_mouse_axis_listener.reset();
     g_touch_down_listener.reset();
     g_touch_up_listener.reset();
     g_touch_motion_listener.reset();
+    g_tablet_button_listener.reset();
+    g_tablet_tip_listener.reset();
+    g_tablet_proximity_listener.reset();
     g_swipe_begin_listener.reset();
     g_swipe_update_listener.reset();
     g_swipe_end_listener.reset();
@@ -258,23 +464,21 @@ void unregisterCallbacks() {
 
 void registerCallbacks() {
     unregisterCallbacks();
+    HTTrace::refresh();
+    trace_log(
+        "[Hyprtasking][trace] registerCallbacks installing live input listeners"
+    );
 
-    HTCompat::listen_mouse_button(g_mouse_button_listener, onMouseButton);
+    initializeMouseButtonHook();
     HTCompat::listen_mouse_move(g_mouse_move_listener, onMouseMove);
     HTCompat::listen_mouse_axis(g_mouse_axis_listener, onMouseAxis);
 
-    HTCompat::listen_touch_down(
-        g_touch_down_listener,
-        []([[maybe_unused]] ITouch::SDownEvent e, Event::SCallbackInfo i) { cancelEvent(i); }
-    );
-    HTCompat::listen_touch_up(
-        g_touch_up_listener,
-        []([[maybe_unused]] ITouch::SUpEvent e, Event::SCallbackInfo i) { cancelEvent(i); }
-    );
-    HTCompat::listen_touch_motion(
-        g_touch_motion_listener,
-        []([[maybe_unused]] ITouch::SMotionEvent e, Event::SCallbackInfo i) { cancelEvent(i); }
-    );
+    HTCompat::listen_touch_down(g_touch_down_listener, onTouchDown);
+    HTCompat::listen_touch_up(g_touch_up_listener, onTouchUp);
+    HTCompat::listen_touch_motion(g_touch_motion_listener, onTouchMotion);
+    HTCompat::listen_tablet_button(g_tablet_button_listener, onTabletButton);
+    HTCompat::listen_tablet_tip(g_tablet_tip_listener, onTabletTip);
+    HTCompat::listen_tablet_proximity(g_tablet_proximity_listener, onTabletProximity);
 
     HTCompat::listen_swipe_begin(g_swipe_begin_listener, onSwipeBegin);
     HTCompat::listen_swipe_update(g_swipe_update_listener, onSwipeUpdate);

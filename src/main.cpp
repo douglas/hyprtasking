@@ -24,11 +24,17 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     else
         ht_manager->reset();
 
-    HTPlugin::initializeConfig();
-    HTPlugin::registerDispatchers();
-    HTPlugin::registerCallbacks();
-    HTCompat::initializeRendererHooks();
-    HTPlugin::registerMonitors();
+    try {
+        HTPlugin::initializeConfig();
+        HTPlugin::registerDispatchers();
+        HTPlugin::registerCallbacks();
+        HTCompat::initializeRendererHooks();
+        HTPlugin::registerMonitors();
+    } catch (...) {
+        HTPlugin::unregisterCallbacks();
+        HTCompat::shutdownRendererHooks();
+        throw;
+    }
 
     Log::logger->log(LOG, "[Hyprtasking] Plugin initialized");
 

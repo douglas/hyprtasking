@@ -25,6 +25,7 @@ struct CompatibilityResult {
 };
 
 std::string_view supported_hyprland_minor();
+const HookSpec& input_mouse_button_spec();
 const HookSpec& render_workspace_spec();
 const HookSpec& should_render_window_spec();
 const HookSpec& render_window_spec();

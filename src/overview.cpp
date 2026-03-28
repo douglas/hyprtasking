@@ -19,6 +19,44 @@
 #include "logic/controller_state.hpp"
 #include "logic/reload_model.hpp"
 
+namespace {
+
+bool commit_selection_target(HTView& view, WORKSPACEID target_workspace_id, bool defer_activation) {
+    const PHLMONITOR monitor = view.get_monitor();
+    if (monitor == nullptr)
+        return false;
+
+    const PHLWORKSPACE workspace =
+        HTCompat::resolve_workspace_target(monitor, target_workspace_id, true);
+    if (workspace == nullptr)
+        return false;
+
+    if (!defer_activation && !HTCompat::activate_monitor_workspace_user(monitor, workspace))
+        return false;
+
+    view.set_runtime_state(true, true, false);
+    view.layout->on_hide(
+        [&view, monitor, workspace_ref = PHLWORKSPACEREF {workspace}, defer_activation](auto self) {
+            if (defer_activation) {
+                HTCompat::do_later([monitor, workspace_ref] {
+                    const PHLWORKSPACE target_workspace = workspace_ref.lock();
+                    if (target_workspace != nullptr)
+                        HTCompat::activate_monitor_workspace_user(monitor, target_workspace);
+                });
+            }
+
+            view.set_runtime_state(false, false, false);
+            view.reset_interaction_state();
+        }
+    );
+
+    HTCompat::damage_monitor(monitor);
+    HTCompat::schedule_frame_for_monitor(monitor);
+    return true;
+}
+
+}
+
 HTView::HTView(MONITORID in_monitor_id) {
     monitor_id = in_monitor_id;
     reset_interaction_state();
@@ -243,22 +281,14 @@ bool HTView::commit_selection() {
         hovered_workspace_id,
         HTCompat::workspace_id(active_workspace)
     );
-    const PHLWORKSPACE workspace =
-        HTCompat::resolve_workspace_target(monitor, target_workspace_id, true);
-    if (workspace == nullptr)
-        return false;
-    if (!HTCompat::activate_monitor_workspace_user(monitor, workspace))
-        return false;
+    return commit_selection_target(*this, target_workspace_id, false);
+}
 
-    set_runtime_state(true, true, false);
-    layout->on_hide([this](auto self) {
-        set_runtime_state(false, false, false);
-        reset_interaction_state();
-    });
-
-    HTCompat::damage_monitor(monitor);
-    HTCompat::schedule_frame_for_monitor(monitor);
-    return true;
+bool HTView::commit_mouse_selection(WORKSPACEID target_workspace_id) {
+    const PHLMONITOR monitor = get_monitor();
+    if (monitor == nullptr)
+        return false;
+    return commit_selection_target(*this, target_workspace_id, true);
 }
 
 void HTView::warp_window(Hyprlang::INT warp, PHLWINDOW window) {

@@ -41,6 +41,7 @@ core_src = [
   'src/overview.cpp',
   'src/render.cpp',
   'src/render_snapshot.cpp',
+  'src/trace.cpp',
 ]
 
 layout_src = [

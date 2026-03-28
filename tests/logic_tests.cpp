@@ -345,6 +345,34 @@ int main() {
         decideSelectEnd(false, true, true, false, true, true) == SelectEndAction::Ignore,
         "select end should ignore releases without a pending selection"
     );
+    expect(
+        shouldConsumeManagedMouseButton(true, true, false, true, true),
+        "managed overview buttons should be consumed when active"
+    );
+    expect(
+        !shouldConsumeManagedMouseButton(true, false, false, true, true),
+        "inactive overviews should not consume managed mouse buttons"
+    );
+    expect(
+        !shouldConsumeManagedMouseButton(true, true, false, true, false),
+        "unbound mouse buttons should not be consumed"
+    );
+    expect(
+        resolveClaimedMouseRelease(false, false, false) == MouseButtonResult::Ignore,
+        "unclaimed mouse releases should be ignored"
+    );
+    expect(
+        resolveClaimedMouseRelease(true, false, false) == MouseButtonResult::Consume,
+        "claimed no-op releases should stay consumed"
+    );
+    expect(
+        resolveClaimedMouseRelease(true, true, false) == MouseButtonResult::Consume,
+        "claimed drag releases should stay consumed when no passthrough is requested"
+    );
+    expect(
+        resolveClaimedMouseRelease(true, true, true) == MouseButtonResult::PassThrough,
+        "successful drag releases should allow passthrough"
+    );
 
     {
         const auto result = decideViewReload(false, false, false, false, false);

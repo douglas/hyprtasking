@@ -1,5 +1,7 @@
 #include "runtime_compat.hpp"
 
+#include "../globals.hpp"
+
 #include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/config/ConfigManager.hpp>
 #include <hyprland/src/desktop/state/FocusState.hpp>
@@ -9,6 +11,7 @@
 #include <hyprland/src/helpers/Monitor.hpp>
 #include <hyprland/src/managers/animation/AnimationManager.hpp>
 #include <hyprland/src/managers/cursor/CursorShapeOverrideController.hpp>
+#include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
 #include <hyprland/src/managers/KeybindManager.hpp>
 #include <hyprland/src/managers/SeatManager.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
@@ -186,6 +189,18 @@ void HTCompat::simulate_mouse_movement() {
     g_pInputManager->simulateMouseMovement();
 }
 
+void HTCompat::do_later(const std::function<void()>& callback) {
+    if (!callback)
+        return;
+
+    if (!g_pEventLoopManager) {
+        callback();
+        return;
+    }
+
+    g_pEventLoopManager->doLater(callback);
+}
+
 void HTCompat::close_window(PHLWINDOW window) {
     if (window == nullptr || !g_pCompositor)
         return;
@@ -259,6 +274,14 @@ void HTCompat::end_drag_controller() {
     drag_controller->dragEnd();
 }
 
+void HTCompat::invoke_mouse_button_original(void* thisptr, IPointer::SButtonEvent event) {
+    if (thisptr == nullptr || input_mouse_button_hook == nullptr)
+        return;
+
+    using origOnMouseButton = void (*)(void*, IPointer::SButtonEvent);
+    ((origOnMouseButton)input_mouse_button_hook->m_original)(thisptr, event);
+}
+
 void HTCompat::listen_mouse_button(
     CHyprSignalListener& listener,
     const std::function<void(IPointer::SButtonEvent, Event::SCallbackInfo&)>& callback
@@ -299,6 +322,27 @@ void HTCompat::listen_touch_motion(
     const std::function<void(ITouch::SMotionEvent, Event::SCallbackInfo)>& callback
 ) {
     listener = Event::bus()->m_events.input.touch.motion.listen(callback);
+}
+
+void HTCompat::listen_tablet_button(
+    CHyprSignalListener& listener,
+    const std::function<void(CTablet::SButtonEvent, Event::SCallbackInfo&)>& callback
+) {
+    listener = Event::bus()->m_events.input.tablet.button.listen(callback);
+}
+
+void HTCompat::listen_tablet_tip(
+    CHyprSignalListener& listener,
+    const std::function<void(CTablet::STipEvent, Event::SCallbackInfo&)>& callback
+) {
+    listener = Event::bus()->m_events.input.tablet.tip.listen(callback);
+}
+
+void HTCompat::listen_tablet_proximity(
+    CHyprSignalListener& listener,
+    const std::function<void(CTablet::SProximityEvent, Event::SCallbackInfo&)>& callback
+) {
+    listener = Event::bus()->m_events.input.tablet.proximity.listen(callback);
 }
 
 void HTCompat::listen_swipe_begin(

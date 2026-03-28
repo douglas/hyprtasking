@@ -6,6 +6,7 @@
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/helpers/AnimatedVariable.hpp>
 
+#include "logic/interaction_model.hpp"
 #include "logic/reload_model.hpp"
 #include "overview.hpp"
 
@@ -20,6 +21,11 @@ struct HTCursorWorkspaceContext {
 class HTManager {
   public:
     static constexpr VIEWID INVALID_VIEW_ID = -1;
+    enum mouse_interaction_t {
+        HT_MOUSE_NONE,
+        HT_MOUSE_DRAG,
+        HT_MOUSE_SELECT,
+    };
 
     HTManager();
 
@@ -49,10 +55,11 @@ class HTManager {
     void disable_runtime(std::string_view source, std::string_view reason);
     std::string runtime_disable_reason() const;
 
+    HTLogic::MouseButtonResult handle_mouse_button(unsigned int button, bool pressed);
     bool start_window_drag();
     bool end_window_drag();
     bool begin_workspace_select();
-    bool end_workspace_select();
+    bool end_workspace_select(VIEWID view_id, WORKSPACEID target_workspace_id);
     void reset_selection_state();
     bool exit_to_workspace();
     bool on_mouse_move();
@@ -79,4 +86,20 @@ class HTManager {
 
     bool has_active_view();
     bool cursor_view_active();
+
+  private:
+    void claim_mouse_button(
+        unsigned int button,
+        mouse_interaction_t interaction,
+        VIEWID view_id,
+        WORKSPACEID target_workspace_id
+    );
+    void reset_mouse_button_state();
+
+    bool mouse_button_claimed = false;
+    unsigned int claimed_mouse_button = 0;
+    mouse_interaction_t claimed_mouse_interaction = HT_MOUSE_NONE;
+    VIEWID claimed_mouse_view_id = INVALID_VIEW_ID;
+    WORKSPACEID pending_mouse_selection_workspace_id = WORKSPACE_INVALID;
+    bool drag_interaction_started = false;
 };

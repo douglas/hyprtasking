@@ -12,6 +12,7 @@ inline constexpr auto LOG = Hyprutils::CLI::LOG_DEBUG;
 
 inline HANDLE PHANDLE = nullptr;
 
+inline CFunctionHook* input_mouse_button_hook = nullptr;
 inline CFunctionHook* render_workspace_hook = nullptr;
 inline CFunctionHook* should_render_window_hook = nullptr;
 inline CFunctionHook* is_solitary_blocked_hook = nullptr;
