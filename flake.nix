@@ -28,7 +28,7 @@
       in
         pkgs.gcc14Stdenv.mkDerivation {
           pname = "hyprtasking";
-          version = "0.2";
+          version = "0.3";
 
           src = ./.;
 
