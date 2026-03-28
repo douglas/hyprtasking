@@ -15,6 +15,9 @@ jobs:
           - track: stable
             ref: v0.54.2
             strict: true
+          - track: next
+            ref: v0.54.3
+            strict: true
           - track: preview
             ref: main
             strict: false
