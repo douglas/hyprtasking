@@ -36,6 +36,11 @@ jobs:
           bash -n scripts/audit-boundary.sh
           bash -n scripts/release-check.sh
 
+      - name: Install audit dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ripgrep
+
       - name: Compat audits
         run: |
           bash scripts/audit-compat.sh "$GITHUB_WORKSPACE/hyprland"

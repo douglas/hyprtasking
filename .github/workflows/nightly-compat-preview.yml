@@ -32,6 +32,11 @@ jobs:
           ref: ${{ matrix.ref }}
           path: hyprland
 
+      - name: Install audit dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ripgrep
+
       - name: Run compat drift probes
         run: |
           set +e
