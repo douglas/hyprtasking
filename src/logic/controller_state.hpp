@@ -21,6 +21,21 @@ struct MoveExecutionDecision {
 };
 
 WorkspaceID resolveExitWorkspaceID(bool use_hovered_workspace, WorkspaceID hovered_workspace_id, WorkspaceID active_workspace_id);
+WorkspaceID resolveSelectionWorkspace(
+    WorkspaceID selected_workspace_id,
+    WorkspaceID hovered_workspace_id,
+    WorkspaceID active_workspace_id
+);
+WorkspaceID
+resolveNavigationSourceWorkspace(WorkspaceID selected_workspace_id, WorkspaceID active_workspace_id);
+WorkspaceID
+resolveKeyboardSelectionWorkspace(WorkspaceID keyboard_workspace_id, WorkspaceID active_workspace_id);
+WorkspaceID resolveVisualWorkspaceID(
+    bool hover_active,
+    WorkspaceID hovered_workspace_id,
+    WorkspaceID keyboard_workspace_id,
+    WorkspaceID fallback_workspace_id
+);
 WorkspaceID
 resolveMoveSourceWorkspace(bool move_window, WorkspaceID active_workspace_id, std::optional<WorkspaceID> hovered_workspace_id);
 bool shouldMoveHoveredWindow(bool move_window, bool has_hovered_window);

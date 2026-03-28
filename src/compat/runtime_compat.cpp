@@ -207,6 +207,14 @@ void HTCompat::set_mouse_bind_mode(eMouseBindMode mode) {
     g_pKeybindManager->changeMouseBindMode(mode);
 }
 
+bool HTCompat::begin_drag_window(PHLWINDOW window, eMouseBindMode mode) {
+    if (window == nullptr || !g_layoutManager)
+        return false;
+
+    g_layoutManager->beginDragTarget(window->layoutTarget(), mode);
+    return drag_controller_target() != nullptr;
+}
+
 SP<Layout::ITarget> HTCompat::drag_controller_target() {
     if (!g_layoutManager)
         return SP<Layout::ITarget> {};

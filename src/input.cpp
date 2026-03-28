@@ -61,14 +61,18 @@ bool HTManager::start_window_drag() {
 
     HTScopedMonitorWorkspace restore_workspace(cursor_monitor, true);
     if (!HTCompat::activate_monitor_workspace_internal(cursor_monitor, cursor_workspace))
-        return false;
+        return true;
+    HTScopedWorkspaceVisibility visible_workspace(cursor_workspace, true);
 
     const auto workspace_coords =
         cursor_view->layout->global_to_workspace_monitor_coords(mouse_coords, workspace_id);
     if (!workspace_coords.has_value())
-        return false;
+        return true;
+    const PHLWINDOW hovered_window = get_window_from_cursor(false);
+    if (hovered_window == nullptr)
+        return true;
     if (!HTCompat::warp_pointer(*workspace_coords))
-        return false;
+        return true;
 
     bool reset_mouse_bind_mode = false;
     CScopeGuard reset_drag_mode([&reset_mouse_bind_mode] {
@@ -78,12 +82,17 @@ bool HTManager::start_window_drag() {
 
     HTCompat::set_mouse_bind_mode(MBIND_MOVE);
     reset_mouse_bind_mode = true;
+
+    if (HTCompat::drag_controller_target() == nullptr
+        && !HTCompat::begin_drag_window(hovered_window, MBIND_MOVE))
+        return true;
+
     if (!HTCompat::warp_pointer(mouse_coords))
-        return false;
+        return true;
 
     const SP<Layout::ITarget> target = HTCompat::drag_controller_target();
     if (target == nullptr)
-        return false;
+        return true;
 
     const PHLWINDOW dragged_window = target->window();
     if (dragged_window != nullptr) {
@@ -91,10 +100,10 @@ bool HTManager::start_window_drag() {
             const auto inverse_drag_scale =
                 HTLogic::inverseDragWindowScale(cursor_view->layout->drag_window_scale());
             if (!inverse_drag_scale.has_value())
-                return false;
+                return true;
             const PHLMONITOR dragged_monitor = HTCompat::window_monitor(dragged_window);
             if (dragged_monitor == nullptr)
-                return false;
+                return true;
             const Vector2D dragged_monitor_pos = HTCompat::monitor_position(dragged_monitor);
 
             const Vector2D pre_pos = cursor_view->layout->local_ws_unscaled_to_global(
@@ -225,6 +234,7 @@ bool HTManager::end_window_drag() {
     HTScopedMonitorWorkspace restore_workspace(cursor_monitor, true);
     if (!HTCompat::activate_monitor_workspace_internal(cursor_monitor, cursor_workspace))
         return false;
+    HTScopedWorkspaceVisibility visible_workspace(cursor_workspace, true);
 
     HTCompat::move_window_to_workspace(dragged_window, cursor_workspace);
     HTCompat::set_window_real_position(dragged_window, tp_pos);
@@ -311,7 +321,33 @@ bool HTManager::exit_to_workspace() {
 }
 
 bool HTManager::on_mouse_move() {
-    return false;
+    const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace(false);
+    const PHLMONITOR cursor_monitor = cursor_context.monitor;
+    const PHTVIEW cursor_view = cursor_context.view;
+    const bool manages_mouse = cursor_view != nullptr && cursor_view->layout->should_manage_mouse();
+
+    if (cursor_monitor == nullptr || cursor_view == nullptr)
+        return false;
+    if (!cursor_view->active || cursor_view->closing || !manages_mouse)
+        return false;
+
+    if (cursor_context.workspace == nullptr) {
+        if (cursor_view->hover_active) {
+            cursor_view->clear_hover_workspace();
+            HTCompat::damage_monitor(cursor_monitor);
+            HTCompat::schedule_frame_for_monitor(cursor_monitor);
+        }
+        return true;
+    }
+
+    if (!cursor_view->hover_active
+        || cursor_view->hovered_workspace_id != cursor_context.workspace_id) {
+        cursor_view->set_hovered_workspace(cursor_context.workspace_id);
+        HTCompat::damage_monitor(cursor_monitor);
+        HTCompat::schedule_frame_for_monitor(cursor_monitor);
+    }
+
+    return true;
 }
 
 bool HTManager::on_mouse_axis(double delta) {

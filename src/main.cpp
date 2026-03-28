@@ -32,7 +32,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
 
     Log::logger->log(LOG, "[Hyprtasking] Plugin initialized");
 
-    return {"Hyprtasking", "A workspace management plugin", "raybbian", "0.1"};
+    return {"Hyprtasking", "A workspace management plugin", "douglas", "0.1"};
 }
 
 APICALL EXPORT void PLUGIN_EXIT() {

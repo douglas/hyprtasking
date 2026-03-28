@@ -121,6 +121,7 @@ PHLWINDOW HTManager::get_window_from_cursor(bool return_focused) {
     HTScopedMonitorWorkspace restore_workspace(cursor_monitor, true);
     if (!HTCompat::activate_monitor_workspace_internal(cursor_monitor, hovered_workspace))
         return nullptr;
+    HTScopedWorkspaceVisibility visible_workspace(hovered_workspace, true);
 
     const PHLWINDOW hovered_window = HTCompat::hover_target_window_at(*ws_coords);
 

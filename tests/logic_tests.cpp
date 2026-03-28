@@ -194,6 +194,46 @@ int main() {
         resolveExitWorkspaceID(true, -1, 3) == 3,
         "exit should fall back to the active workspace when hovered is invalid"
     );
+    expect(
+        resolveSelectionWorkspace(8, 9, 3) == 8,
+        "selection should prefer the keyboard-selected workspace"
+    );
+    expect(
+        resolveSelectionWorkspace(-1, 9, 3) == 9,
+        "selection should fall back to hovered workspace when no keyboard selection exists"
+    );
+    expect(
+        resolveSelectionWorkspace(-1, -1, 3) == 3,
+        "selection should fall back to the active workspace"
+    );
+    expect(
+        resolveNavigationSourceWorkspace(8, 3) == 8,
+        "navigation should prefer the selected workspace"
+    );
+    expect(
+        resolveNavigationSourceWorkspace(-1, 3) == 3,
+        "navigation should fall back to the active workspace"
+    );
+    expect(
+        resolveKeyboardSelectionWorkspace(8, 3) == 8,
+        "keyboard selection should prefer remembered keyboard workspaces"
+    );
+    expect(
+        resolveKeyboardSelectionWorkspace(-1, 3) == 3,
+        "keyboard selection should fall back to the active workspace"
+    );
+    expect(
+        resolveVisualWorkspaceID(true, 9, 3, 1) == 9,
+        "visual selection should prefer hovered workspace when hover is active"
+    );
+    expect(
+        resolveVisualWorkspaceID(false, 9, 3, 1) == 3,
+        "visual selection should prefer keyboard selection when hover is inactive"
+    );
+    expect(
+        resolveVisualWorkspaceID(false, -1, -1, 1) == 1,
+        "visual selection should fall back when no hover or keyboard selection exists"
+    );
 
     expect(
         resolveMoveSourceWorkspace(false, 5, std::optional<long> {7}) == 5,

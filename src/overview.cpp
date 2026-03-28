@@ -21,6 +21,7 @@
 
 HTView::HTView(MONITORID in_monitor_id) {
     monitor_id = in_monitor_id;
+    reset_interaction_state();
     set_runtime_state(false, false, false);
 
     change_layout(HTConfig::value<Hyprlang::STRING>("layout"));
@@ -54,12 +55,15 @@ void HTView::do_exit_behavior(bool exit_on_mouse) {
 
     const HTCursorWorkspaceContext cursor_context =
         ht_manager == nullptr ? HTCursorWorkspaceContext {} : ht_manager->resolve_cursor_workspace(false);
-    const WORKSPACEID hovered_workspace_id =
+    const WORKSPACEID mouse_workspace_id =
         cursor_context.monitor == monitor ? cursor_context.workspace_id : WORKSPACE_INVALID;
-
     const int EXIT_ON_HOVERED = HTConfig::value<Hyprlang::INT>("exit_on_hovered");
+    const bool use_hovered_workspace = exit_on_mouse || (EXIT_ON_HOVERED && hover_active);
+    const WORKSPACEID hovered_workspace_id =
+        exit_on_mouse ? mouse_workspace_id : (hover_active ? this->hovered_workspace_id : WORKSPACE_INVALID);
+
     const WORKSPACEID ws_id = HTLogic::resolveExitWorkspaceID(
-        exit_on_mouse || EXIT_ON_HOVERED,
+        use_hovered_workspace,
         hovered_workspace_id,
         HTCompat::workspace_id(active_workspace)
     );
@@ -79,6 +83,8 @@ void HTView::show() {
     if (active_workspace == nullptr)
         return;
 
+    set_keyboard_workspace(HTCompat::workspace_id(active_workspace));
+    clear_hover_workspace();
     set_runtime_state(true, false, false);
 
     layout->on_show();
@@ -101,6 +107,7 @@ void HTView::hide(bool exit_on_mouse) {
 
     layout->on_hide([this](auto self) {
         set_runtime_state(false, false, false);
+        reset_interaction_state();
     });
 
     HTCompat::damage_monitor(monitor);
@@ -128,11 +135,66 @@ void HTView::set_runtime_state(bool new_active, bool new_closing, bool new_navig
         ht_manager->refresh_cursor_override();
 }
 
+void HTView::reset_interaction_state() {
+    keyboard_workspace_id = WORKSPACE_INVALID;
+    selected_workspace_id = WORKSPACE_INVALID;
+    clear_hover_workspace();
+}
+
+void HTView::clear_hover_workspace() {
+    hover_active = false;
+    hovered_workspace_id = WORKSPACE_INVALID;
+}
+
+void HTView::set_hovered_workspace(WORKSPACEID workspace_id) {
+    if (workspace_id == WORKSPACE_INVALID) {
+        clear_hover_workspace();
+        return;
+    }
+
+    hover_active = true;
+    hovered_workspace_id = workspace_id;
+}
+
+void HTView::set_keyboard_workspace(WORKSPACEID workspace_id) {
+    keyboard_workspace_id = workspace_id;
+    selected_workspace_id = workspace_id;
+}
+
+void HTView::set_selected_workspace_id(WORKSPACEID ws_id) {
+    selected_workspace_id = ws_id;
+}
+
+WORKSPACEID HTView::selected_workspace_id_or(WORKSPACEID fallback) const {
+    if (selected_workspace_id == WORKSPACE_INVALID)
+        return fallback;
+
+    return selected_workspace_id;
+}
+
+WORKSPACEID
+HTView::keyboard_selection_workspace_id(WORKSPACEID fallback_workspace_id) const {
+    return HTLogic::resolveNavigationSourceWorkspace(
+        selected_workspace_id,
+        fallback_workspace_id
+    );
+}
+
+WORKSPACEID HTView::visual_workspace_id(WORKSPACEID fallback_workspace_id) const {
+    return HTLogic::resolveVisualWorkspaceID(
+        hover_active,
+        hovered_workspace_id,
+        selected_workspace_id,
+        fallback_workspace_id
+    );
+}
+
 void HTView::cancel_runtime_state() {
     if (layout != nullptr)
         layout->cancel_animation_callbacks();
 
     set_runtime_state(false, false, false);
+    reset_interaction_state();
 }
 
 bool HTView::has_runtime_activity() const {
@@ -166,6 +228,39 @@ void HTView::reload_config(bool close_overview_on_reload, const std::string& new
     }
 }
 
+bool HTView::commit_selection() {
+    const PHLMONITOR monitor = get_monitor();
+    if (monitor == nullptr)
+        return false;
+    const PHLWORKSPACE active_workspace = HTCompat::active_monitor_workspace(monitor);
+    if (active_workspace == nullptr)
+        return false;
+
+    const WORKSPACEID hovered_workspace_id =
+        hover_active ? this->hovered_workspace_id : WORKSPACE_INVALID;
+    const WORKSPACEID target_workspace_id = HTLogic::resolveSelectionWorkspace(
+        selected_workspace_id,
+        hovered_workspace_id,
+        HTCompat::workspace_id(active_workspace)
+    );
+    const PHLWORKSPACE workspace =
+        HTCompat::resolve_workspace_target(monitor, target_workspace_id, true);
+    if (workspace == nullptr)
+        return false;
+    if (!HTCompat::activate_monitor_workspace_user(monitor, workspace))
+        return false;
+
+    set_runtime_state(true, true, false);
+    layout->on_hide([this](auto self) {
+        set_runtime_state(false, false, false);
+        reset_interaction_state();
+    });
+
+    HTCompat::damage_monitor(monitor);
+    HTCompat::schedule_frame_for_monitor(monitor);
+    return true;
+}
+
 void HTView::warp_window(Hyprlang::INT warp, PHLWINDOW window) {
     if (warp > 0 && HTCompat::can_warp_window_cursor(window))
         HTCompat::warp_window_cursor(window, warp == 2);
@@ -181,6 +276,9 @@ void HTView::move_id(WORKSPACEID ws_id, bool move_window) {
     const PHLWORKSPACE active_workspace = HTCompat::active_monitor_workspace(monitor);
     if (active_workspace == nullptr)
         return;
+    const WORKSPACEID active_workspace_id = HTCompat::workspace_id(active_workspace);
+    const WORKSPACEID current_workspace_id =
+        keyboard_selection_workspace_id(active_workspace_id);
 
     const PHLWINDOW hovered_window = move_window ? ht_manager->get_window_from_cursor() : nullptr;
     const bool has_hovered_window = hovered_window != nullptr;
@@ -211,12 +309,14 @@ void HTView::move_id(WORKSPACEID ws_id, bool move_window) {
         warp = *CConfigValue<Hyprlang::INT>("cursor:warp_on_change_workspace");
     }
     warp_window(warp, hovered_window);
+    set_keyboard_workspace(ws_id);
+    clear_hover_workspace();
 
     const bool was_active = active;
     const bool was_closing = closing;
     set_runtime_state(was_active, was_closing, true);
     layout->on_move(
-        HTCompat::workspace_id(active_workspace),
+        current_workspace_id,
         HTCompat::workspace_id(other_workspace),
         [this, was_active, was_closing](auto self) {
             set_runtime_state(was_active, was_closing, false);
@@ -231,6 +331,8 @@ void HTView::move(std::string arg, bool move_window) {
     const PHLWORKSPACE active_workspace = HTCompat::active_monitor_workspace(monitor);
     if (active_workspace == nullptr)
         return;
+    const WORKSPACEID navigation_workspace_id =
+        keyboard_selection_workspace_id(HTCompat::workspace_id(active_workspace));
     const PHLWINDOW hovered_window = move_window ? ht_manager->get_window_from_cursor() : nullptr;
     const std::optional<WORKSPACEID> hovered_workspace_id =
         hovered_window == nullptr ? std::nullopt : std::optional<WORKSPACEID> {hovered_window->workspaceID()};
@@ -239,7 +341,7 @@ void HTView::move(std::string arg, bool move_window) {
     const WORKSPACEID source_ws_id =
         HTLogic::resolveMoveSourceWorkspace(
             move_window,
-            HTCompat::workspace_id(active_workspace),
+            navigation_workspace_id,
             hovered_workspace_id
         );
     if (source_ws_id == WORKSPACE_INVALID)
@@ -254,6 +356,40 @@ void HTView::move(std::string arg, bool move_window) {
         return;
 
     move_id(id, move_window);
+}
+
+bool HTView::navigate_selection(const std::string& arg) {
+    if (arg != "up" && arg != "down" && arg != "left" && arg != "right")
+        return false;
+
+    const PHLMONITOR monitor = get_monitor();
+    if (monitor == nullptr)
+        return false;
+    const PHLWORKSPACE active_workspace = HTCompat::active_monitor_workspace(monitor);
+    if (active_workspace == nullptr)
+        return false;
+
+    const WORKSPACEID source_ws_id = HTLogic::resolveNavigationSourceWorkspace(
+        selected_workspace_id,
+        HTCompat::workspace_id(active_workspace)
+    );
+
+    layout->build_overview_layout(HT_VIEW_CLOSED);
+    const auto* ws_layout = layout->find_layout_workspace(source_ws_id);
+    if (ws_layout == nullptr)
+        return false;
+
+    std::string direction = arg;
+    const WORKSPACEID target_ws_id =
+        layout->get_ws_id_in_direction(ws_layout->x, ws_layout->y, direction);
+    if (target_ws_id == WORKSPACE_INVALID)
+        return true;
+
+    set_selected_workspace_id(target_ws_id);
+    clear_hover_workspace();
+    HTCompat::damage_monitor(monitor);
+    HTCompat::schedule_frame_for_monitor(monitor);
+    return true;
 }
 
 PHLMONITOR HTView::get_monitor() {

@@ -336,6 +336,9 @@ void HTLayoutLinear::render() {
     const PHLWORKSPACE start_workspace = render_snapshot.has_value()
         ? render_snapshot->active_workspace
         : HTCompat::active_monitor_workspace(monitor);
+    const WORKSPACEID selected_workspace_id = par_view->visual_workspace_id(
+        start_workspace == nullptr ? WORKSPACE_INVALID : HTCompat::workspace_id(start_workspace)
+    );
 
 
     HTCompat::damage_monitor(monitor);
@@ -406,7 +409,8 @@ void HTLayoutLinear::render() {
         if (global_box.intersection(global_mon_box).empty())
             continue;
 
-        const CGradientValueData border_col = workspace == big_ws ? *ACTIVECOL : *INACTIVECOL;
+        const CGradientValueData border_col =
+            ws_id == selected_workspace_id ? *ACTIVECOL : *INACTIVECOL;
         CBox border_box = ws_layout.box;
 
         CBorderPassElement::SBorderData data;

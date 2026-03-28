@@ -13,6 +13,49 @@ WorkspaceID resolveExitWorkspaceID(
     return active_workspace_id;
 }
 
+WorkspaceID resolveSelectionWorkspace(
+    WorkspaceID selected_workspace_id,
+    WorkspaceID hovered_workspace_id,
+    WorkspaceID active_workspace_id
+) {
+    if (selected_workspace_id >= 0)
+        return selected_workspace_id;
+    if (hovered_workspace_id >= 0)
+        return hovered_workspace_id;
+
+    return active_workspace_id;
+}
+
+WorkspaceID
+resolveNavigationSourceWorkspace(WorkspaceID selected_workspace_id, WorkspaceID active_workspace_id) {
+    if (selected_workspace_id >= 0)
+        return selected_workspace_id;
+
+    return active_workspace_id;
+}
+
+WorkspaceID
+resolveKeyboardSelectionWorkspace(WorkspaceID keyboard_workspace_id, WorkspaceID active_workspace_id) {
+    if (keyboard_workspace_id >= 0)
+        return keyboard_workspace_id;
+
+    return active_workspace_id;
+}
+
+WorkspaceID resolveVisualWorkspaceID(
+    bool hover_active,
+    WorkspaceID hovered_workspace_id,
+    WorkspaceID keyboard_workspace_id,
+    WorkspaceID fallback_workspace_id
+) {
+    if (hover_active && hovered_workspace_id >= 0)
+        return hovered_workspace_id;
+    if (keyboard_workspace_id >= 0)
+        return keyboard_workspace_id;
+
+    return fallback_workspace_id;
+}
+
 WorkspaceID resolveMoveSourceWorkspace(
     bool move_window,
     WorkspaceID active_workspace_id,

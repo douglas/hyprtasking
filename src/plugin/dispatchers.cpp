@@ -95,6 +95,44 @@ SDispatchResult dispatchMove(std::string arg) {
     });
 }
 
+SDispatchResult dispatchNavigate(std::string arg) {
+    return guardedDispatch("dispatch_navigate", [&]() -> SDispatchResult {
+        if (ht_manager == nullptr)
+            return {.success = false, .error = "ht_manager is null"};
+        if (!ht_manager->runtime_enabled())
+            return {.success = false, .error = "runtime disabled"};
+
+        const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
+        if (cursor_view == nullptr)
+            return {.success = false, .error = "cursor_view is null"};
+        if (!cursor_view->active)
+            return {.success = false, .error = "selection unavailable"};
+
+        if (!cursor_view->navigate_selection(arg))
+            return {.success = false, .error = "invalid arg"};
+        return {};
+    });
+}
+
+SDispatchResult dispatchCommitSelection([[maybe_unused]] std::string arg) {
+    return guardedDispatch("dispatch_commit_selection", [&]() -> SDispatchResult {
+        if (ht_manager == nullptr)
+            return {.success = false, .error = "ht_manager is null"};
+        if (!ht_manager->runtime_enabled())
+            return {.success = false, .error = "runtime disabled"};
+
+        const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
+        if (cursor_view == nullptr)
+            return {.success = false, .error = "cursor_view is null"};
+        if (!cursor_view->active)
+            return {.success = false, .error = "selection unavailable"};
+
+        if (!cursor_view->commit_selection())
+            return {.success = false, .error = "selection unavailable"};
+        return {};
+    });
+}
+
 SDispatchResult dispatchMoveWindow(std::string arg) {
     return guardedDispatch("dispatch_move_window", [&]() -> SDispatchResult {
         if (ht_manager == nullptr)
@@ -139,6 +177,8 @@ void registerDispatchers() {
     HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:if_not_active", dispatchIfNotActive);
     HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:if_active", dispatchIfActive);
     HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:toggle", dispatchToggleView);
+    HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:navigate", dispatchNavigate);
+    HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:commit_selection", dispatchCommitSelection);
     HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:move", dispatchMove);
     HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:movewindow", dispatchMoveWindow);
     HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:killhovered", dispatchKillHover);

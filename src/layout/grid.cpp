@@ -350,6 +350,9 @@ void HTLayoutGrid::render() {
     const PHLWORKSPACE start_workspace = render_snapshot.has_value()
         ? render_snapshot->active_workspace
         : HTCompat::active_monitor_workspace(monitor);
+    const WORKSPACEID selected_workspace_id = par_view->visual_workspace_id(
+        start_workspace == nullptr ? WORKSPACE_INVALID : HTCompat::workspace_id(start_workspace)
+    );
 
 
     HTCompat::damage_monitor(monitor);
@@ -396,7 +399,7 @@ void HTLayoutGrid::render() {
             continue;
 
         const CGradientValueData border_col =
-            HTCompat::workspace_id(start_workspace) == ws_id ? *ACTIVECOL : *INACTIVECOL;
+            selected_workspace_id == ws_id ? *ACTIVECOL : *INACTIVECOL;
         CBox border_box = ws_layout.box;
 
         CBorderPassElement::SBorderData data;
@@ -442,7 +445,10 @@ void HTLayoutGrid::render() {
             if (HTCompat::monitor_transform(monitor) % 2 == 1)
                 std::swap(render_box.w, render_box.h);
 
-            const CGradientValueData border_col = *ACTIVECOL;
+            const CGradientValueData border_col =
+                selected_workspace_id == HTCompat::workspace_id(start_workspace)
+                    ? *ACTIVECOL
+                    : *INACTIVECOL;
             CBox border_box = ws_box;
 
             CBorderPassElement::SBorderData data;

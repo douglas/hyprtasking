@@ -50,6 +50,7 @@ void simulate_mouse_movement();
 void close_window(PHLWINDOW window);
 void move_window_to_workspace(PHLWINDOW window, PHLWORKSPACE workspace);
 void set_mouse_bind_mode(eMouseBindMode mode);
+bool begin_drag_window(PHLWINDOW window, eMouseBindMode mode);
 SP<Layout::ITarget> drag_controller_target();
 bool drag_controller_is_tiled();
 eMouseBindMode drag_controller_mode();
