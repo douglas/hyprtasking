@@ -9,6 +9,7 @@ PRINT_MANUAL_CHECKLIST=${PRINT_MANUAL_CHECKLIST:-1}
 HYPRLAND_SOURCE=${HYPRLAND_SOURCE:-}
 MANUAL_SCENARIO=${MANUAL_SCENARIO:-all}
 RELEASE_CHECK_FORMAT=${RELEASE_CHECK_FORMAT:-text}
+RELEASE_MODE=${RELEASE_MODE:-full}
 VERSION_CONTRACT_JSON="null"
 STAGE_NAMES=()
 STAGE_EXIT_CODES=()
@@ -17,6 +18,7 @@ FAILED_STAGE_EXIT_CODE=0
 FAILED_STAGE_OUTPUT=""
 AUDIT_JSON="null"
 AUDIT_SURFACE_JSON="null"
+COMPAT_COVERAGE_JSON="null"
 BOUNDARY_JSON="null"
 MANUAL_CHECKLIST_JSON="null"
 
@@ -88,6 +90,7 @@ emit_json_result() {
 
   printf '{'
   printf '"status":%s,' "$(json_string "$status")"
+  printf '"release_mode":%s,' "$(json_string "$RELEASE_MODE")"
   printf '"build_dir":%s,' "$(json_string "$BUILD_DIR")"
   printf '"smoke_mode":%s,' "$(json_string "$SMOKE_MODE")"
   printf '"manual_scenario":%s,' "$(json_string "$MANUAL_SCENARIO")"
@@ -100,6 +103,7 @@ emit_json_result() {
   printf '"version_contract":%s,' "$VERSION_CONTRACT_JSON"
   printf '"compat":%s,' "$AUDIT_JSON"
   printf '"compat_surface":%s,' "$AUDIT_SURFACE_JSON"
+  printf '"compat_coverage":%s,' "$COMPAT_COVERAGE_JSON"
   printf '"boundary":%s' "$BOUNDARY_JSON"
   printf '},'
   printf '"manual_checklist":%s,' "$MANUAL_CHECKLIST_JSON"
@@ -129,27 +133,34 @@ if [[ ! -d "$BUILD_DIR" ]]; then
   exit 1
 fi
 
-if [[ "$RELEASE_CHECK_FORMAT" == "json" ]]; then
-  if [[ -n "$HYPRLAND_SOURCE" ]]; then
-    VERSION_CONTRACT_JSON="$(
-      env CHECK_FORMAT=json bash "$SCRIPT_DIR/check-version-contract.sh" "$HYPRLAND_SOURCE"
-    )"
-    run_stage version-contract env "CHECK_FORMAT=json" bash "$SCRIPT_DIR/check-version-contract.sh" "$HYPRLAND_SOURCE"
+if [[ "$RELEASE_MODE" != "full" && "$RELEASE_MODE" != "offline" && "$RELEASE_MODE" != "live" ]]; then
+  printf 'Invalid RELEASE_MODE: %s (expected one of: full, offline, live)\n' "$RELEASE_MODE" >&2
+  exit 1
+fi
+
+if [[ "$RELEASE_MODE" != "offline" ]]; then
+  if [[ "$RELEASE_CHECK_FORMAT" == "json" ]]; then
+    if [[ -n "$HYPRLAND_SOURCE" ]]; then
+      VERSION_CONTRACT_JSON="$(
+        env CHECK_FORMAT=json bash "$SCRIPT_DIR/check-version-contract.sh" "$HYPRLAND_SOURCE"
+      )"
+      run_stage version-contract env "CHECK_FORMAT=json" bash "$SCRIPT_DIR/check-version-contract.sh" "$HYPRLAND_SOURCE"
+    else
+      VERSION_CONTRACT_JSON="$(
+        env CHECK_FORMAT=json bash "$SCRIPT_DIR/check-version-contract.sh"
+      )"
+      run_stage version-contract env "CHECK_FORMAT=json" bash "$SCRIPT_DIR/check-version-contract.sh"
+    fi
   else
-    VERSION_CONTRACT_JSON="$(
-      env CHECK_FORMAT=json bash "$SCRIPT_DIR/check-version-contract.sh"
-    )"
-    run_stage version-contract env "CHECK_FORMAT=json" bash "$SCRIPT_DIR/check-version-contract.sh"
-  fi
-else
-  if [[ -n "$HYPRLAND_SOURCE" ]]; then
-    run_stage version-contract bash "$SCRIPT_DIR/check-version-contract.sh" "$HYPRLAND_SOURCE"
-  else
-    run_stage version-contract bash "$SCRIPT_DIR/check-version-contract.sh"
+    if [[ -n "$HYPRLAND_SOURCE" ]]; then
+      run_stage version-contract bash "$SCRIPT_DIR/check-version-contract.sh" "$HYPRLAND_SOURCE"
+    else
+      run_stage version-contract bash "$SCRIPT_DIR/check-version-contract.sh"
+    fi
   fi
 fi
 
-if [[ -n "$HYPRLAND_SOURCE" ]]; then
+if [[ -n "$HYPRLAND_SOURCE" && "$RELEASE_MODE" != "live" ]]; then
   if [[ "$RELEASE_CHECK_FORMAT" == "json" ]]; then
     AUDIT_JSON="$(
       env AUDIT_FORMAT=json bash "$SCRIPT_DIR/audit-compat.sh" "$HYPRLAND_SOURCE"
@@ -165,27 +176,40 @@ if [[ -n "$HYPRLAND_SOURCE" ]]; then
   fi
 fi
 
-if [[ "$RELEASE_CHECK_FORMAT" == "json" ]]; then
-  BOUNDARY_JSON="$(
-    env AUDIT_BOUNDARY_FORMAT=json bash "$SCRIPT_DIR/audit-boundary.sh"
-  )"
-  run_stage boundary env "AUDIT_BOUNDARY_FORMAT=json" bash "$SCRIPT_DIR/audit-boundary.sh"
-else
-run_stage boundary bash "$SCRIPT_DIR/audit-boundary.sh"
-fi
-run_stage compile meson compile -C "$BUILD_DIR"
-run_stage test meson test -C "$BUILD_DIR"
-run_stage load-unload bash "$SCRIPT_DIR/smoke-live.sh" load-unload
-run_stage dispatchers bash "$SCRIPT_DIR/smoke-live.sh" dispatchers
-run_stage smoke env "PRINT_MANUAL_FOLLOW_UP=0" bash "$SCRIPT_DIR/smoke-live.sh" "$SMOKE_MODE"
-
-if [[ "$PRINT_MANUAL_CHECKLIST" == "1" ]]; then
+if [[ "$RELEASE_MODE" != "live" ]]; then
   if [[ "$RELEASE_CHECK_FORMAT" == "json" ]]; then
-    MANUAL_CHECKLIST_JSON="$(
-      env CHECKLIST_FORMAT=json bash "$SCRIPT_DIR/manual-runtime-check.sh" "$MANUAL_SCENARIO"
+    COMPAT_COVERAGE_JSON="$(
+      env AUDIT_COVERAGE_FORMAT=json bash "$SCRIPT_DIR/audit-compat-coverage.sh"
     )"
+    run_stage compat-coverage env "AUDIT_COVERAGE_FORMAT=json" bash "$SCRIPT_DIR/audit-compat-coverage.sh"
+  else
+  run_stage compat-coverage bash "$SCRIPT_DIR/audit-compat-coverage.sh"
   fi
-  run_stage manual bash "$SCRIPT_DIR/manual-runtime-check.sh" "$MANUAL_SCENARIO"
+  if [[ "$RELEASE_CHECK_FORMAT" == "json" ]]; then
+    BOUNDARY_JSON="$(
+      env AUDIT_BOUNDARY_FORMAT=json bash "$SCRIPT_DIR/audit-boundary.sh"
+    )"
+    run_stage boundary env "AUDIT_BOUNDARY_FORMAT=json" bash "$SCRIPT_DIR/audit-boundary.sh"
+  else
+    run_stage boundary bash "$SCRIPT_DIR/audit-boundary.sh"
+  fi
+  run_stage compile meson compile -C "$BUILD_DIR"
+  run_stage test meson test -C "$BUILD_DIR"
+fi
+
+if [[ "$RELEASE_MODE" != "offline" ]]; then
+  run_stage load-unload bash "$SCRIPT_DIR/smoke-live.sh" load-unload
+  run_stage dispatchers bash "$SCRIPT_DIR/smoke-live.sh" dispatchers
+  run_stage smoke env "PRINT_MANUAL_FOLLOW_UP=0" bash "$SCRIPT_DIR/smoke-live.sh" "$SMOKE_MODE"
+
+  if [[ "$PRINT_MANUAL_CHECKLIST" == "1" ]]; then
+    if [[ "$RELEASE_CHECK_FORMAT" == "json" ]]; then
+      MANUAL_CHECKLIST_JSON="$(
+        env CHECKLIST_FORMAT=json bash "$SCRIPT_DIR/manual-runtime-check.sh" "$MANUAL_SCENARIO"
+      )"
+    fi
+    run_stage manual bash "$SCRIPT_DIR/manual-runtime-check.sh" "$MANUAL_SCENARIO"
+  fi
 fi
 
 emit_json_result "ok"

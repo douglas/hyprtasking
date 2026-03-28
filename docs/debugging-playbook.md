@@ -106,6 +106,7 @@ Use:
 ```bash
 bash scripts/smoke-live.sh dispatchers
 bash scripts/smoke-live.sh load-unload
+hyprctl dispatch hyprtasking:health json
 ```
 
 Start in:
@@ -314,6 +315,12 @@ For a single full maintenance gate:
 bash scripts/release-check.sh
 ```
 
+For an offline gate that skips live compositor/runtime stages:
+
+```bash
+RELEASE_MODE=offline HYPRLAND_SOURCE=/path/to/Hyprland bash scripts/release-check.sh
+```
+
 For a release-prep run against a matching Hyprland source tree:
 
 ```bash
@@ -330,11 +337,12 @@ The important point is not just to run the script, but to use its stage order:
 
 1. version contract
 2. compat audits
-3. boundary audit
-4. compile and tests
-5. load/unload and dispatcher smoke
-6. live smoke
-7. manual checklist
+3. compat coverage audit
+4. boundary audit
+5. compile and tests
+6. load/unload and dispatcher smoke
+7. live smoke
+8. manual checklist
 
 That order makes it much easier to distinguish architecture drift from runtime
 interaction regressions.

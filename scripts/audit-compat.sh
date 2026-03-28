@@ -8,6 +8,8 @@ AUDIT_FORMAT=${AUDIT_FORMAT:-text}
 EXIT_MISSING_FILE=2
 EXIT_UNSUPPORTED_VERSION=3
 EXIT_CONTRACT_DRIFT=4
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+source "$SCRIPT_DIR/compat-contract-manifest.sh"
 
 print_out() {
   if [[ "$AUDIT_FORMAT" != "json" ]]; then
@@ -33,6 +35,22 @@ json_escape() {
 
 json_string() {
   printf '"%s"' "$(json_escape "$1")"
+}
+
+pattern_to_loose_regex() {
+  local literal=$1
+  local escaped
+  escaped="$(printf '%s' "$literal" | sed -E 's/[][(){}.^$+*?|\\]/\\&/g')"
+  escaped="$(printf '%s' "$escaped" | sed -E 's/[[:space:]]+/[[:space:]]+/g')"
+  printf '%s' "$escaped"
+}
+
+contract_pattern_matches() {
+  local literal=$1
+  local path=$2
+  local regex
+  regex="$(pattern_to_loose_regex "$literal")"
+  rg -q -U "$regex" "$path"
 }
 
 emit_json_result() {
@@ -91,7 +109,7 @@ require_match() {
   local path=$2
   local label=$3
 
-  if ! rg -q --fixed-strings "$pattern" "$path"; then
+  if ! contract_pattern_matches "$pattern" "$path"; then
     print_err "Missing $label in $path\n"
     return 1
   fi
@@ -110,33 +128,13 @@ check_contract() {
   fi
 }
 
-PLUGIN_API_HPP="$HYPRLAND_SOURCE/src/plugins/PluginAPI.hpp"
-PLUGIN_API_CPP="$HYPRLAND_SOURCE/src/plugins/PluginAPI.cpp"
-PLUGIN_SYSTEM_CPP="$HYPRLAND_SOURCE/src/plugins/PluginSystem.cpp"
-RENDERER_CPP="$HYPRLAND_SOURCE/src/render/Renderer.cpp"
-MONITOR_HPP="$HYPRLAND_SOURCE/src/helpers/Monitor.hpp"
 HYPRLAND_PC="$HYPRLAND_SOURCE/hyprland.pc.in"
 VERSION_FILE="$HYPRLAND_SOURCE/VERSION"
-CHECK_LABELS=(
-  "public version API"
-  "version API implementation"
-  "signature fallback API"
-  "signature fallback implementation"
-  "renderWorkspace symbol"
-  "shouldRenderWindow symbol"
-  "renderWindow symbol"
-  "isSolitaryBlocked symbol"
-  "plugin API version check"
-)
+CHECK_LABELS=()
 FAILED_LABELS=()
 FAILED_PATHS=()
 FAILED_OWNERS=()
 
-require_file "$PLUGIN_API_HPP"
-require_file "$PLUGIN_API_CPP"
-require_file "$PLUGIN_SYSTEM_CPP"
-require_file "$RENDERER_CPP"
-require_file "$MONITOR_HPP"
 require_file "$VERSION_FILE"
 
 TARGET_VERSION="$(tr -d '[:space:]' < "$VERSION_FILE")"
@@ -173,15 +171,19 @@ record_failure() {
   failures=$((failures + 1))
 }
 
-check_contract 'APICALL SVersionInfo getHyprlandVersion(HANDLE handle);' "$PLUGIN_API_HPP" 'public version API' 'src/compat/profile.cpp'
-check_contract 'APICALL SVersionInfo HyprlandAPI::getHyprlandVersion(HANDLE handle)' "$PLUGIN_API_CPP" 'version API implementation' 'src/compat/profile.cpp'
-check_contract 'APICALL [[deprecated]] void* getFunctionAddressFromSignature(HANDLE handle, const std::string& sig);' "$PLUGIN_API_HPP" 'signature fallback API' 'src/compat/profile.cpp'
-check_contract 'APICALL void* HyprlandAPI::getFunctionAddressFromSignature(HANDLE handle, const std::string& sig)' "$PLUGIN_API_CPP" 'signature fallback implementation' 'src/compat/profile.cpp'
-check_contract 'renderWorkspace' "$RENDERER_CPP" 'renderWorkspace symbol' 'src/compat/profile.cpp, src/compat/renderer_compat.cpp'
-check_contract 'shouldRenderWindow' "$RENDERER_CPP" 'shouldRenderWindow symbol' 'src/compat/profile.cpp, src/compat/renderer_compat.cpp'
-check_contract 'renderWindow' "$RENDERER_CPP" 'renderWindow symbol' 'src/compat/profile.cpp, src/compat/renderer_compat.cpp'
-check_contract 'isSolitaryBlocked' "$MONITOR_HPP" 'isSolitaryBlocked symbol' 'src/compat/profile.cpp'
-check_contract 'HYPRLAND_API_VERSION' "$PLUGIN_SYSTEM_CPP" 'plugin API version check' 'src/compat/profile.cpp'
+while IFS=$'\t' read -r label relpath owner patterns; do
+  [[ -z "$label" ]] && continue
+
+  local_path="$HYPRLAND_SOURCE/$relpath"
+  require_file "$local_path"
+  CHECK_LABELS+=("$label")
+
+  pattern_list="${patterns//|||/$'\n'}"
+  while IFS= read -r pattern; do
+    [[ -z "$pattern" ]] && continue
+    check_contract "$pattern" "$local_path" "$label" "$owner"
+  done <<< "$pattern_list"
+done < <(compat_core_contracts_stream)
 
 print_out "\nChecked contracts (${#CHECK_LABELS[@]}):\n"
 for label in "${CHECK_LABELS[@]}"; do

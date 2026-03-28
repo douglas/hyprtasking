@@ -1,6 +1,7 @@
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprland/src/plugins/PluginSystem.hpp>
 
+#include "build_contract.hpp"
 #include "compat/profile.hpp"
 #include "compat/renderer_compat.hpp"
 #include "globals.hpp"
@@ -38,7 +39,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
 
     Log::logger->log(LOG, "[Hyprtasking] Plugin initialized");
 
-    return {"Hyprtasking", "A workspace management plugin", "douglas", "0.1"};
+    return {"Hyprtasking", "A workspace management plugin", "douglas", HT_PROJECT_VERSION};
 }
 
 APICALL EXPORT void PLUGIN_EXIT() {

@@ -1,0 +1,36 @@
+name: Offline Compat Gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  compat-offline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Hyprtasking
+        uses: actions/checkout@v5
+
+      - name: Checkout Hyprland stable line
+        uses: actions/checkout@v5
+        with:
+          repository: hyprwm/Hyprland
+          ref: v0.54.2
+          path: hyprland
+
+      - name: Shell syntax checks
+        run: |
+          bash -n scripts/audit-compat.sh
+          bash -n scripts/audit-compat-surface.sh
+          bash -n scripts/audit-compat-coverage.sh
+          bash -n scripts/audit-boundary.sh
+          bash -n scripts/release-check.sh
+
+      - name: Compat audits
+        run: |
+          bash scripts/audit-compat.sh "$GITHUB_WORKSPACE/hyprland"
+          bash scripts/audit-compat-surface.sh "$GITHUB_WORKSPACE/hyprland"
+          bash scripts/audit-compat-coverage.sh
+          bash scripts/audit-boundary.sh

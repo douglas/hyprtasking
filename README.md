@@ -77,12 +77,13 @@ hyprpm enable hyprtasking
 
 ### Nix
 
-Add hyprtasking to your flake inputs
+Add hyprtasking to your flake inputs and pin Hyprland to the supported
+`0.54.x` line. This example uses `v0.54.2`.
 ```nix
 # flake.nix
 {
   inputs = {
-    hyprland.url = "github:hyprwm/Hyprland/v0.49.0";
+    hyprland.url = "github:hyprwm/Hyprland/v0.54.2";
 
     hyprtasking = {
       url = "github:douglas/hyprtasking";

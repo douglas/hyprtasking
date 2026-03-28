@@ -54,6 +54,7 @@ class HTManager {
     bool runtime_enabled() const;
     void disable_runtime(std::string_view source, std::string_view reason);
     std::string runtime_disable_reason() const;
+    std::string runtime_health_summary(bool json = false) const;
 
     HTLogic::MouseButtonResult handle_mouse_button(unsigned int button, bool pressed);
     bool start_window_drag();

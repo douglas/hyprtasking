@@ -25,6 +25,7 @@ build_contract = configuration_data()
 build_contract.set('HT_BUILT_HYPRLAND_PKG_VERSION', hyprland_dep.version())
 build_contract.set('HT_SUPPORTED_HYPRLAND_LINE', '0.54.x')
 build_contract.set('HT_SUPPORTED_HYPRLAND_MINOR_PREFIX', '0.54.')
+build_contract.set('HT_PROJECT_VERSION', meson.project_version())
 
 configure_file(
   input: 'src/build_contract.hpp.in',

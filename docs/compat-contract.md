@@ -27,6 +27,14 @@ These files are the plugin-side compatibility boundary:
   - Focus, cursor, seat, drag-controller, and compositor action wrappers
   - Original call-through helpers for drift-prone runtime hooks
 
+Contract definitions for audited Hyprland surfaces are centralized in:
+
+- `scripts/compat-contract-manifest.sh`
+
+Compat symbol coverage is enforced with:
+
+- `bash scripts/audit-compat-coverage.sh`
+
 ## Audited Contracts
 
 The compat audit currently checks these Hyprland-side contracts:
@@ -76,3 +84,12 @@ These still usually require inspection after a Hyprland bump even if both audits
 - `changeWorkspace` semantics and visibility animation behavior in `src/compat/renderer_compat.cpp`
 
 If a Hyprland update breaks runtime behavior without failing the audit, start with those files.
+
+## Track Workflow
+
+Use two tracks for predictable maintenance:
+
+1. `main` for stable supported line fixes.
+2. `preview/hyprland-next` for next-line adaptation and drift triage.
+
+Track policy and automation details live in `docs/maintenance-tracks.md`.

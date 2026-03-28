@@ -169,6 +169,28 @@ SDispatchResult dispatchKillHover([[maybe_unused]] std::string arg) {
     });
 }
 
+SDispatchResult dispatchHealth(std::string arg) {
+    return guardedDispatch("dispatch_health", [&]() -> SDispatchResult {
+        const bool json = arg == "json";
+        std::string health;
+        if (ht_manager == nullptr) {
+            health = json ? "{\"runtime_enabled\":false,\"error\":\"ht_manager is null\"}"
+                          : "runtime_enabled=false disable_reason=\"ht_manager is null\"";
+        } else {
+            health = ht_manager->runtime_health_summary(json);
+        }
+
+        Log::logger->log(LOG, "[Hyprtasking] health {}", health);
+        HyprlandAPI::addNotification(
+            PHANDLE,
+            "[Hyprtasking] " + health,
+            CHyprColor {0.2, 0.8, 0.2, 1.0},
+            5000
+        );
+        return {};
+    });
+}
+
 }
 
 namespace HTPlugin {
@@ -182,6 +204,7 @@ void registerDispatchers() {
     HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:move", dispatchMove);
     HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:movewindow", dispatchMoveWindow);
     HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:killhovered", dispatchKillHover);
+    HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:health", dispatchHealth);
 }
 
 }

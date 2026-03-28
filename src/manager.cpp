@@ -37,6 +37,34 @@ const char* swipe_state_name(HTManager::swipe_state_t state) {
     return "unknown";
 }
 
+std::string json_escape(std::string_view value) {
+    std::string escaped;
+    escaped.reserve(value.size());
+    for (const char c : value) {
+        switch (c) {
+            case '\\':
+                escaped += "\\\\";
+                break;
+            case '"':
+                escaped += "\\\"";
+                break;
+            case '\n':
+                escaped += "\\n";
+                break;
+            case '\r':
+                escaped += "\\r";
+                break;
+            case '\t':
+                escaped += "\\t";
+                break;
+            default:
+                escaped += c;
+                break;
+        }
+    }
+    return escaped;
+}
+
 }
 
 PHTVIEW HTManager::get_view_from_monitor(PHLMONITOR monitor) {
@@ -242,6 +270,52 @@ void HTManager::disable_runtime(std::string_view source, std::string_view reason
 
 std::string HTManager::runtime_disable_reason() const {
     return disabled_reason;
+}
+
+std::string HTManager::runtime_health_summary(bool json) const {
+    size_t active_views = 0;
+    size_t closing_views = 0;
+    size_t navigating_views = 0;
+    for (const auto& view : views) {
+        if (view == nullptr)
+            continue;
+        if (view->active)
+            active_views++;
+        if (view->closing)
+            closing_views++;
+        if (view->navigating)
+            navigating_views++;
+    }
+
+    if (json) {
+        return std::format(
+            "{{\"runtime_enabled\":{},\"disable_reason\":\"{}\",\"views\":{},\"active_views\":{},\"closing_views\":{},\"navigating_views\":{},\"hooks\":{{\"mouse_button\":{},\"render_workspace\":{},\"should_render_window\":{},\"is_solitary_blocked\":{}}}}}",
+            runtime_enabled() ? "true" : "false",
+            json_escape(disabled_reason),
+            views.size(),
+            active_views,
+            closing_views,
+            navigating_views,
+            input_mouse_button_hook != nullptr ? "true" : "false",
+            render_workspace_hook != nullptr ? "true" : "false",
+            should_render_window_hook != nullptr ? "true" : "false",
+            is_solitary_blocked_hook != nullptr ? "true" : "false"
+        );
+    }
+
+    return std::format(
+        "runtime_enabled={} disable_reason=\"{}\" views={} active_views={} closing_views={} navigating_views={} hooks(mouse_button={}, render_workspace={}, should_render_window={}, is_solitary_blocked={})",
+        runtime_enabled(),
+        disabled_reason,
+        views.size(),
+        active_views,
+        closing_views,
+        navigating_views,
+        input_mouse_button_hook != nullptr,
+        render_workspace_hook != nullptr,
+        should_render_window_hook != nullptr,
+        is_solitary_blocked_hook != nullptr
+    );
 }
 
 void HTManager::reset_selection_state() {

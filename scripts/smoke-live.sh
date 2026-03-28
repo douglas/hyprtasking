@@ -98,6 +98,17 @@ assert_extended_dispatchers_ready() {
     printf 'Unexpected hyprtasking:movewindow probe response: %s\n' "$CAPTURED_OUTPUT" >&2
     exit 1
   fi
+
+  run_capture_hyprctl dispatch hyprtasking:health json
+  if [[ "$CAPTURED_OUTPUT" == *"Invalid dispatcher"* ]]; then
+    fail_with_loaded_plugin_state \
+      "Hyprtasking health dispatcher is not registered even though the plugin is listed."
+  fi
+
+  if [[ "$CAPTURED_OUTPUT" != "ok" ]]; then
+    printf 'Unexpected hyprtasking:health probe response: %s\n' "$CAPTURED_OUTPUT" >&2
+    exit 1
+  fi
 }
 
 smoke_dispatchers() {
