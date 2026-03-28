@@ -1,3 +1,0 @@
-option('local_include', type: 'boolean', value: false,
-  description: 'Whether to include local include/ directory')
-

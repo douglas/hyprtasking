@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-HYPRLAND_SOURCE=${1:-${HYPRLAND_SOURCE:-/home/douglas/src/Hyprland}}
+HYPRLAND_SOURCE=${1:-${HYPRLAND_SOURCE:-/home/douglas/src/hyprland}}
 SUPPORTED_MINOR="0.54.x"
 SUPPORTED_PREFIX="0.54."
 AUDIT_FORMAT=${AUDIT_FORMAT:-text}

@@ -19,6 +19,19 @@ add_project_arguments(
   ],
   language: 'cpp')
 
+hyprland_dep = dependency('hyprland')
+
+build_contract = configuration_data()
+build_contract.set('HT_BUILT_HYPRLAND_PKG_VERSION', hyprland_dep.version())
+build_contract.set('HT_SUPPORTED_HYPRLAND_LINE', '0.54.x')
+build_contract.set('HT_SUPPORTED_HYPRLAND_MINOR_PREFIX', '0.54.')
+
+configure_file(
+  input: 'src/build_contract.hpp.in',
+  output: 'build_contract.hpp',
+  configuration: build_contract,
+)
+
 core_src = [
   'src/compat/renderer_compat.cpp',
   'src/compat/runtime_compat.cpp',
@@ -68,14 +81,8 @@ dependencies = [
   dependency('libudev'),
   dependency('wayland-server'),
   dependency('xkbcommon'),
+  hyprland_dep,
 ]
-
-if get_option('local_include')
-  incdir += include_directories('include')
-  incdir += include_directories('include/hyprland/protocols')
-else
-  dependencies += dependency('hyprland')
-endif
 
 shared_module(meson.project_name(), src,
   dependencies: dependencies,

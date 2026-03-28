@@ -2,7 +2,14 @@
 set -euo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-PLUGIN_PATH=${PLUGIN_PATH:-"$SCRIPT_DIR/../build/libhyprtasking.so"}
+source "$SCRIPT_DIR/common-hyprctl.sh"
+if [[ -z "${PLUGIN_PATH:-}" ]]; then
+  if configured_plugin_path="$(hyprtasking_configured_plugin_path)"; then
+    PLUGIN_PATH="$configured_plugin_path"
+  else
+    PLUGIN_PATH="$SCRIPT_DIR/../build/libhyprtasking.so"
+  fi
+fi
 PLUGIN_PATH=$(realpath "$PLUGIN_PATH")
 MODE=${1:-all}
 LOAD_UNLOAD_CYCLES=${LOAD_UNLOAD_CYCLES:-1}
@@ -10,6 +17,7 @@ TOGGLE_CYCLES=${TOGGLE_CYCLES:-1}
 RELOAD_CYCLES=${RELOAD_CYCLES:-1}
 PRINT_MANUAL_FOLLOW_UP=${PRINT_MANUAL_FOLLOW_UP:-1}
 HYPRCTL_PREFIX=()
+CAPTURED_OUTPUT=""
 
 run() {
   printf '$ %s\n' "$*"
@@ -23,23 +31,10 @@ run_capture() {
 }
 
 init_hyprctl_prefix() {
-  local runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
-
-  if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then
-    if [[ -S "${runtime_dir}/hypr/${HYPRLAND_INSTANCE_SIGNATURE}/.socket.sock" ]]; then
-      HYPRCTL_PREFIX=(env "HYPRLAND_INSTANCE_SIGNATURE=${HYPRLAND_INSTANCE_SIGNATURE}" hyprctl)
-      return
-    fi
+  if ! hypr_set_prefix plugin list; then
+    printf 'Unable to detect a live Hyprland instance.\n' >&2
+    exit 1
   fi
-
-  local detected_signature
-  detected_signature="$(hyprctl instances 2>/dev/null | sed -n 's/^instance \(.*\):$/\1/p' | head -n 1)"
-  if [[ -n "$detected_signature" ]]; then
-    HYPRCTL_PREFIX=(env "HYPRLAND_INSTANCE_SIGNATURE=${detected_signature}" hyprctl)
-    return
-  fi
-
-  HYPRCTL_PREFIX=(hyprctl)
 }
 
 run_hyprctl() {
@@ -58,11 +53,19 @@ assert_plugin_loaded() {
   fi
 }
 
+fail_with_loaded_plugin_state() {
+  local message=$1
+  run_capture_hyprctl plugin list
+  printf '%s\n' "$message" >&2
+  printf 'Current plugin list:\n%s\n' "$CAPTURED_OUTPUT" >&2
+  exit 1
+}
+
 assert_dispatcher_ready() {
   run_capture_hyprctl dispatch hyprtasking:toggle __smoke_probe__
   if [[ "$CAPTURED_OUTPUT" == *"Invalid dispatcher"* ]]; then
-    printf 'Hyprtasking dispatchers are not registered yet.\n' >&2
-    exit 1
+    fail_with_loaded_plugin_state \
+      "Hyprtasking is loaded, but its dispatchers are not registered. This usually means a stale or partially initialized instance is already resident."
   fi
 
   if [[ "$CAPTURED_OUTPUT" != *"invalid arg"* ]]; then
@@ -76,8 +79,8 @@ assert_extended_dispatchers_ready() {
 
   run_capture_hyprctl dispatch hyprtasking:move __smoke_probe__
   if [[ "$CAPTURED_OUTPUT" == *"Invalid dispatcher"* ]]; then
-    printf 'Hyprtasking move dispatcher is not registered yet.\n' >&2
-    exit 1
+    fail_with_loaded_plugin_state \
+      "Hyprtasking move dispatcher is not registered even though the plugin is listed."
   fi
 
   if [[ "$CAPTURED_OUTPUT" != "ok" ]]; then
@@ -87,8 +90,8 @@ assert_extended_dispatchers_ready() {
 
   run_capture_hyprctl dispatch hyprtasking:movewindow __smoke_probe__
   if [[ "$CAPTURED_OUTPUT" == *"Invalid dispatcher"* ]]; then
-    printf 'Hyprtasking movewindow dispatcher is not registered yet.\n' >&2
-    exit 1
+    fail_with_loaded_plugin_state \
+      "Hyprtasking movewindow dispatcher is not registered even though the plugin is listed."
   fi
 
   if [[ "$CAPTURED_OUTPUT" != "ok" ]]; then
@@ -106,10 +109,12 @@ wait_for_plugin_ready() {
   local attempts=${1:-40}
   local delay=${2:-0.1}
   local i
+  local saw_plugin=0
 
   for ((i = 0; i < attempts; i++)); do
     run_capture_hyprctl plugin list
     if printf '%s\n' "$CAPTURED_OUTPUT" | rg -q '^Plugin Hyprtasking by '; then
+      saw_plugin=1
       run_capture_hyprctl dispatch hyprtasking:toggle __smoke_probe__
       if [[ "$CAPTURED_OUTPUT" != *"Invalid dispatcher"* ]]; then
         return 0
@@ -117,6 +122,11 @@ wait_for_plugin_ready() {
     fi
     sleep "$delay"
   done
+
+  if ((saw_plugin != 0)); then
+    fail_with_loaded_plugin_state \
+      "Hyprtasking remained listed, but its dispatchers never registered. This usually means the new plugin path failed to initialize and an older instance is still loaded."
+  fi
 
   printf 'Timed out waiting for Hyprtasking to finish loading.\n' >&2
   exit 1
@@ -197,8 +207,24 @@ smoke_load_unload() {
 
   local cycle
   for ((cycle = 0; cycle < LOAD_UNLOAD_CYCLES; cycle++)); do
-    run_hyprctl plugin unload "$PLUGIN_PATH"
-    run_hyprctl plugin load "$PLUGIN_PATH"
+    run_capture_hyprctl plugin unload "$PLUGIN_PATH"
+    if [[ "$CAPTURED_OUTPUT" == *"plugin not loaded"* ]]; then
+      run_capture_hyprctl plugin list
+      if printf '%s\n' "$CAPTURED_OUTPUT" | rg -q '^Plugin Hyprtasking by '; then
+        printf 'Target plugin path is not the currently loaded Hyprtasking instance: %s\n' "$PLUGIN_PATH" >&2
+        printf 'A different Hyprtasking instance is already loaded.\n' >&2
+        printf 'Current plugin list:\n%s\n' "$CAPTURED_OUTPUT" >&2
+        exit 1
+      fi
+    fi
+
+    run_capture_hyprctl plugin load "$PLUGIN_PATH"
+    if [[ "$CAPTURED_OUTPUT" == *"could not be loaded:"* ]]; then
+      printf 'Failed to load target plugin path: %s\n' "$PLUGIN_PATH" >&2
+      printf '%s\n' "$CAPTURED_OUTPUT" >&2
+      exit 1
+    fi
+
     wait_for_plugin_ready
     assert_plugin_loaded
   done

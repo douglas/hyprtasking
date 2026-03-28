@@ -2,6 +2,7 @@
 
 #include <filesystem>
 
+#include "build_contract.hpp"
 #include <hyprland/src/plugins/PluginAPI.hpp>
 
 #include "../globals.hpp"
@@ -126,6 +127,7 @@ CompatibilityResult verify_compatibility() {
     const auto compat = HTLogic::decideCompatSupport(
         __hyprland_api_get_hash() == std::string_view {__hyprland_api_get_client_hash()},
         reported_version,
+        HT_BUILT_HYPRLAND_PKG_VERSION,
         supported_hyprland_minor()
     );
     if (!compat.supported)

@@ -4,9 +4,11 @@ Hyprtasking is maintained for Hyprland `0.54.x` only.
 
 The update workflow is:
 
-1. Run `HYPRLAND_SOURCE=/path/to/Hyprland bash scripts/release-check.sh`.
-2. If `scripts/audit-compat.sh` or `scripts/audit-compat-surface.sh` fails, patch the relevant file under `src/compat/`.
-3. Re-run the same command until the audit, build, tests, smoke checks, and manual scenario output are clean.
+1. Build against the installed Arch `hyprland` package headers only.
+2. Run `bash scripts/check-version-contract.sh` to confirm the installed package and live runtime are aligned on `0.54.x`.
+3. Run `HYPRLAND_SOURCE=/path/to/Hyprland bash scripts/release-check.sh` to audit a matching Hyprland source tree.
+4. If `scripts/audit-compat.sh` or `scripts/audit-compat-surface.sh` fails, patch the relevant file under `src/compat/`.
+5. Re-run the same command until the version contract, audits, build, tests, smoke checks, and manual scenario output are clean.
 
 ## Ownership
 

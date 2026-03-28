@@ -99,8 +99,9 @@ For a quick live smoke check after the plugin is loaded:
 bash scripts/smoke-live.sh all
 ```
 
-Before updating the plugin to a new Hyprland checkout, run the compat audit against the target
-source tree:
+Before updating the plugin to a new Hyprland package/runtime, run the compat audit against the
+matching Hyprland source tree. The source tree is audit-only; builds must use the installed Arch
+`hyprland` package headers from `pkg-config`:
 
 ```
 bash scripts/audit-compat.sh /path/to/Hyprland
@@ -151,9 +152,15 @@ Hyprtasking is maintained for one Hyprland minor line at a time. The current sup
 
 Update workflow:
 
-1. Point `scripts/audit-compat.sh` and `scripts/audit-compat-surface.sh` at the target Hyprland source tree.
-2. If either audit fails, first confirm that the target tree is still on the supported `0.54.x` line, then update only the compat layer in `src/compat/`.
-3. Rebuild and run:
+1. Verify that the installed package headers and the live runtime are aligned:
+
+```
+bash scripts/check-version-contract.sh
+```
+
+2. Point `scripts/audit-compat.sh` and `scripts/audit-compat-surface.sh` at the matching Hyprland source tree.
+3. If either audit fails, first confirm that the target tree is still on the supported `0.54.x` line, then update only the compat layer in `src/compat/`.
+4. Rebuild and run:
 
 ```
 meson compile -C build
@@ -161,7 +168,7 @@ meson test -C build
 bash scripts/smoke-live.sh all
 ```
 
-4. Finish with the manual compositor checks printed by `bash scripts/smoke-live.sh manual`.
+5. Finish with the manual compositor checks printed by `bash scripts/smoke-live.sh manual`.
 
 For the same flow through one command:
 
@@ -182,10 +189,10 @@ intermediate smoke-script reminder so the manual checklist is printed once. It
 also runs a repo-local compat boundary audit plus a `load-unload` cycle and
 separate `dispatchers` probe first so architectural regressions and
 hook/registration failures are easier to distinguish from later runtime smoke
-failures. If `HYPRLAND_SOURCE`
-is set, it runs `scripts/audit-compat.sh` and `scripts/audit-compat-surface.sh`
-first and then continues with the boundary audit, normal build, test, smoke,
-and manual-check flow.
+failures. It always runs `scripts/check-version-contract.sh` first. If
+`HYPRLAND_SOURCE` is set, it then runs `scripts/audit-compat.sh` and
+`scripts/audit-compat-surface.sh` against that source tree before continuing
+with the boundary audit, normal build, test, smoke, and manual-check flow.
 
 To print only one manual scenario after the automated checks, set
 `MANUAL_SCENARIO`:
@@ -215,6 +222,10 @@ even when `/proc/self/exe` lookup is unavailable in the running session.
 surface under `src/compat/`, covering focus, cursor, drag-controller,
 workspace/window/monitor accessor, and render-pass contracts that previously
 required only manual review after a Hyprland bump.
+
+`check-version-contract.sh` is the hard gate for the supported line. It fails if
+the installed `hyprland` package, the running Hyprland instance, or the
+optional audited source tree are not aligned on the supported `0.54.x` line.
 
 `audit-boundary.sh` also enforces that direct Hyprland focus mutation stays out
 of layout/render code, so overview rendering cannot silently start reasserting

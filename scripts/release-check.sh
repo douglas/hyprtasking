@@ -9,6 +9,7 @@ PRINT_MANUAL_CHECKLIST=${PRINT_MANUAL_CHECKLIST:-1}
 HYPRLAND_SOURCE=${HYPRLAND_SOURCE:-}
 MANUAL_SCENARIO=${MANUAL_SCENARIO:-all}
 RELEASE_CHECK_FORMAT=${RELEASE_CHECK_FORMAT:-text}
+VERSION_CONTRACT_JSON="null"
 STAGE_NAMES=()
 STAGE_EXIT_CODES=()
 FAILED_STAGE=""
@@ -96,6 +97,7 @@ emit_json_result() {
   printf '"failed_stage_exit_code":%s,' "$FAILED_STAGE_EXIT_CODE"
   printf '"failed_stage_output":%s,' "$(json_string "$FAILED_STAGE_OUTPUT")"
   printf '"audit_results":{'
+  printf '"version_contract":%s,' "$VERSION_CONTRACT_JSON"
   printf '"compat":%s,' "$AUDIT_JSON"
   printf '"compat_surface":%s,' "$AUDIT_SURFACE_JSON"
   printf '"boundary":%s' "$BOUNDARY_JSON"
@@ -125,6 +127,26 @@ if [[ ! -d "$BUILD_DIR" ]]; then
     printf 'Build directory does not exist: %s\n' "$BUILD_DIR" >&2
   fi
   exit 1
+fi
+
+if [[ "$RELEASE_CHECK_FORMAT" == "json" ]]; then
+  if [[ -n "$HYPRLAND_SOURCE" ]]; then
+    VERSION_CONTRACT_JSON="$(
+      env CHECK_FORMAT=json bash "$SCRIPT_DIR/check-version-contract.sh" "$HYPRLAND_SOURCE"
+    )"
+    run_stage version-contract env "CHECK_FORMAT=json" bash "$SCRIPT_DIR/check-version-contract.sh" "$HYPRLAND_SOURCE"
+  else
+    VERSION_CONTRACT_JSON="$(
+      env CHECK_FORMAT=json bash "$SCRIPT_DIR/check-version-contract.sh"
+    )"
+    run_stage version-contract env "CHECK_FORMAT=json" bash "$SCRIPT_DIR/check-version-contract.sh"
+  fi
+else
+  if [[ -n "$HYPRLAND_SOURCE" ]]; then
+    run_stage version-contract bash "$SCRIPT_DIR/check-version-contract.sh" "$HYPRLAND_SOURCE"
+  else
+    run_stage version-contract bash "$SCRIPT_DIR/check-version-contract.sh"
+  fi
 fi
 
 if [[ -n "$HYPRLAND_SOURCE" ]]; then

@@ -29,16 +29,24 @@ int main() {
     using namespace HTLogic;
 
     {
-        const auto result = decideCompatSupport(true, "0.54.2", "0.54.");
+        const auto result = decideCompatSupport(true, "0.54.2", "0.54.2", "0.54.");
         expect(result.supported, "compat support should accept supported build versions");
     }
     {
-        const auto result = decideCompatSupport(false, "0.54.2", "0.54.");
+        const auto result = decideCompatSupport(false, "0.54.2", "0.54.2", "0.54.");
         expect(!result.supported, "compat support should reject mismatched hashes");
     }
     {
-        const auto result = decideCompatSupport(true, "0.55.0", "0.54.");
-        expect(!result.supported, "compat support should reject unsupported Hyprland minors");
+        const auto result = decideCompatSupport(true, "0.55.0", "0.54.2", "0.54.");
+        expect(!result.supported, "compat support should reject unsupported Hyprland runtimes");
+    }
+    {
+        const auto result = decideCompatSupport(true, "0.54.2", "0.55.0", "0.54.");
+        expect(!result.supported, "compat support should reject unsupported package minors");
+    }
+    {
+        const auto result = decideCompatSupport(true, "0.54.3", "0.54.2", "0.54.");
+        expect(!result.supported, "compat support should reject package and runtime drift");
     }
     expect(
         versionMatchesMinor("v0.54.2", "0.54."),
@@ -47,6 +55,10 @@ int main() {
     expect(
         !versionMatchesMinor("0.55.0", "0.54."),
         "compat version matching should reject unsupported minors"
+    );
+    expect(
+        versionMatchesExactly("v0.54.2", "0.54.2"),
+        "compat version matching should normalize exact versions"
     );
 
     {
