@@ -48,64 +48,35 @@ void trace_log(std::format_string<Args...> fmt, Args&&... args) {
 void cancelEvent(Event::SCallbackInfo& info);
 void shutdownMouseButtonHook();
 
+const char* mouseButtonResultName(HTLogic::MouseButtonResult result) {
+    switch (result) {
+        case HTLogic::MouseButtonResult::Ignore:
+            return "ignore";
+        case HTLogic::MouseButtonResult::Consume:
+            return "consume";
+        case HTLogic::MouseButtonResult::PassThrough:
+            return "pass_through";
+    }
+
+    return "unknown";
+}
+
 void onMouseButton(IPointer::SButtonEvent e, Event::SCallbackInfo& info) {
     HTPlugin::guardedCallback("on_mouse_button", [&] {
         if (ht_manager == nullptr || !ht_manager->runtime_enabled())
             return;
 
-        const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
         const bool pressed = e.state == WL_POINTER_BUTTON_STATE_PRESSED;
-        const unsigned int drag_button = HTConfig::value<Hyprlang::INT>("drag_button");
-        const unsigned int select_button = HTConfig::value<Hyprlang::INT>("select_button");
-
-        if (cursor_view == nullptr) {
-            trace_log(
-                "[Hyprtasking][trace] mouse button={} pressed={} ignored: cursor view is null",
-                e.button,
-                pressed
-            );
-            return;
-        }
-
-        const bool manages_mouse = cursor_view->layout != nullptr && cursor_view->layout->should_manage_mouse();
+        const auto result = ht_manager->handle_mouse_button(e.button, pressed);
+        info.cancelled = result == HTLogic::MouseButtonResult::Consume;
         trace_log(
-            "[Hyprtasking][trace] mouse button={} pressed={} mouse_device={} drag_button={} select_button={} view={} active={} closing={} manages_mouse={}",
+            "[Hyprtasking][trace] mouse button={} pressed={} mouse_device={} result={} cancelled={}",
             e.button,
             pressed,
             e.mouse,
-            drag_button,
-            select_button,
-            cursor_view->monitor_id,
-            cursor_view->active,
-            cursor_view->closing,
-            manages_mouse
+            mouseButtonResultName(result),
+            info.cancelled
         );
-
-        if (pressed && e.button == drag_button) {
-            info.cancelled = ht_manager->start_window_drag();
-            trace_log(
-                "[Hyprtasking][trace] drag press result cancelled={}",
-                info.cancelled
-            );
-        } else if (!pressed && e.button == drag_button) {
-            info.cancelled = ht_manager->end_window_drag();
-            trace_log(
-                "[Hyprtasking][trace] drag release result cancelled={}",
-                info.cancelled
-            );
-        } else if (pressed && e.button == select_button) {
-            info.cancelled = ht_manager->exit_to_workspace();
-            trace_log(
-                "[Hyprtasking][trace] select press result cancelled={}",
-                info.cancelled
-            );
-        } else {
-            trace_log(
-                "[Hyprtasking][trace] mouse button={} pressed={} left unhandled by hyprtasking",
-                e.button,
-                pressed
-            );
-        }
     });
 }
 

@@ -13,18 +13,22 @@ namespace {
 
 using HTPlugin::guardedDispatch;
 
+bool isViewInteractivelyActive(const PHTVIEW& view) {
+    return view != nullptr && view->active && !view->closing;
+}
+
 SDispatchResult dispatchIf(std::string arg, bool is_active) {
     return guardedDispatch("dispatch_if", [&]() -> SDispatchResult {
         if (ht_manager == nullptr)
-            return {.passEvent = true, .success = false, .error = "ht_manager is null"};
+            return {.passEvent = true, .success = true};
         if (!ht_manager->runtime_enabled())
-            return {.passEvent = true, .success = false, .error = "runtime disabled"};
+            return {.passEvent = true, .success = true};
 
         const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
         if (cursor_view == nullptr)
-            return {.passEvent = true, .success = false, .error = "cursor_view is null"};
-        if (cursor_view->active != is_active)
-            return {.passEvent = true, .success = false, .error = "predicate not met"};
+            return {.passEvent = true, .success = true};
+        if (isViewInteractivelyActive(cursor_view) != is_active)
+            return {.passEvent = true, .success = true};
 
         const auto dispatch_str = arg.substr(0, arg.find_first_of(' '));
 
@@ -105,7 +109,7 @@ SDispatchResult dispatchNavigate(std::string arg) {
         const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
         if (cursor_view == nullptr)
             return {.success = false, .error = "cursor_view is null"};
-        if (!cursor_view->active)
+        if (!isViewInteractivelyActive(cursor_view))
             return {.success = false, .error = "selection unavailable"};
 
         if (!cursor_view->navigate_selection(arg))
@@ -124,7 +128,7 @@ SDispatchResult dispatchCommitSelection([[maybe_unused]] std::string arg) {
         const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
         if (cursor_view == nullptr)
             return {.success = false, .error = "cursor_view is null"};
-        if (!cursor_view->active)
+        if (!isViewInteractivelyActive(cursor_view))
             return {.success = false, .error = "selection unavailable"};
 
         if (!cursor_view->commit_selection())
