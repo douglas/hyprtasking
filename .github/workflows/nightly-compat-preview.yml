@@ -12,6 +12,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - track: v0.54.0
+            ref: v0.54.0
+            strict: true
+          - track: v0.54.1
+            ref: v0.54.1
+            strict: true
           - track: stable
             ref: v0.54.2
             strict: true
