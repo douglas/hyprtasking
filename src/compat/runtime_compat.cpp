@@ -31,6 +31,14 @@ SDispatchResult HTCompat::invoke_dispatcher(
     return dispatcher->second(dispatch_arg);
 }
 
+void HTCompat::enter_submap(const std::string& name) {
+    invoke_dispatcher("submap", name);
+}
+
+void HTCompat::exit_submap() {
+    invoke_dispatcher("submap", "reset");
+}
+
 PHLMONITOR HTCompat::cursor_monitor() {
     if (!g_pCompositor)
         return nullptr;

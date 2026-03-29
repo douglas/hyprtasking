@@ -20,6 +20,8 @@ namespace HTCompat {
 using Hyprutils::Signal::CHyprSignalListener;
 
 SDispatchResult invoke_dispatcher(const std::string& dispatch_name, const std::string& dispatch_arg);
+void enter_submap(const std::string& name);
+void exit_submap();
 PHLMONITOR cursor_monitor();
 Vector2D mouse_coords();
 PHLMONITOR focused_monitor();

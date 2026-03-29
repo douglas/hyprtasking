@@ -153,10 +153,14 @@ void HTView::hide(bool exit_on_mouse) {
 }
 
 void HTView::set_runtime_state(bool new_active, bool new_closing, bool new_navigating) {
+    const bool was_interactively_active = active && !closing;
+
     const bool changed = active != new_active || closing != new_closing || navigating != new_navigating;
     active = new_active;
     closing = new_closing;
     navigating = new_navigating;
+
+    const bool is_interactively_active = active && !closing;
 
     if (changed) {
         Log::logger->log(
@@ -167,6 +171,13 @@ void HTView::set_runtime_state(bool new_active, bool new_closing, bool new_navig
             closing,
             navigating
         );
+    }
+
+    if (!was_interactively_active && is_interactively_active) {
+        HTCompat::enter_submap("hyprtasking");
+    } else if (was_interactively_active && !is_interactively_active) {
+        if (ht_manager != nullptr && !ht_manager->has_interactively_active_view())
+            HTCompat::exit_submap();
     }
 
     if (ht_manager != nullptr)

@@ -442,6 +442,19 @@ bool HTManager::has_active_view() {
     return false;
 }
 
+bool HTManager::has_interactively_active_view() {
+    if (!runtime_enabled())
+        return false;
+
+    for (const auto& view : views) {
+        if (view == nullptr)
+            continue;
+        if (view->active && !view->closing)
+            return true;
+    }
+    return false;
+}
+
 bool HTManager::cursor_view_active() {
     if (!runtime_enabled())
         return false;

@@ -86,6 +86,7 @@ class HTManager {
     bool swipe_end();
 
     bool has_active_view();
+    bool has_interactively_active_view();
     bool cursor_view_active();
 
   private:
