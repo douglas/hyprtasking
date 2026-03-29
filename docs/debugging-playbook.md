@@ -372,12 +372,33 @@ selection logic.
 Investigate workspace resolution, pointer warp, and drag-controller state after
 you confirm the button path is correct.
 
-## 10. Docs to Keep in Sync
+## 10. Bare Key Binding and Submap Considerations
+
+Bare key bindings (bindings with no modifier like `bind = , RETURN, ...`) must
+use a Hyprland submap to avoid intercepting keypresses during normal use. The
+plugin enters the `hyprtasking` submap automatically via
+`HTCompat::enter_submap()` when any view becomes interactively active
+(`active && !closing`) and exits via `HTCompat::exit_submap()` when all views
+leave that state.
+
+If a user reports dropped keypresses outside the overview, check:
+
+1. Whether their config has bare key bindings outside the submap block
+2. Whether `hyprctl activesubmap` returns empty when the overview is closed
+3. Whether an input method module is intercepting keypresses (see
+   [`troubleshooting.md`](troubleshooting.md))
+
+The submap enter/exit is in `src/overview.cpp` (`set_runtime_state`). The compat
+helpers are in `src/compat/runtime_compat.cpp`.
+
+## 11. Docs to Keep in Sync
 
 When the debugging workflow or runtime contract changes, update these together:
 
 - [`docs/compat-contract.md`](compat-contract.md)
 - this playbook
+- [`docs/troubleshooting.md`](troubleshooting.md) if user-facing diagnostic
+  steps changed
 - [`docs/overview-input-regression.md`](overview-input-regression.md) if the
   lesson materially changes
 - README maintenance/config references if user-facing debugging knobs changed

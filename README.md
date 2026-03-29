@@ -25,12 +25,15 @@ The main differences from the upstream fork source are:
 - overview mouse interaction now uses a direct `CInputManager::onMouseButton`
   hook on the supported runtime, which fixed the drag and right-click selection
   regression that appeared after the earlier refactors
+- bare key bindings for overview navigation now use a Hyprland submap that the
+  plugin enters/exits automatically, which eliminates keypress interference
+  during normal workspace use
 - gated runtime tracing is built in through
   `plugin:hyprtasking:debug:trace`, so maintainers can enable deep diagnostics
   without re-adding ad hoc logging
-- maintainer documentation now lives in `docs/`, including the debugging
-  playbook, compat contract, and the incident write-up for the overview input
-  regression
+- maintainer and user-facing documentation now lives in `docs/`, including the
+  debugging playbook, compat contract, troubleshooting guide, and the incident
+  write-up for the overview input regression
 
 If you want the original wider-compatibility project posture, read the upstream
 repository. If you want the branch that tracks the current maintenance work,
@@ -137,6 +140,7 @@ matching Hyprland source tree. The source tree is audit-only; builds must use th
 ```
 bash scripts/audit-compat.sh /path/to/Hyprland
 bash scripts/audit-compat-surface.sh /path/to/Hyprland
+bash scripts/update-supported-hyprland.sh /path/to/Hyprland
 ```
 
 To verify the repo still keeps direct Hyprland internals behind `src/compat/`:
@@ -188,6 +192,11 @@ The repo-specific maintenance and debugging docs live under `docs/`:
   moving click handling to the direct `CInputManager::onMouseButton` hook
 - [`docs/compat-contract.md`](docs/compat-contract.md): the Hyprland-facing
   compat ownership map and drift-prone contracts
+- [`docs/supported-hyprland.md`](docs/supported-hyprland.md): supported
+  patch-version matrix and one-command update workflow
+- [`docs/troubleshooting.md`](docs/troubleshooting.md): user-facing guide for
+  diagnosing input problems including bare-key binding interference and
+  input method conflicts on Wayland
 
 ## Current Status
 
@@ -206,6 +215,8 @@ The current maintenance work has added:
   `plugin:hyprtasking:debug:trace`
 - the direct input-manager mouse-button hook that restored stable drag and
   right-click workspace selection on the supported Hyprland line
+- automatic submap management for bare key bindings so overview keyboard
+  navigation does not interfere with normal keypress delivery
 
 ## Updating Hyprland Compatibility
 
@@ -220,8 +231,13 @@ Update workflow:
 bash scripts/check-version-contract.sh
 ```
 
-2. Point `scripts/audit-compat.sh` and `scripts/audit-compat-surface.sh` at the matching Hyprland source tree.
-3. If either audit fails, first confirm that the target tree is still on the supported `0.54.x` line, then update only the compat layer in `src/compat/`.
+2. Run the supported-version update workflow against the target Hyprland source tree:
+
+```
+bash scripts/update-supported-hyprland.sh /path/to/Hyprland
+```
+
+3. If any audit fails, first confirm that the target tree is still on the supported `0.54.x` line, then update only the compat layer in `src/compat/`.
 4. Rebuild and run:
 
 ```
@@ -353,6 +369,7 @@ results.
 
 - Workspace Transitioning:
     - Open the overlay, then use **right click** to switch to a workspace
+    - Use **arrow keys** to navigate between workspaces and **Enter** to commit (requires submap config, see [Configuration](#configuration))
     - Use the directional dispatchers `hyprtasking:move` to switch to a workspace
 - Window management:
     - **Left click** to drag and drop windows around
@@ -364,9 +381,6 @@ Example below:
 ```
 bind = SUPER, tab, hyprtasking:toggle, cursor
 bind = SUPER, space, hyprtasking:toggle, all
-# NOTE: the lack of a comma after hyprtasking:toggle!
-bind = , escape, hyprtasking:if_active, hyprtasking:toggle cursor
-
 
 bind = SUPER, X, hyprtasking:killhovered
 
@@ -374,6 +388,21 @@ bind = SUPER, H, hyprtasking:move, left
 bind = SUPER, J, hyprtasking:move, down
 bind = SUPER, K, hyprtasking:move, up
 bind = SUPER, L, hyprtasking:move, right
+
+# Bare key bindings (no modifier) must go inside a Hyprland submap so they
+# only intercept keypresses while the overview is open. The plugin enters
+# the "hyprtasking" submap automatically when the overview opens and exits
+# it when the overview closes. Without a submap, bare key bindings cause
+# Hyprland to intercept every keypress globally — even when the overview is
+# closed — which drops the next keypress in the application.
+submap = hyprtasking
+bind = , LEFT, hyprtasking:navigate, left
+bind = , RIGHT, hyprtasking:navigate, right
+bind = , UP, hyprtasking:navigate, up
+bind = , DOWN, hyprtasking:navigate, down
+bind = , RETURN, hyprtasking:commit_selection,
+bind = , ESCAPE, hyprtasking:toggle, cursor
+submap = reset
 
 plugin {
     hyprtasking {
@@ -418,11 +447,6 @@ plugin {
 
 ### Dispatchers
 
-- `hyprtasking:if_active, ARG` takes in a dispatch command (one that would be used after `hyprctl dispatch ...`) that will be dispatched only if the cursor overview is active.
-    - Allows you to use e.g. `escape` to close the overview when it is active. See the [example config](#configuration) for more info.
-
-- `hyprtasking:if_not_active, ARG` same as above, but if the overview is not active.
-
 - `hyprtasking:toggle, ARG` takes in 1 argument that is either `cursor` or `all`
     - if the argument is `all`, then
         - if all overviews are hidden, then all overviews will be shown
@@ -437,9 +461,18 @@ plugin {
 - `hyprtasking:movewindow, ARG` takes in 1 argument that is one of `up`, `down`, `left`, `right`
     - when dispatched, hyprtasking will 1. move the hovered window to the workspace in the given direction relative to the window, and 2. switch to that workspace.
 
+- `hyprtasking:navigate, ARG` takes in 1 argument that is one of `up`, `down`, `left`, `right`
+    - moves the keyboard selection highlight to the adjacent workspace in the given direction
+    - intended for use inside the `hyprtasking` submap so that bare arrow keys work only while the overview is open
+
+- `hyprtasking:commit_selection` switches to the currently selected workspace and closes the overview
+    - intended for use inside the `hyprtasking` submap so that bare Enter works only while the overview is open
+
 - `hyprtasking:killhovered` behaves similarly to the standard `killactive` dispatcher with focus on hover
     - when dispatched, hyprtasking will the currently hovered window, useful when the overview is active.
     - this dispatcher is designed to **replace** killactive, it will work even when the overview is **not active**.
+
+- `hyprtasking:if_active, ARG` / `hyprtasking:if_not_active, ARG` conditionally dispatch a command only if the overview is or is not active. These are still registered but **using a Hyprland submap is strongly recommended** for bare key bindings (see [Configuration](#configuration)). The `if_active` approach causes Hyprland to intercept every keypress globally, which drops the next keypress in the focused application even when the overview is closed.
 
 ### Config Options
 
