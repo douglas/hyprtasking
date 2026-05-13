@@ -1,37 +1,45 @@
 #pragma once
 
-#include <hyprland/src/plugins/PluginAPI.hpp>
-#include <hyprutils/math/Vector2D.hpp>
+#include <linux/input-event-codes.h>
 
+#include <hyprutils/math/Vector2D.hpp>
+#include <string>
+#include <string_view>
+
+#include "build_contract.hpp"
 #include "globals.hpp"
 
 namespace HTConfig {
 
-template<typename T>
-concept ptr_type = std::same_as<T, Hyprlang::STRING>;
+inline constexpr int MAX_GRID_ROWS = 8;
+inline constexpr int MAX_GRID_COLS = 8;
 
-template<ptr_type T>
-inline T value(std::string config) {
-    static std::unordered_map<std::string, T const*> cache;
+struct RuntimeConfig {
+    int debug_trace = 0;
+    int drag_button = BTN_LEFT;
+    int select_button = BTN_RIGHT;
+    bool gestures_enabled = true;
+    int move_fingers = 3;
+    float move_distance = 300.F;
+    int open_fingers = 4;
+    float open_distance = 300.F;
+    bool open_positive = true;
+    int grid_rows = 3;
+    int grid_cols = 3;
+    bool grid_loop = false;
+};
 
-    if (!cache.count(config))
-        cache[config] =
-            (T const*)HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyprtasking:" + config)
-                ->getDataStaticPtr();
-    return *cache[config];
-}
+namespace Detail {
 
-template<typename T>
-inline T value(std::string config)
-    requires(!ptr_type<T>)
-{
-    static std::unordered_map<std::string, T* const*> cache;
+    inline std::string prefixed_key(const std::string& config) {
+        return "plugin:hyprtasking:" + config;
+    }
 
-    if (!cache.count(config))
-        cache[config] =
-            (T* const*)HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyprtasking:" + config)
-                ->getDataStaticPtr();
-    return **cache[config];
-}
+} // namespace Detail
+
+bool register_values();
+bool refresh_runtime_config_or_disable(std::string_view source);
+const RuntimeConfig& runtime_config();
+void reset_runtime_config();
 
 } // namespace HTConfig

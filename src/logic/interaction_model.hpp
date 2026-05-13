@@ -4,7 +4,6 @@ namespace HTLogic {
 
 enum class DragStartAction {
     Ignore,
-    HideViews,
     BeginDrag,
 };
 
@@ -34,7 +33,6 @@ DragStartAction decideDragStart(
     bool has_view,
     bool view_active,
     bool view_closing,
-    bool manages_mouse,
     bool has_workspace_target
 );
 
@@ -42,7 +40,6 @@ DragEndAction decideDragEnd(
     bool has_view,
     bool view_active,
     bool view_closing,
-    bool manages_mouse,
     bool has_target,
     bool has_dragged_window,
     bool move_mode
@@ -52,7 +49,6 @@ SelectStartAction decideSelectStart(
     bool has_view,
     bool view_active,
     bool view_closing,
-    bool manages_mouse,
     bool has_workspace_target
 );
 
@@ -61,7 +57,6 @@ SelectEndAction decideSelectEnd(
     bool has_view,
     bool view_active,
     bool view_closing,
-    bool manages_mouse,
     bool has_workspace_target
 );
 
@@ -69,7 +64,6 @@ bool shouldConsumeManagedMouseButton(
     bool has_view,
     bool view_active,
     bool view_closing,
-    bool manages_mouse,
     bool matching_button
 );
 

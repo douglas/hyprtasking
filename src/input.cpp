@@ -1,24 +1,19 @@
 #include <linux/input-event-codes.h>
 
+#include <cmath>
 #include <format>
-
-#include <hyprland/src/Compositor.hpp>
-#include <hyprland/src/macros.hpp>
-#include <hyprland/src/managers/KeybindManager.hpp>
-#include <hyprland/src/layout/LayoutManager.hpp>
-#include <hyprland/src/managers/PointerManager.hpp>
-#include <hyprland/src/managers/input/InputManager.hpp>
 #include <hyprutils/utils/ScopeGuard.hpp>
 
-#include "config.hpp"
 #include "compat/renderer_compat.hpp"
 #include "compat/runtime_compat.hpp"
+#include "config.hpp"
 #include "logic/controller_state.hpp"
-#include "logic/gesture_model.hpp"
 #include "logic/geometry_model.hpp"
+#include "logic/gesture_model.hpp"
 #include "logic/interaction_model.hpp"
 #include "manager.hpp"
 #include "overview.hpp"
+#include "runtime_validation.hpp"
 #include "state_guards.hpp"
 #include "trace.hpp"
 
@@ -26,7 +21,7 @@ using Hyprutils::Utils::CScopeGuard;
 
 namespace {
 
-template <class... Args>
+template<class... Args>
 void trace_log(std::format_string<Args...> fmt, Args&&... args) {
     if (!HTTrace::enabled())
         return;
@@ -34,7 +29,7 @@ void trace_log(std::format_string<Args...> fmt, Args&&... args) {
     HTTrace::log(fmt, std::forward<Args>(args)...);
 }
 
-}
+} // namespace
 
 void HTManager::claim_mouse_button(
     unsigned int button,
@@ -62,12 +57,12 @@ void HTManager::reset_mouse_button_state() {
 HTLogic::MouseButtonResult HTManager::handle_mouse_button(unsigned int button, bool pressed) {
     const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace(false);
     const PHTVIEW cursor_view = cursor_context.view;
-    const bool manages_mouse = cursor_view != nullptr && cursor_view->layout->should_manage_mouse();
     const bool has_view = cursor_view != nullptr;
     const bool view_active = cursor_view != nullptr && cursor_view->active;
     const bool view_closing = cursor_view != nullptr && cursor_view->closing;
-    const unsigned int drag_button = HTConfig::value<Hyprlang::INT>("drag_button");
-    const unsigned int select_button = HTConfig::value<Hyprlang::INT>("select_button");
+    const auto& config = HTConfig::runtime_config();
+    const unsigned int drag_button = static_cast<unsigned int>(config.drag_button);
+    const unsigned int select_button = static_cast<unsigned int>(config.select_button);
 
     if (pressed) {
         const bool is_drag_button = button == drag_button;
@@ -76,7 +71,6 @@ HTLogic::MouseButtonResult HTManager::handle_mouse_button(unsigned int button, b
             has_view,
             view_active,
             view_closing,
-            manages_mouse,
             is_drag_button || is_select_button
         );
         if (!consume_press)
@@ -94,14 +88,8 @@ HTLogic::MouseButtonResult HTManager::handle_mouse_button(unsigned int button, b
                 has_view,
                 view_active,
                 view_closing,
-                manages_mouse,
                 cursor_context.workspace != nullptr
             );
-            if (action == HTLogic::DragStartAction::HideViews) {
-                hide_all_views();
-                reset_mouse_button_state();
-                return HTLogic::MouseButtonResult::Ignore;
-            }
             if (action == HTLogic::DragStartAction::BeginDrag) {
                 claimed_mouse_interaction = HT_MOUSE_DRAG;
                 drag_interaction_started = start_window_drag();
@@ -113,7 +101,6 @@ HTLogic::MouseButtonResult HTManager::handle_mouse_button(unsigned int button, b
             has_view,
             view_active,
             view_closing,
-            manages_mouse,
             cursor_context.workspace != nullptr
         );
         if (action == HTLogic::SelectStartAction::BeginSelect) {
@@ -142,11 +129,7 @@ HTLogic::MouseButtonResult HTManager::handle_mouse_button(unsigned int button, b
 
     const bool allow_release_passthrough = started_drag && end_window_drag();
     reset_mouse_button_state();
-    return HTLogic::resolveClaimedMouseRelease(
-        true,
-        started_drag,
-        allow_release_passthrough
-    );
+    return HTLogic::resolveClaimedMouseRelease(true, started_drag, allow_release_passthrough);
 }
 
 bool HTManager::start_window_drag() {
@@ -155,18 +138,16 @@ bool HTManager::start_window_drag() {
     const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace(false);
     const PHLMONITOR cursor_monitor = cursor_context.monitor;
     const PHTVIEW cursor_view = cursor_context.view;
-    const bool manages_mouse = cursor_view != nullptr && cursor_view->layout->should_manage_mouse();
     const Vector2D mouse_coords = cursor_context.mouse_coords;
     const WORKSPACEID workspace_id = cursor_context.workspace_id;
     PHLWORKSPACE cursor_workspace = cursor_context.workspace;
-    const PHLWINDOW hovered_window = get_window_from_cursor(false);
+    const PHLWINDOW hovered_window = get_window_from_cursor();
     trace_log(
-        "[Hyprtasking][trace] start_window_drag monitor={} view={} active={} closing={} manages_mouse={} workspace_id={} workspace_exists={} hovered_window={}",
+        "[Hyprtasking][trace] start_window_drag monitor={} view={} active={} closing={} workspace_id={} workspace_exists={} hovered_window={}",
         cursor_monitor == nullptr ? -1 : HTCompat::monitor_id(cursor_monitor),
         cursor_view == nullptr ? -1 : cursor_view->monitor_id,
         cursor_view != nullptr && cursor_view->active,
         cursor_view != nullptr && cursor_view->closing,
-        manages_mouse,
         workspace_id,
         cursor_workspace != nullptr,
         hovered_window != nullptr
@@ -176,37 +157,18 @@ bool HTManager::start_window_drag() {
         cursor_view != nullptr,
         cursor_view != nullptr && cursor_view->active,
         cursor_view != nullptr && cursor_view->closing,
-        manages_mouse,
         cursor_workspace != nullptr
     )) {
         case HTLogic::DragStartAction::Ignore:
             trace_log("[Hyprtasking][trace] start_window_drag ignored by preconditions");
             return false;
-        case HTLogic::DragStartAction::HideViews:
-            // hide all views if should not manage mouse but active
-            trace_log(
-                "[Hyprtasking][trace] start_window_drag hiding views because layout does not manage mouse"
-            );
-            hide_all_views();
-            return true;
         case HTLogic::DragStartAction::BeginDrag:
             break;
     }
 
     if (cursor_monitor == nullptr || cursor_view == nullptr) {
-        trace_log(
-            "[Hyprtasking][trace] start_window_drag failed: cursor monitor or view is null"
-        );
+        trace_log("[Hyprtasking][trace] start_window_drag failed: cursor monitor or view is null");
         return false;
-    }
-
-    if (!manages_mouse) {
-        // hide all views if should not manage mouse but active
-        trace_log(
-            "[Hyprtasking][trace] start_window_drag hiding views after runtime manages_mouse check"
-        );
-        hide_all_views();
-        return true;
     }
 
     HTScopedMonitorWorkspace restore_workspace(cursor_monitor, true);
@@ -263,8 +225,7 @@ bool HTManager::start_window_drag() {
 
     SP<Layout::ITarget> target = HTCompat::drag_controller_target();
     if (target == nullptr) {
-        if (hovered_window != nullptr
-            && HTCompat::begin_drag_window(hovered_window, MBIND_MOVE)) {
+        if (hovered_window != nullptr && HTCompat::begin_drag_window(hovered_window, MBIND_MOVE)) {
             target = HTCompat::drag_controller_target();
         }
     }
@@ -337,17 +298,15 @@ bool HTManager::end_window_drag() {
     CScopeGuard reset_drag_mode([] { HTCompat::set_mouse_bind_mode(MBIND_INVALID); });
     CScopeGuard clear_dragged_window_guard([this] { clear_dragged_window(); });
     const bool has_view = cursor_view != nullptr;
-    const bool manages_mouse = cursor_view != nullptr && cursor_view->layout->should_manage_mouse();
     const SP<Layout::ITarget> target = HTCompat::drag_controller_target();
     const PHLWINDOW dragged_window = target == nullptr ? nullptr : target->window();
     const bool move_mode = HTCompat::drag_controller_mode() == MBIND_MOVE;
     trace_log(
-        "[Hyprtasking][trace] end_window_drag monitor={} view={} active={} closing={} manages_mouse={} has_target={} dragged_window={} move_mode={}",
+        "[Hyprtasking][trace] end_window_drag monitor={} view={} active={} closing={} has_target={} dragged_window={} move_mode={}",
         cursor_monitor == nullptr ? -1 : HTCompat::monitor_id(cursor_monitor),
         cursor_view == nullptr ? -1 : cursor_view->monitor_id,
         cursor_view != nullptr && cursor_view->active,
         cursor_view != nullptr && cursor_view->closing,
-        manages_mouse,
         target != nullptr,
         dragged_window != nullptr,
         move_mode
@@ -357,7 +316,6 @@ bool HTManager::end_window_drag() {
             has_view,
             cursor_view != nullptr && cursor_view->active,
             cursor_view != nullptr && cursor_view->closing,
-            manages_mouse,
             target != nullptr,
             dragged_window != nullptr,
             move_mode
@@ -378,10 +336,9 @@ bool HTManager::end_window_drag() {
     Vector2D use_mouse_coords = mouse_coords;
     const WORKSPACEID hovered_workspace_id = cursor_context.workspace_id;
     const PHLWORKSPACE dragged_workspace = HTCompat::window_workspace(dragged_window);
-    const std::optional<WORKSPACEID> dragged_workspace_id =
-        dragged_workspace == nullptr
-            ? std::nullopt
-            : std::optional<WORKSPACEID> {HTCompat::workspace_id(dragged_workspace)};
+    const std::optional<WORKSPACEID> dragged_workspace_id = dragged_workspace == nullptr
+        ? std::nullopt
+        : std::optional<WORKSPACEID> {HTCompat::workspace_id(dragged_workspace)};
     const auto drop_decision =
         HTLogic::resolveDropWorkspace(hovered_workspace_id, dragged_workspace_id);
     if (!drop_decision.valid) {
@@ -412,9 +369,9 @@ bool HTManager::end_window_drag() {
 
     if (drop_decision.snap_to_workspace) {
         // Ensure that the mouse coords are snapped to inside the workspace box itself
-        use_mouse_coords = cursor_view->layout
-                               ->get_global_ws_box(HTCompat::workspace_id(cursor_workspace))
-                               .closestPoint(use_mouse_coords);
+        use_mouse_coords =
+            cursor_view->layout->get_global_ws_box(HTCompat::workspace_id(cursor_workspace))
+                .closestPoint(use_mouse_coords);
 
         Log::logger->log(
             LOG,
@@ -452,12 +409,13 @@ bool HTManager::end_window_drag() {
     }
     const Vector2D cursor_monitor_pos = HTCompat::monitor_position(cursor_monitor);
 
-    const Vector2D warped_global_pos = cursor_view->layout->global_to_local_ws_unscaled(
-                                (HTCompat::window_real_position(dragged_window) - use_mouse_coords)
-                                        * *drag_scale
-                                    + use_mouse_coords,
-                                HTCompat::workspace_id(cursor_workspace)
-                            ) + cursor_monitor_pos;
+    const Vector2D warped_global_pos =
+        cursor_view->layout->global_to_local_ws_unscaled(
+            (HTCompat::window_real_position(dragged_window) - use_mouse_coords) * *drag_scale
+                + use_mouse_coords,
+            HTCompat::workspace_id(cursor_workspace)
+        )
+        + cursor_monitor_pos;
     if (!HTLogic::isFinitePoint(warped_global_pos.x, warped_global_pos.y))
         return false;
     const Vector2D tp_pos = warped_global_pos;
@@ -510,7 +468,6 @@ bool HTManager::end_window_drag() {
 bool HTManager::begin_workspace_select() {
     const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace(false);
     const PHTVIEW cursor_view = cursor_context.view;
-    const bool manages_mouse = cursor_view != nullptr && cursor_view->layout->should_manage_mouse();
 
     selection_pending = false;
 
@@ -518,7 +475,6 @@ bool HTManager::begin_workspace_select() {
             cursor_view != nullptr,
             cursor_view != nullptr && cursor_view->active,
             cursor_view != nullptr && cursor_view->closing,
-            manages_mouse,
             cursor_context.workspace != nullptr
         )
         != HTLogic::SelectStartAction::BeginSelect) {
@@ -533,13 +489,11 @@ bool HTManager::begin_workspace_select() {
 
 bool HTManager::end_workspace_select(VIEWID view_id, WORKSPACEID target_workspace_id) {
     const PHTVIEW cursor_view = get_view_from_id(view_id);
-    const bool manages_mouse = cursor_view != nullptr && cursor_view->layout->should_manage_mouse();
     const auto action = HTLogic::decideSelectEnd(
         selection_pending,
         cursor_view != nullptr,
         cursor_view != nullptr && cursor_view->active,
         cursor_view != nullptr && cursor_view->closing,
-        manages_mouse,
         target_workspace_id != WORKSPACE_INVALID
     );
 
@@ -557,53 +511,14 @@ bool HTManager::end_workspace_select(VIEWID view_id, WORKSPACEID target_workspac
     return false;
 }
 
-bool HTManager::exit_to_workspace() {
-    const PHTVIEW cursor_view = get_view_from_cursor();
-    if (cursor_view == nullptr) {
-        trace_log(
-            "[Hyprtasking][trace] exit_to_workspace ignored: cursor view is null"
-        );
-        return false;
-    }
-
-    const bool manages_mouse = cursor_view->layout->should_manage_mouse();
-    trace_log(
-        "[Hyprtasking][trace] exit_to_workspace view={} active={} closing={} manages_mouse={}",
-        cursor_view->monitor_id,
-        cursor_view->active,
-        cursor_view->closing,
-        manages_mouse
-    );
-    if (!cursor_view->active || !manages_mouse) {
-        trace_log(
-            "[Hyprtasking][trace] exit_to_workspace ignored: overview is not active or layout does not manage mouse"
-        );
-        return false;
-    }
-
-    size_t hidden_views = 0;
-    for (PHTVIEW view : views) {
-        if (view == nullptr)
-            continue;
-        view->hide(true);
-        hidden_views++;
-    }
-    trace_log(
-        "[Hyprtasking][trace] exit_to_workspace hid {} views",
-        hidden_views
-    );
-    return true;
-}
-
 bool HTManager::on_mouse_move() {
     const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace(false);
     const PHLMONITOR cursor_monitor = cursor_context.monitor;
     const PHTVIEW cursor_view = cursor_context.view;
-    const bool manages_mouse = cursor_view != nullptr && cursor_view->layout->should_manage_mouse();
 
     if (cursor_monitor == nullptr || cursor_view == nullptr)
         return false;
-    if (!cursor_view->active || cursor_view->closing || !manages_mouse)
+    if (!cursor_view->active || cursor_view->closing)
         return false;
 
     if (cursor_context.workspace == nullptr) {
@@ -613,6 +528,15 @@ bool HTManager::on_mouse_move() {
             HTCompat::schedule_frame_for_monitor(cursor_monitor);
         }
         return false;
+    }
+
+    if (!selection_pending) {
+        if (cursor_view->hover_suppressed) {
+            if (cursor_context.workspace_id == cursor_view->hover_suppressed_workspace_id)
+                return false;
+
+            cursor_view->clear_hover_suppression();
+        }
     }
 
     if (!selection_pending
@@ -627,21 +551,13 @@ bool HTManager::on_mouse_move() {
     return false;
 }
 
-bool HTManager::on_mouse_axis(double delta) {
-    const PHTVIEW cursor_view = get_view_from_cursor();
-    if (cursor_view == nullptr)
-        return false;
-
-    return cursor_view->layout->on_mouse_axis(delta);
-}
-
 void HTManager::swipe_start() {
     reset_swipe_state();
 }
 
 bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
-    const int ENABLED = HTConfig::value<Hyprlang::INT>("gestures:enabled");
-    if (!ENABLED) {
+    const auto& config = HTConfig::runtime_config();
+    if (!config.gestures_enabled) {
         reset_swipe_state();
         return false;
     }
@@ -657,24 +573,26 @@ bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
         reset_swipe_state();
         return false;
     }
-    if (swipe_view->layout == nullptr || swipe_view->closing) {
+    if (swipe_view->closing) {
         reset_swipe_state();
         return false;
     }
 
-    const unsigned int MOVE_FINGERS = HTConfig::value<Hyprlang::INT>("gestures:move_fingers");
-    const float OPEN_DISTANCE = HTConfig::value<Hyprlang::FLOAT>("gestures:open_distance");
-    const unsigned int OPEN_FINGERS = HTConfig::value<Hyprlang::INT>("gestures:open_fingers");
-    const int OPEN_POSITIVE = HTConfig::value<Hyprlang::INT>("gestures:open_positive");
+    if (!HTRuntimeValidation::ensure_grid_gesture_or_disable("gesture_config_validation")) {
+        reset_swipe_state();
+        return false;
+    }
+    const uint32_t open_fingers = static_cast<uint32_t>(config.open_fingers);
+    const uint32_t move_fingers = static_cast<uint32_t>(config.move_fingers);
 
     bool res = false;
     const auto swipe_direction = HTLogic::detectSwipeDirection(e.delta.x, e.delta.y);
 
-    if (e.fingers == OPEN_FINGERS) {
+    if (e.fingers == open_fingers) {
         if (HTLogic::shouldConsumeOpenSwipe(swipe_view->active, swipe_state == HT_SWIPE_OPEN))
             res = true;
 
-        const float deltaY = HTLogic::normalizedOpenDelta(e.delta.y, OPEN_POSITIVE);
+        const float deltaY = HTLogic::normalizedOpenDelta(e.delta.y, config.open_positive);
 
         if (swipe_state != HT_SWIPE_OPEN) {
             const auto action = HTLogic::resolveOpenSwipeStart(
@@ -690,9 +608,9 @@ bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
                 swipe_view->show();
                 swipe_state = HT_SWIPE_OPEN;
                 swipe_view_id = swipe_view->monitor_id;
-                swipe_amt = OPEN_DISTANCE;
+                swipe_amt = config.open_distance;
             } else if (action == HTLogic::OpenSwipeStartAction::HideOverview) {
-                swipe_view->hide(false);
+                swipe_view->hide();
                 swipe_state = HT_SWIPE_OPEN;
                 swipe_view_id = swipe_view->monitor_id;
                 swipe_amt = 0.0;
@@ -700,14 +618,15 @@ bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
         }
 
         if (swipe_state == HT_SWIPE_OPEN) {
-            const auto next_amount = HTLogic::nextSwipeAmount(swipe_amt, deltaY, OPEN_DISTANCE);
+            const auto next_amount =
+                HTLogic::nextSwipeAmount(swipe_amt, deltaY, config.open_distance);
             if (!next_amount.has_value()) {
                 reset_swipe_state();
                 return res;
             }
 
             swipe_amt = *next_amount;
-            const auto swipe_perc = HTLogic::openSwipeProgress(swipe_amt, OPEN_DISTANCE);
+            const auto swipe_perc = HTLogic::openSwipeProgress(swipe_amt, config.open_distance);
             if (!swipe_perc.has_value()) {
                 reset_swipe_state();
                 return res;
@@ -715,7 +634,7 @@ bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
 
             swipe_view->layout->close_open_lerp(*swipe_perc);
         }
-    } else if (e.fingers == MOVE_FINGERS) {
+    } else if (e.fingers == move_fingers) {
         if (HTLogic::shouldConsumeMoveSwipe(swipe_state == HT_SWIPE_MOVE))
             res = true;
 
@@ -760,15 +679,17 @@ bool HTManager::swipe_end() {
         reset_swipe_state();
         return false;
     }
-    if (swipe_view->layout == nullptr || swipe_view->closing) {
+    if (swipe_view->closing) {
         reset_swipe_state();
         return false;
     }
 
     switch (swipe_state) {
         case HT_SWIPE_OPEN: {
-            const float OPEN_DISTANCE = HTConfig::value<Hyprlang::FLOAT>("gestures:open_distance");
-            const auto keep_open = HTLogic::shouldKeepOverviewOpen(swipe_amt, OPEN_DISTANCE);
+            const auto keep_open = HTLogic::shouldKeepOverviewOpen(
+                swipe_amt,
+                HTConfig::runtime_config().open_distance
+            );
             if (!keep_open.has_value()) {
                 reset_swipe_state();
                 return false;
@@ -777,7 +698,7 @@ bool HTManager::swipe_end() {
             if (*keep_open) {
                 swipe_view->show();
             } else {
-                swipe_view->hide(false);
+                swipe_view->hide();
             }
             break;
         }
@@ -787,7 +708,7 @@ bool HTManager::swipe_end() {
                 return false;
             }
             const WORKSPACEID ws_id = swipe_view->layout->on_move_swipe_end();
-            swipe_view->move_id(ws_id, false);
+            swipe_view->move_id(ws_id);
             break;
         }
         case HT_SWIPE_NONE:

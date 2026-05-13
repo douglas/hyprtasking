@@ -4,9 +4,9 @@
 
 #include <hyprland/src/plugins/PluginAPI.hpp>
 
-#include "../compat/runtime_compat.hpp"
 #include "../globals.hpp"
 #include "../overview.hpp"
+#include "../runtime_validation.hpp"
 #include "guards.hpp"
 
 namespace {
@@ -17,53 +17,34 @@ bool isViewInteractivelyActive(const PHTVIEW& view) {
     return view != nullptr && view->active && !view->closing;
 }
 
-SDispatchResult dispatchIf(std::string arg, bool is_active) {
-    return guardedDispatch("dispatch_if", [&]() -> SDispatchResult {
-        if (ht_manager == nullptr)
-            return {.passEvent = true, .success = true};
-        if (!ht_manager->runtime_enabled())
-            return {.passEvent = true, .success = true};
-
-        const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
-        if (cursor_view == nullptr)
-            return {.passEvent = true, .success = true};
-        if (isViewInteractivelyActive(cursor_view) != is_active)
-            return {.passEvent = true, .success = true};
-
-        const auto dispatch_str = arg.substr(0, arg.find_first_of(' '));
-
-        auto dispatch_arg = std::string();
-        if ((int)arg.find_first_of(' ') != -1)
-            dispatch_arg = arg.substr(arg.find_first_of(' ') + 1);
-
-        SDispatchResult res = HTCompat::invoke_dispatcher(dispatch_str, dispatch_arg);
-
-        Log::logger->log(
-            LOG,
-            "[Hyprtasking] passthrough dispatch: {} : {}{}",
-            dispatch_str,
-            dispatch_arg,
-            res.success ? "" : " -> " + res.error
-        );
-
-        return res;
-    });
+SDispatchResult requireRuntimeReady() {
+    if (ht_manager == nullptr)
+        return {.success = false, .error = "ht_manager is null"};
+    if (!HTRuntimeValidation::ensure_grid_gesture_or_disable("runtime_config_validation"))
+        return {.success = false, .error = "runtime disabled"};
+    if (!ht_manager->runtime_enabled())
+        return {.success = false, .error = "runtime disabled"};
+    return {};
 }
 
-SDispatchResult dispatchIfNotActive(std::string arg) {
-    return dispatchIf(arg, false);
-}
+SDispatchResult requireCursorView(PHTVIEW& cursor_view, bool require_interactive = false) {
+    const auto runtime_guard = requireRuntimeReady();
+    if (!runtime_guard.success)
+        return runtime_guard;
 
-SDispatchResult dispatchIfActive(std::string arg) {
-    return dispatchIf(arg, true);
+    cursor_view = ht_manager->get_view_from_cursor();
+    if (cursor_view == nullptr)
+        return {.success = false, .error = "cursor_view is null"};
+    if (require_interactive && !isViewInteractivelyActive(cursor_view))
+        return {.success = false, .error = "selection unavailable"};
+    return {};
 }
 
 SDispatchResult dispatchToggleView(std::string arg) {
     return guardedDispatch("dispatch_toggle_view", [&]() -> SDispatchResult {
-        if (ht_manager == nullptr)
-            return {.success = false, .error = "ht_manager is null"};
-        if (!ht_manager->runtime_enabled())
-            return {.success = false, .error = "runtime disabled"};
+        const auto runtime_guard = requireRuntimeReady();
+        if (!runtime_guard.success)
+            return runtime_guard;
 
         if (arg == "all") {
             if (ht_manager->has_active_view())
@@ -85,32 +66,22 @@ SDispatchResult dispatchToggleView(std::string arg) {
 
 SDispatchResult dispatchMove(std::string arg) {
     return guardedDispatch("dispatch_move", [&]() -> SDispatchResult {
-        if (ht_manager == nullptr)
-            return {.success = false, .error = "ht_manager is null"};
-        if (!ht_manager->runtime_enabled())
-            return {.success = false, .error = "runtime disabled"};
+        PHTVIEW cursor_view = nullptr;
+        const auto view_guard = requireCursorView(cursor_view);
+        if (!view_guard.success)
+            return view_guard;
 
-        const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
-        if (cursor_view == nullptr)
-            return {.success = false, .error = "cursor_view is null"};
-
-        cursor_view->move(arg, false);
+        cursor_view->move(arg);
         return {};
     });
 }
 
-SDispatchResult dispatchNavigate(std::string arg) {
-    return guardedDispatch("dispatch_navigate", [&]() -> SDispatchResult {
-        if (ht_manager == nullptr)
-            return {.success = false, .error = "ht_manager is null"};
-        if (!ht_manager->runtime_enabled())
-            return {.success = false, .error = "runtime disabled"};
-
-        const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
-        if (cursor_view == nullptr)
-            return {.success = false, .error = "cursor_view is null"};
-        if (!isViewInteractivelyActive(cursor_view))
-            return {.success = false, .error = "selection unavailable"};
+SDispatchResult dispatchSelect(std::string arg) {
+    return guardedDispatch("dispatch_select", [&]() -> SDispatchResult {
+        PHTVIEW cursor_view = nullptr;
+        const auto view_guard = requireCursorView(cursor_view, true);
+        if (!view_guard.success)
+            return view_guard;
 
         if (!cursor_view->navigate_selection(arg))
             return {.success = false, .error = "invalid arg"};
@@ -118,57 +89,15 @@ SDispatchResult dispatchNavigate(std::string arg) {
     });
 }
 
-SDispatchResult dispatchCommitSelection([[maybe_unused]] std::string arg) {
-    return guardedDispatch("dispatch_commit_selection", [&]() -> SDispatchResult {
-        if (ht_manager == nullptr)
-            return {.success = false, .error = "ht_manager is null"};
-        if (!ht_manager->runtime_enabled())
-            return {.success = false, .error = "runtime disabled"};
-
-        const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
-        if (cursor_view == nullptr)
-            return {.success = false, .error = "cursor_view is null"};
-        if (!isViewInteractivelyActive(cursor_view))
-            return {.success = false, .error = "selection unavailable"};
+SDispatchResult dispatchCommit([[maybe_unused]] std::string arg) {
+    return guardedDispatch("dispatch_commit", [&]() -> SDispatchResult {
+        PHTVIEW cursor_view = nullptr;
+        const auto view_guard = requireCursorView(cursor_view, true);
+        if (!view_guard.success)
+            return view_guard;
 
         if (!cursor_view->commit_selection())
             return {.success = false, .error = "selection unavailable"};
-        return {};
-    });
-}
-
-SDispatchResult dispatchMoveWindow(std::string arg) {
-    return guardedDispatch("dispatch_move_window", [&]() -> SDispatchResult {
-        if (ht_manager == nullptr)
-            return {.success = false, .error = "ht_manager is null"};
-        if (!ht_manager->runtime_enabled())
-            return {.success = false, .error = "runtime disabled"};
-
-        const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
-        if (cursor_view == nullptr)
-            return {.success = false, .error = "cursor_view is null"};
-
-        cursor_view->move(arg, true);
-        return {};
-    });
-}
-
-SDispatchResult dispatchKillHover([[maybe_unused]] std::string arg) {
-    return guardedDispatch("dispatch_kill_hover", [&]() -> SDispatchResult {
-        if (ht_manager == nullptr)
-            return {.success = false, .error = "ht_manager is null"};
-        if (!ht_manager->runtime_enabled())
-            return {.success = false, .error = "runtime disabled"};
-
-        const PHTVIEW cursor_view = ht_manager->get_view_from_cursor();
-        if (cursor_view == nullptr)
-            return {.success = false, .error = "cursor_view is null"};
-
-        const PHLWINDOW hovered_window = ht_manager->get_window_from_cursor(!cursor_view->active);
-        if (hovered_window == nullptr)
-            return {.success = false, .error = "hovered_window is null"};
-
-        HTCompat::close_window(hovered_window);
         return {};
     });
 }
@@ -200,14 +129,10 @@ SDispatchResult dispatchHealth(std::string arg) {
 namespace HTPlugin {
 
 void registerDispatchers() {
-    HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:if_not_active", dispatchIfNotActive);
-    HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:if_active", dispatchIfActive);
     HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:toggle", dispatchToggleView);
-    HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:navigate", dispatchNavigate);
-    HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:commit_selection", dispatchCommitSelection);
     HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:move", dispatchMove);
-    HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:movewindow", dispatchMoveWindow);
-    HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:killhovered", dispatchKillHover);
+    HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:select", dispatchSelect);
+    HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:commit", dispatchCommit);
     HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:health", dispatchHealth);
 }
 

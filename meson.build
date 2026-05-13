@@ -4,6 +4,10 @@ project('hyprtasking', 'cpp',
   meson_version: '>= 1.1'
 )
 
+if host_machine.cpu_family() != 'x86_64'
+  error('Hyprtasking uses Hyprland function hooks, which are supported only on x86_64')
+endif
+
 cpp_compiler = meson.get_compiler('cpp')
 if cpp_compiler.has_argument('-std=c++23')
   add_global_arguments('-std=c++23', language: 'cpp')
@@ -23,9 +27,10 @@ hyprland_dep = dependency('hyprland')
 
 build_contract = configuration_data()
 build_contract.set('HT_BUILT_HYPRLAND_PKG_VERSION', hyprland_dep.version())
-build_contract.set('HT_SUPPORTED_HYPRLAND_LINE', '0.54.x')
-build_contract.set('HT_SUPPORTED_HYPRLAND_MINOR_PREFIX', '0.54.')
+build_contract.set('HT_SUPPORTED_HYPRLAND_TARGETS', '0.54.3 and 0.55.0')
 build_contract.set('HT_PROJECT_VERSION', meson.project_version())
+build_contract.set10('HT_HYPRLAND_GE_0_55', hyprland_dep.version().version_compare('>=0.55.0'))
+build_contract.set10('HT_FUNCTION_HOOKS_SUPPORTED_ARCH', host_machine.cpu_family() == 'x86_64')
 
 configure_file(
   input: 'src/build_contract.hpp.in',
@@ -34,6 +39,7 @@ configure_file(
 )
 
 core_src = [
+  'src/config.cpp',
   'src/compat/renderer_compat.cpp',
   'src/compat/runtime_compat.cpp',
   'src/input.cpp',
@@ -42,24 +48,23 @@ core_src = [
   'src/overview.cpp',
   'src/render.cpp',
   'src/render_snapshot.cpp',
+  'src/runtime_validation.cpp',
   'src/trace.cpp',
 ]
 
 layout_src = [
   'src/layout/grid.cpp',
   'src/layout/layout_base.cpp',
-  'src/layout/linear.cpp',
 ]
 
 logic_src = [
   'src/logic/compat_model.cpp',
   'src/logic/controller_state.cpp',
-  'src/logic/dispatch_args.cpp',
   'src/logic/gesture_model.cpp',
   'src/logic/geometry_model.cpp',
   'src/logic/interaction_model.cpp',
-  'src/logic/layout_model.cpp',
-  'src/logic/reload_model.cpp',
+  'src/logic/navigation_model.cpp',
+  'src/logic/view_sync_model.cpp',
 ]
 
 pass_src = [
@@ -78,7 +83,6 @@ incdir = []
 dependencies = [
   dependency('pixman-1'),
   dependency('libdrm'),
-  dependency('pangocairo'),
   dependency('libinput'),
   dependency('libudev'),
   dependency('wayland-server'),
@@ -97,12 +101,11 @@ logic_tests = executable('logic-tests',
     'tests/logic_tests.cpp',
     'src/logic/compat_model.cpp',
     'src/logic/controller_state.cpp',
-    'src/logic/dispatch_args.cpp',
     'src/logic/gesture_model.cpp',
     'src/logic/geometry_model.cpp',
     'src/logic/interaction_model.cpp',
-    'src/logic/layout_model.cpp',
-    'src/logic/reload_model.cpp',
+    'src/logic/navigation_model.cpp',
+    'src/logic/view_sync_model.cpp',
   ],
   include_directories: include_directories('.'),
 )

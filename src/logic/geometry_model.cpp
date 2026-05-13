@@ -12,6 +12,15 @@ bool isFinitePoint(float x, float y) {
     return std::isfinite(x) && std::isfinite(y);
 }
 
+std::optional<int> gridCellCount(int rows, int cols, int max_rows, int max_cols) {
+    if (rows <= 0 || cols <= 0 || max_rows <= 0 || max_cols <= 0)
+        return std::nullopt;
+    if (rows > max_rows || cols > max_cols)
+        return std::nullopt;
+
+    return rows * cols;
+}
+
 std::optional<float> workspaceWidthScale(float workspace_width, float monitor_width) {
     if (!isPositiveFinite(workspace_width) || !isPositiveFinite(monitor_width))
         return std::nullopt;
@@ -34,12 +43,8 @@ std::optional<float> inverseDragWindowScale(float drag_scale) {
     return 1.f / *scale;
 }
 
-std::optional<float> windowRenderScale(
-    float box_width,
-    float box_height,
-    float window_width,
-    float window_height
-) {
+std::optional<float>
+windowRenderScale(float box_width, float box_height, float window_width, float window_height) {
     if (!isPositiveFinite(box_width) || !isPositiveFinite(box_height)
         || !isPositiveFinite(window_width) || !isPositiveFinite(window_height))
         return std::nullopt;

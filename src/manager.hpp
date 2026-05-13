@@ -7,7 +7,7 @@
 #include <hyprland/src/helpers/AnimatedVariable.hpp>
 
 #include "logic/interaction_model.hpp"
-#include "logic/reload_model.hpp"
+#include "logic/view_sync_model.hpp"
 #include "overview.hpp"
 
 struct HTCursorWorkspaceContext {
@@ -36,7 +36,7 @@ class HTManager {
     PHTVIEW get_view_from_id(VIEWID view_id);
     HTCursorWorkspaceContext resolve_cursor_workspace(bool create_if_missing);
 
-    PHLWINDOW get_window_from_cursor(bool return_focused = true);
+    PHLWINDOW get_window_from_cursor();
 
     void reset();
     void sync_monitor_views();
@@ -62,9 +62,7 @@ class HTManager {
     bool begin_workspace_select();
     bool end_workspace_select(VIEWID view_id, WORKSPACEID target_workspace_id);
     void reset_selection_state();
-    bool exit_to_workspace();
     bool on_mouse_move();
-    bool on_mouse_axis(double delta);
 
     enum swipe_state_t {
         HT_SWIPE_OPEN,
@@ -79,6 +77,7 @@ class HTManager {
     bool selection_pending = false;
     bool runtime_disabled = false;
     std::string disabled_reason;
+    std::string disabled_source;
     PHTVIEW get_swipe_view();
     void reset_swipe_state();
     void swipe_start();
@@ -90,6 +89,7 @@ class HTManager {
     bool cursor_view_active();
 
   private:
+    void reset_runtime_controls();
     void claim_mouse_button(
         unsigned int button,
         mouse_interaction_t interaction,

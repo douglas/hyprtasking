@@ -1,18 +1,27 @@
 #pragma once
 
+#include "../build_contract.hpp"
+
 #include <hyprland/src/render/pass/PassElement.hpp>
 
 class HTPassElement: public IPassElement {
   public:
     HTPassElement();
-    virtual ~HTPassElement() = default;
+    ~HTPassElement() override = default;
 
-    virtual void draw(const CRegion& damage);
-    virtual bool needsLiveBlur();
-    virtual bool needsPrecomputeBlur();
-    virtual bool disableSimplification();
+#if HT_HYPRLAND_GE_0_55
+    std::vector<UP<IPassElement>> draw() override;
+#else
+    void draw(const CRegion& damage) override;
+#endif
+    bool needsLiveBlur() override;
+    bool needsPrecomputeBlur() override;
+    bool disableSimplification() override;
+#if HT_HYPRLAND_GE_0_55
+    ePassElementType type() override;
+#endif
 
-    virtual const char* passName() {
+    const char* passName() override {
         return "HTDisableSimplification";
     }
 };

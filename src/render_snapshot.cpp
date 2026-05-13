@@ -36,14 +36,14 @@ std::optional<HTRenderSnapshot> capture_render_snapshot(VIEWID view_id, float dr
     if (!HTLogic::isFinitePoint(mouse_coords.x, mouse_coords.y))
         return snapshot;
 
-    const CBox window_box = dragged_window->getWindowMainSurfaceBox()
+    const CBox window_box = HTCompat::window_main_surface_box(dragged_window)
                                 .translate(-mouse_coords)
                                 .scale(*scale)
                                 .translate(mouse_coords);
     if (window_box.empty() || !HTLogic::isFinitePoint(window_box.x, window_box.y)
         || !HTLogic::isFinitePoint(window_box.w, window_box.h))
         return snapshot;
-    if (window_box.intersection(monitor->logicalBox()).empty())
+    if (window_box.intersection(HTCompat::monitor_logical_box(monitor)).empty())
         return snapshot;
 
     snapshot.dragged_window = HTDraggedWindowSnapshot {

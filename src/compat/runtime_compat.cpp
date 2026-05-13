@@ -1,26 +1,26 @@
 #include "runtime_compat.hpp"
 
-#include "../globals.hpp"
-
 #include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/config/ConfigManager.hpp>
-#include <hyprland/src/desktop/state/FocusState.hpp>
+
+#include "../build_contract.hpp"
+#include "../globals.hpp"
+#if HT_HYPRLAND_GE_0_55
+    #include <hyprland/src/config/shared/animation/AnimationTree.hpp>
+#endif
 #include <hyprland/src/desktop/view/View.hpp>
 #include <hyprland/src/desktop/view/Window.hpp>
 #include <hyprland/src/event/EventBus.hpp>
 #include <hyprland/src/helpers/Monitor.hpp>
+#include <hyprland/src/managers/KeybindManager.hpp>
 #include <hyprland/src/managers/animation/AnimationManager.hpp>
 #include <hyprland/src/managers/cursor/CursorShapeOverrideController.hpp>
 #include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
-#include <hyprland/src/managers/KeybindManager.hpp>
-#include <hyprland/src/managers/SeatManager.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
 #include <hyprland/src/render/Renderer.hpp>
 
-SDispatchResult HTCompat::invoke_dispatcher(
-    const std::string& dispatch_name,
-    const std::string& dispatch_arg
-) {
+SDispatchResult
+HTCompat::invoke_dispatcher(const std::string& dispatch_name, const std::string& dispatch_arg) {
     if (!g_pKeybindManager)
         return {.success = false, .error = "keybind manager unavailable"};
 
@@ -31,12 +31,12 @@ SDispatchResult HTCompat::invoke_dispatcher(
     return dispatcher->second(dispatch_arg);
 }
 
-void HTCompat::enter_submap(const std::string& name) {
-    invoke_dispatcher("submap", name);
+bool HTCompat::enter_submap(const std::string& name) {
+    return invoke_dispatcher("submap", name).success;
 }
 
-void HTCompat::exit_submap() {
-    invoke_dispatcher("submap", "reset");
+bool HTCompat::exit_submap() {
+    return invoke_dispatcher("submap", "reset").success;
 }
 
 PHLMONITOR HTCompat::cursor_monitor() {
@@ -59,15 +59,22 @@ void HTCompat::create_float_animation(
     const std::string& config_name,
     eAVarDamagePolicy policy
 ) {
-    if (!g_pAnimationManager || !g_pConfigManager)
+    if (!g_pAnimationManager)
         return;
 
-    g_pAnimationManager->createAnimation(
-        initial_value,
-        animation,
-        g_pConfigManager->getAnimationPropertyConfig(config_name),
-        policy
-    );
+#if HT_HYPRLAND_GE_0_55
+    if (!Config::animationTree())
+        return;
+
+    const auto config = Config::animationTree()->getAnimationPropertyConfig(config_name);
+#else
+    if (!g_pConfigManager)
+        return;
+
+    const auto config = g_pConfigManager->getAnimationPropertyConfig(config_name);
+#endif
+
+    g_pAnimationManager->createAnimation(initial_value, animation, config, policy);
 }
 
 void HTCompat::create_vector_animation(
@@ -76,19 +83,22 @@ void HTCompat::create_vector_animation(
     const std::string& config_name,
     eAVarDamagePolicy policy
 ) {
-    if (!g_pAnimationManager || !g_pConfigManager)
+    if (!g_pAnimationManager)
         return;
 
-    g_pAnimationManager->createAnimation(
-        initial_value,
-        animation,
-        g_pConfigManager->getAnimationPropertyConfig(config_name),
-        policy
-    );
-}
+#if HT_HYPRLAND_GE_0_55
+    if (!Config::animationTree())
+        return;
 
-PHLMONITOR HTCompat::focused_monitor() {
-    return Desktop::focusState()->monitor();
+    const auto config = Config::animationTree()->getAnimationPropertyConfig(config_name);
+#else
+    if (!g_pConfigManager)
+        return;
+
+    const auto config = g_pConfigManager->getAnimationPropertyConfig(config_name);
+#endif
+
+    g_pAnimationManager->createAnimation(initial_value, animation, config, policy);
 }
 
 std::vector<PHLMONITOR> HTCompat::compositor_monitors() {
@@ -119,7 +129,8 @@ std::string HTCompat::monitor_description(PHLMONITOR monitor) {
     return monitor->m_description;
 }
 
-PHLWINDOW HTCompat::window_at(const Vector2D& position, uint8_t properties, PHLWINDOW ignore_window) {
+PHLWINDOW
+HTCompat::window_at(const Vector2D& position, uint16_t properties, PHLWINDOW ignore_window) {
     if (!g_pCompositor)
         return nullptr;
 
@@ -133,36 +144,6 @@ PHLWINDOW HTCompat::hover_target_window_at(const Vector2D& position, PHLWINDOW i
             | Desktop::View::ALLOW_FLOATING,
         ignore_window
     );
-}
-
-void HTCompat::focus_monitor(PHLMONITOR monitor) {
-    if (monitor == nullptr)
-        return;
-
-    Desktop::focusState()->rawMonitorFocus(monitor);
-}
-
-void HTCompat::focus_window(PHLWINDOW window) {
-    if (window == nullptr)
-        return;
-
-    Desktop::focusState()->fullWindowFocus(window, Desktop::FOCUS_REASON_CLICK);
-}
-
-bool HTCompat::can_warp_window_cursor(PHLWINDOW window) {
-    if (window == nullptr)
-        return false;
-
-    const auto focused_surface =
-        Desktop::View::CWLSurface::fromResource(g_pSeatManager->m_state.pointerFocus.lock());
-    return !focused_surface || focused_surface->view();
-}
-
-void HTCompat::warp_window_cursor(PHLWINDOW window, bool force) {
-    if (window == nullptr)
-        return;
-
-    window->warpCursor(force);
 }
 
 void HTCompat::set_cursor_override_enabled(bool enabled) {
@@ -197,23 +178,15 @@ void HTCompat::simulate_mouse_movement() {
     g_pInputManager->simulateMouseMovement();
 }
 
-void HTCompat::do_later(const std::function<void()>& callback) {
+bool HTCompat::do_later(const std::function<void()>& callback) {
     if (!callback)
-        return;
+        return false;
 
-    if (!g_pEventLoopManager) {
-        callback();
-        return;
-    }
+    if (!g_pEventLoopManager)
+        return false;
 
     g_pEventLoopManager->doLater(callback);
-}
-
-void HTCompat::close_window(PHLWINDOW window) {
-    if (window == nullptr || !g_pCompositor)
-        return;
-
-    g_pCompositor->closeWindow(window);
+    return true;
 }
 
 void HTCompat::move_window_to_workspace(PHLWINDOW window, PHLWORKSPACE workspace) {
@@ -282,115 +255,114 @@ void HTCompat::end_drag_controller() {
     drag_controller->dragEnd();
 }
 
-void HTCompat::invoke_mouse_button_original(void* thisptr, IPointer::SButtonEvent event) {
+#if HT_HYPRLAND_GE_0_55
+bool HTCompat::invoke_mouse_button_original(
+    void* thisptr,
+    IPointer::SButtonEvent event,
+    SP<IPointer> mouse
+) {
     if (thisptr == nullptr || input_mouse_button_hook == nullptr)
-        return;
+        return false;
+    if (input_mouse_button_hook->m_original == nullptr)
+        return false;
+
+    using origOnMouseButton = void (*)(void*, IPointer::SButtonEvent, SP<IPointer>);
+    ((origOnMouseButton)input_mouse_button_hook->m_original)(thisptr, event, mouse);
+    return true;
+}
+#else
+bool HTCompat::invoke_mouse_button_original(void* thisptr, IPointer::SButtonEvent event) {
+    if (thisptr == nullptr || input_mouse_button_hook == nullptr)
+        return false;
+    if (input_mouse_button_hook->m_original == nullptr)
+        return false;
 
     using origOnMouseButton = void (*)(void*, IPointer::SButtonEvent);
     ((origOnMouseButton)input_mouse_button_hook->m_original)(thisptr, event);
+    return true;
 }
+#endif
 
-void HTCompat::listen_mouse_button(
-    CHyprSignalListener& listener,
-    const std::function<void(IPointer::SButtonEvent, Event::SCallbackInfo&)>& callback
-) {
-    listener = Event::bus()->m_events.input.mouse.button.listen(callback);
-}
-
-void HTCompat::listen_mouse_move(
+bool HTCompat::listen_mouse_move(
     CHyprSignalListener& listener,
     const std::function<void(Vector2D, Event::SCallbackInfo&)>& callback
 ) {
-    listener = Event::bus()->m_events.input.mouse.move.listen(callback);
+    auto& bus = Event::bus();
+    if (!bus || !callback)
+        return false;
+
+    listener = bus->m_events.input.mouse.move.listen(callback);
+    return true;
 }
 
-void HTCompat::listen_mouse_axis(
-    CHyprSignalListener& listener,
-    const std::function<void(IPointer::SAxisEvent, Event::SCallbackInfo&)>& callback
-) {
-    listener = Event::bus()->m_events.input.mouse.axis.listen(callback);
-}
-
-void HTCompat::listen_touch_down(
-    CHyprSignalListener& listener,
-    const std::function<void(ITouch::SDownEvent, Event::SCallbackInfo)>& callback
-) {
-    listener = Event::bus()->m_events.input.touch.down.listen(callback);
-}
-
-void HTCompat::listen_touch_up(
-    CHyprSignalListener& listener,
-    const std::function<void(ITouch::SUpEvent, Event::SCallbackInfo)>& callback
-) {
-    listener = Event::bus()->m_events.input.touch.up.listen(callback);
-}
-
-void HTCompat::listen_touch_motion(
-    CHyprSignalListener& listener,
-    const std::function<void(ITouch::SMotionEvent, Event::SCallbackInfo)>& callback
-) {
-    listener = Event::bus()->m_events.input.touch.motion.listen(callback);
-}
-
-void HTCompat::listen_tablet_button(
-    CHyprSignalListener& listener,
-    const std::function<void(CTablet::SButtonEvent, Event::SCallbackInfo&)>& callback
-) {
-    listener = Event::bus()->m_events.input.tablet.button.listen(callback);
-}
-
-void HTCompat::listen_tablet_tip(
-    CHyprSignalListener& listener,
-    const std::function<void(CTablet::STipEvent, Event::SCallbackInfo&)>& callback
-) {
-    listener = Event::bus()->m_events.input.tablet.tip.listen(callback);
-}
-
-void HTCompat::listen_tablet_proximity(
-    CHyprSignalListener& listener,
-    const std::function<void(CTablet::SProximityEvent, Event::SCallbackInfo&)>& callback
-) {
-    listener = Event::bus()->m_events.input.tablet.proximity.listen(callback);
-}
-
-void HTCompat::listen_swipe_begin(
+bool HTCompat::listen_swipe_begin(
     CHyprSignalListener& listener,
     const std::function<void(IPointer::SSwipeBeginEvent, Event::SCallbackInfo&)>& callback
 ) {
-    listener = Event::bus()->m_events.gesture.swipe.begin.listen(callback);
+    auto& bus = Event::bus();
+    if (!bus || !callback)
+        return false;
+
+    listener = bus->m_events.gesture.swipe.begin.listen(callback);
+    return true;
 }
 
-void HTCompat::listen_swipe_update(
+bool HTCompat::listen_swipe_update(
     CHyprSignalListener& listener,
     const std::function<void(IPointer::SSwipeUpdateEvent, Event::SCallbackInfo&)>& callback
 ) {
-    listener = Event::bus()->m_events.gesture.swipe.update.listen(callback);
+    auto& bus = Event::bus();
+    if (!bus || !callback)
+        return false;
+
+    listener = bus->m_events.gesture.swipe.update.listen(callback);
+    return true;
 }
 
-void HTCompat::listen_swipe_end(
+bool HTCompat::listen_swipe_end(
     CHyprSignalListener& listener,
     const std::function<void(IPointer::SSwipeEndEvent, Event::SCallbackInfo&)>& callback
 ) {
-    listener = Event::bus()->m_events.gesture.swipe.end.listen(callback);
+    auto& bus = Event::bus();
+    if (!bus || !callback)
+        return false;
+
+    listener = bus->m_events.gesture.swipe.end.listen(callback);
+    return true;
 }
 
-void HTCompat::listen_config_reloaded(
+bool HTCompat::listen_config_reloaded(
     CHyprSignalListener& listener,
     const std::function<void()>& callback
 ) {
-    listener = Event::bus()->m_events.config.reloaded.listen(callback);
+    auto& bus = Event::bus();
+    if (!bus || !callback)
+        return false;
+
+    listener = bus->m_events.config.reloaded.listen(callback);
+    return true;
 }
 
-void HTCompat::listen_monitor_added(
+bool HTCompat::listen_monitor_added(
     CHyprSignalListener& listener,
     const std::function<void()>& callback
 ) {
-    listener = Event::bus()->m_events.monitor.added.listen(callback);
+    auto& bus = Event::bus();
+    if (!bus || !callback)
+        return false;
+
+    listener = bus->m_events.monitor.added.listen(callback);
+    return true;
 }
 
-void HTCompat::listen_monitor_removed(
+bool HTCompat::listen_monitor_removed(
     CHyprSignalListener& listener,
     const std::function<void()>& callback
 ) {
-    listener = Event::bus()->m_events.monitor.removed.listen(callback);
+    auto& bus = Event::bus();
+    if (!bus || !callback)
+        return false;
+
+    listener = bus->m_events.monitor.removed.listen(callback);
+    return true;
 }

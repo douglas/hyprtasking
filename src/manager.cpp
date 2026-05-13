@@ -2,19 +2,13 @@
 
 #include <algorithm>
 #include <format>
-
-#include <hyprland/src/Compositor.hpp>
-#include <hyprland/src/config/ConfigManager.hpp>
-#include <hyprland/src/desktop/DesktopTypes.hpp>
-#include <hyprland/src/layout/LayoutManager.hpp>
-#include <hyprland/src/managers/KeybindManager.hpp>
-#include <hyprland/src/managers/input/InputManager.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
 
-#include "globals.hpp"
+#include "compat/profile.hpp"
 #include "compat/renderer_compat.hpp"
 #include "compat/runtime_compat.hpp"
-#include "logic/reload_model.hpp"
+#include "globals.hpp"
+#include "logic/view_sync_model.hpp"
 #include "overview.hpp"
 #include "state_guards.hpp"
 
@@ -65,7 +59,21 @@ std::string json_escape(std::string_view value) {
     return escaped;
 }
 
+std::string hook_json(bool installed, bool original_ready, const HTHookInfo& info) {
+    return std::format(
+        "{{\"installed\":{},\"original_ready\":{},\"method\":\"{}\",\"signature\":\"{}\"}}",
+        installed ? "true" : "false",
+        original_ready ? "true" : "false",
+        json_escape(info.method),
+        json_escape(info.signature)
+    );
 }
+
+std::string listener_json(const HTListenerInfo& info) {
+    return std::format("{{\"installed\":{}}}", info.installed ? "true" : "false");
+}
+
+} // namespace
 
 PHTVIEW HTManager::get_view_from_monitor(PHLMONITOR monitor) {
     if (monitor == nullptr)
@@ -115,25 +123,18 @@ HTCursorWorkspaceContext HTManager::resolve_cursor_workspace(bool create_if_miss
     return context;
 }
 
-PHLWINDOW HTManager::get_window_from_cursor(bool return_focused) {
+PHLWINDOW HTManager::get_window_from_cursor() {
     const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace(false);
     const PHLMONITOR cursor_monitor = cursor_context.monitor;
     if (cursor_monitor == nullptr)
         return nullptr;
-
-    if (return_focused) {
-        const PHLWORKSPACE active_workspace = HTCompat::active_monitor_workspace(cursor_monitor);
-        if (active_workspace == nullptr)
-            return nullptr;
-        return active_workspace->getLastFocusedWindow();
-    }
 
     const PHTVIEW cursor_view = cursor_context.view;
     if (cursor_view == nullptr)
         return nullptr;
     const Vector2D mouse_coords = cursor_context.mouse_coords;
 
-    if (!cursor_view->active || !cursor_view->layout->should_manage_mouse()) {
+    if (!cursor_view->active) {
         return HTCompat::hover_target_window_at(mouse_coords);
     }
     const WORKSPACEID ws_id = cursor_context.workspace_id;
@@ -168,7 +169,7 @@ void HTManager::hide_all_views() {
     for (PHTVIEW view : views) {
         if (view == nullptr)
             continue;
-        view->hide(false);
+        view->hide();
     }
 }
 
@@ -208,14 +209,10 @@ void HTManager::clear_dragged_window() {
 }
 
 void HTManager::reset() {
+    reset_runtime_controls();
     runtime_disabled = false;
     disabled_reason.clear();
-    HTCompat::reset_overview_render_guard();
-    reset_selection_state();
-    reset_mouse_button_state();
-    clear_dragged_window();
-    reset_drag_state();
-    reset_swipe_state();
+    disabled_source.clear();
     views.clear();
     refresh_cursor_override();
 }
@@ -230,6 +227,7 @@ void HTManager::disable_runtime(std::string_view source, std::string_view reason
 
     runtime_disabled = true;
     disabled_reason = std::string(reason);
+    disabled_source = std::string(source);
     const std::string state_snapshot = std::format(
         "views={}, active_view={}, cursor_view={}, selection_pending={}, swipe_state={}, swipe_amt={}, dragged_window={}",
         views.size(),
@@ -240,18 +238,7 @@ void HTManager::disable_runtime(std::string_view source, std::string_view reason
         swipe_amt,
         get_dragged_window() != nullptr
     );
-    HTCompat::reset_overview_render_guard();
-    reset_selection_state();
-
-    for (const PHTVIEW& view : views) {
-        if (view == nullptr)
-            continue;
-        view->cancel_runtime_state();
-    }
-
-    reset_drag_state();
-    reset_swipe_state();
-    refresh_cursor_override();
+    reset_runtime_controls();
 
     Log::logger->log(
         Log::ERR,
@@ -262,7 +249,7 @@ void HTManager::disable_runtime(std::string_view source, std::string_view reason
     );
     HyprlandAPI::addNotification(
         PHANDLE,
-        "[Hyprtasking] Disabled for this session after an internal runtime failure.",
+        "[Hyprtasking] Disabled for this session after an internal runtime failure. Run hyprctl dispatch hyprtasking:health for details.",
         CHyprColor {1.0, 0.2, 0.2, 1.0},
         5000
     );
@@ -289,9 +276,10 @@ std::string HTManager::runtime_health_summary(bool json) const {
 
     if (json) {
         return std::format(
-            "{{\"runtime_enabled\":{},\"disable_reason\":\"{}\",\"views\":{},\"active_views\":{},\"closing_views\":{},\"navigating_views\":{},\"hooks\":{{\"mouse_button\":{},\"render_workspace\":{},\"should_render_window\":{},\"is_solitary_blocked\":{}}}}}",
+            "{{\"runtime_enabled\":{},\"disable_reason\":\"{}\",\"failure_source\":\"{}\",\"views\":{},\"active_views\":{},\"closing_views\":{},\"navigating_views\":{},\"hooks\":{{\"mouse_button\":{},\"render_workspace\":{},\"should_render_window\":{},\"is_solitary_blocked\":{}}},\"listeners\":{{\"mouse_move\":{},\"swipe_begin\":{},\"swipe_update\":{},\"swipe_end\":{},\"config_reloaded\":{},\"monitor_added\":{},\"monitor_removed\":{}}},\"hook_details\":{{\"mouse_button\":{},\"render_workspace\":{},\"should_render_window\":{},\"render_window\":{},\"is_solitary_blocked\":{}}}}}",
             runtime_enabled() ? "true" : "false",
             json_escape(disabled_reason),
+            json_escape(disabled_source),
             views.size(),
             active_views,
             closing_views,
@@ -299,14 +287,47 @@ std::string HTManager::runtime_health_summary(bool json) const {
             input_mouse_button_hook != nullptr ? "true" : "false",
             render_workspace_hook != nullptr ? "true" : "false",
             should_render_window_hook != nullptr ? "true" : "false",
-            is_solitary_blocked_hook != nullptr ? "true" : "false"
+            is_solitary_blocked_hook != nullptr ? "true" : "false",
+            listener_json(mouse_move_listener_info),
+            listener_json(swipe_begin_listener_info),
+            listener_json(swipe_update_listener_info),
+            listener_json(swipe_end_listener_info),
+            listener_json(config_reloaded_listener_info),
+            listener_json(monitor_added_listener_info),
+            listener_json(monitor_removed_listener_info),
+            hook_json(
+                input_mouse_button_hook != nullptr,
+                HTCompat::function_hook_original_ready(input_mouse_button_hook),
+                input_mouse_button_hook_info
+            ),
+            hook_json(
+                render_workspace_hook != nullptr,
+                HTCompat::function_hook_original_ready(render_workspace_hook),
+                render_workspace_hook_info
+            ),
+            hook_json(
+                should_render_window_hook != nullptr,
+                HTCompat::function_hook_original_ready(should_render_window_hook),
+                should_render_window_hook_info
+            ),
+            hook_json(
+                render_window != nullptr,
+                render_window != nullptr,
+                render_window_symbol_info
+            ),
+            hook_json(
+                is_solitary_blocked_hook != nullptr,
+                HTCompat::function_hook_original_ready(is_solitary_blocked_hook),
+                is_solitary_blocked_hook_info
+            )
         );
     }
 
     return std::format(
-        "runtime_enabled={} disable_reason=\"{}\" views={} active_views={} closing_views={} navigating_views={} hooks(mouse_button={}, render_workspace={}, should_render_window={}, is_solitary_blocked={})",
+        "runtime_enabled={} disable_reason=\"{}\" failure_source=\"{}\" views={} active_views={} closing_views={} navigating_views={} hooks(mouse_button={}, render_workspace={}, should_render_window={}, is_solitary_blocked={}) listeners(mouse_move={}, swipe_begin={}, swipe_update={}, swipe_end={}, config_reloaded={}, monitor_added={}, monitor_removed={}) hook_methods(mouse_button={}, render_workspace={}, should_render_window={}, render_window={}, is_solitary_blocked={})",
         runtime_enabled(),
         disabled_reason,
+        disabled_source,
         views.size(),
         active_views,
         closing_views,
@@ -314,8 +335,37 @@ std::string HTManager::runtime_health_summary(bool json) const {
         input_mouse_button_hook != nullptr,
         render_workspace_hook != nullptr,
         should_render_window_hook != nullptr,
-        is_solitary_blocked_hook != nullptr
+        is_solitary_blocked_hook != nullptr,
+        mouse_move_listener_info.installed,
+        swipe_begin_listener_info.installed,
+        swipe_update_listener_info.installed,
+        swipe_end_listener_info.installed,
+        config_reloaded_listener_info.installed,
+        monitor_added_listener_info.installed,
+        monitor_removed_listener_info.installed,
+        input_mouse_button_hook_info.method,
+        render_workspace_hook_info.method,
+        should_render_window_hook_info.method,
+        render_window_symbol_info.method,
+        is_solitary_blocked_hook_info.method
     );
+}
+
+void HTManager::reset_runtime_controls() {
+    HTCompat::reset_overview_render_guard();
+    reset_selection_state();
+    reset_mouse_button_state();
+
+    for (const PHTVIEW& view : views) {
+        if (view == nullptr)
+            continue;
+        view->cancel_runtime_state();
+    }
+
+    reset_drag_state();
+    reset_swipe_state();
+    HTCompat::exit_submap();
+    HTCompat::set_cursor_override_enabled(false);
 }
 
 void HTManager::reset_selection_state() {
@@ -395,13 +445,10 @@ void HTManager::sync_monitor_views() {
         return true;
     });
 
-    const bool removed_swipe_view =
-        swipe_view_id != INVALID_VIEW_ID && std::ranges::find(stale_ids, swipe_view_id) != stale_ids.end();
+    const bool removed_swipe_view = swipe_view_id != INVALID_VIEW_ID
+        && std::ranges::find(stale_ids, swipe_view_id) != stale_ids.end();
     if (removed_runtime_view || removed_swipe_view) {
-        reset_selection_state();
-        reset_drag_state();
-        reset_swipe_state();
-        refresh_cursor_override();
+        reset_runtime_controls();
     }
 
     const auto missing_ids = HTLogic::missingMonitorViewIDs(view_ids, monitor_ids);

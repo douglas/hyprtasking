@@ -3,7 +3,7 @@
 namespace HTPlugin {
 
 void initializeConfig();
-void registerCallbacks();
+bool registerCallbacks();
 void unregisterCallbacks();
 void registerMonitors();
 
