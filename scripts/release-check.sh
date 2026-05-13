@@ -3,7 +3,11 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
-BUILD_DIR=${BUILD_DIR:-"$REPO_DIR/build"}
+DEFAULT_BUILD_DIR="$REPO_DIR/build"
+if [[ -z "${BUILD_DIR:-}" && ! -d "$DEFAULT_BUILD_DIR" && -d "$REPO_DIR/build-055" ]]; then
+  DEFAULT_BUILD_DIR="$REPO_DIR/build-055"
+fi
+BUILD_DIR=${BUILD_DIR:-"$DEFAULT_BUILD_DIR"}
 SMOKE_MODE=${SMOKE_MODE:-stress}
 PRINT_MANUAL_CHECKLIST=${PRINT_MANUAL_CHECKLIST:-1}
 HYPRLAND_SOURCE=${HYPRLAND_SOURCE:-}
@@ -20,6 +24,7 @@ AUDIT_JSON="null"
 AUDIT_SURFACE_JSON="null"
 COMPAT_COVERAGE_JSON="null"
 BOUNDARY_JSON="null"
+CONFIG_KEYS_JSON="null"
 MANUAL_CHECKLIST_JSON="null"
 
 run() {
@@ -104,7 +109,8 @@ emit_json_result() {
   printf '"compat":%s,' "$AUDIT_JSON"
   printf '"compat_surface":%s,' "$AUDIT_SURFACE_JSON"
   printf '"compat_coverage":%s,' "$COMPAT_COVERAGE_JSON"
-  printf '"boundary":%s' "$BOUNDARY_JSON"
+  printf '"boundary":%s,' "$BOUNDARY_JSON"
+  printf '"config_keys":%s' "$CONFIG_KEYS_JSON"
   printf '},'
   printf '"manual_checklist":%s,' "$MANUAL_CHECKLIST_JSON"
   printf '"stages":['
@@ -192,6 +198,15 @@ if [[ "$RELEASE_MODE" != "live" ]]; then
     run_stage boundary env "AUDIT_BOUNDARY_FORMAT=json" bash "$SCRIPT_DIR/audit-boundary.sh"
   else
     run_stage boundary bash "$SCRIPT_DIR/audit-boundary.sh"
+  fi
+  run_stage guidelines bash "$SCRIPT_DIR/audit-guidelines.sh"
+  if [[ "$RELEASE_CHECK_FORMAT" == "json" ]]; then
+    CONFIG_KEYS_JSON="$(
+      env AUDIT_CONFIG_KEYS_FORMAT=json bash "$SCRIPT_DIR/audit-config-keys.sh"
+    )"
+    run_stage config-keys env "AUDIT_CONFIG_KEYS_FORMAT=json" bash "$SCRIPT_DIR/audit-config-keys.sh"
+  else
+    run_stage config-keys bash "$SCRIPT_DIR/audit-config-keys.sh"
   fi
   run_stage compile meson compile -C "$BUILD_DIR"
   run_stage test meson test -C "$BUILD_DIR"

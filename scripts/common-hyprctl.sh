@@ -72,6 +72,9 @@ hypr_signature_pid() {
 hypr_signature_pid_alive() {
   local pid
   pid="$(hypr_signature_pid "$1")" || return 0
+  if [[ ! -d "/proc/$pid" && -S "$(hypr_signature_socket_path "$1")" ]]; then
+    return 0
+  fi
   [[ -d "/proc/$pid" ]]
 }
 

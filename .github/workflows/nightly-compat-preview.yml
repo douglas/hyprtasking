@@ -12,17 +12,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - track: v0.54.0
-            ref: v0.54.0
-            strict: true
-          - track: v0.54.1
-            ref: v0.54.1
-            strict: true
-          - track: stable
-            ref: v0.54.2
-            strict: true
-          - track: next
+          - track: v0.54.3
             ref: v0.54.3
+            strict: true
+          - track: v0.55.0
+            ref: v0.55.0
             strict: true
           - track: preview
             ref: main
@@ -47,6 +41,12 @@ jobs:
         run: |
           set +e
           mkdir -p out
+          contract_exit=0
+          if [[ "${{ matrix.track }}" == "v0.55.0" ]]; then
+            bash scripts/generate-compat-contract.sh "$GITHUB_WORKSPACE/hyprland"
+            git diff --exit-code -- scripts/contracts
+            contract_exit=$?
+          fi
           AUDIT_FORMAT=json bash scripts/audit-compat.sh "$GITHUB_WORKSPACE/hyprland" > "out/core-${{ matrix.track }}.json"
           core_exit=$?
           AUDIT_FORMAT=json bash scripts/audit-compat-surface.sh "$GITHUB_WORKSPACE/hyprland" > "out/surface-${{ matrix.track }}.json"
@@ -56,19 +56,21 @@ jobs:
           set -e
 
           echo "track=${{ matrix.track }}" >> "$GITHUB_OUTPUT"
+          echo "contract_exit=$contract_exit" >> "$GITHUB_OUTPUT"
           echo "core_exit=$core_exit" >> "$GITHUB_OUTPUT"
           echo "surface_exit=$surface_exit" >> "$GITHUB_OUTPUT"
           echo "coverage_exit=$coverage_exit" >> "$GITHUB_OUTPUT"
 
           {
             echo "## Nightly Compat Report (${{ matrix.track }})"
-            echo "- Hyprland ref: \`${{ matrix.ref }}\`"
-            echo "- core audit exit: \`$core_exit\`"
-            echo "- surface audit exit: \`$surface_exit\`"
-            echo "- coverage audit exit: \`$coverage_exit\`"
+              echo "- Hyprland ref: \`${{ matrix.ref }}\`"
+              echo "- generated contract drift exit: \`$contract_exit\`"
+              echo "- core audit exit: \`$core_exit\`"
+              echo "- surface audit exit: \`$surface_exit\`"
+              echo "- coverage audit exit: \`$coverage_exit\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
-          if [[ "${{ matrix.strict }}" == "true" && ( "$core_exit" -ne 0 || "$surface_exit" -ne 0 || "$coverage_exit" -ne 0 ) ]]; then
+          if [[ "${{ matrix.strict }}" == "true" && ( "$contract_exit" -ne 0 || "$core_exit" -ne 0 || "$surface_exit" -ne 0 || "$coverage_exit" -ne 0 ) ]]; then
             exit 1
           fi
 

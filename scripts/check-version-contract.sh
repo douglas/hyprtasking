@@ -3,9 +3,8 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 source "$SCRIPT_DIR/common-hyprctl.sh"
+source "$SCRIPT_DIR/support-matrix.sh"
 
-SUPPORTED_MINOR="0.54.x"
-SUPPORTED_PREFIX="0.54."
 CHECK_FORMAT=${CHECK_FORMAT:-text}
 HYPRLAND_SOURCE=${1:-${HYPRLAND_SOURCE:-}}
 HYPRCTL_PREFIX=()
@@ -49,7 +48,8 @@ emit_json() {
   printf '"status":%s,' "$(json_string "$status")"
   printf '"exit_code":%s,' "$exit_code"
   printf '"message":%s,' "$(json_string "$message")"
-  printf '"supported_line":%s,' "$(json_string "$SUPPORTED_MINOR")"
+  printf '"supported_targets":%s,' "$(json_string "$SUPPORTED_TARGETS")"
+  printf '"supported_versions":%s,' "$(json_string "$SUPPORTED_VERSIONS_TEXT")"
   printf '"package_version":%s,' "$(json_string "${PKG_VERSION:-}")"
   printf '"runtime_version":%s,' "$(json_string "${RUNTIME_VERSION:-}")"
   printf '"source_version":%s,' "$(json_string "${SOURCE_VERSION:-}")"
@@ -71,9 +71,18 @@ normalize_version() {
 }
 
 version_matches_minor() {
-  local version
-  version="$(normalize_version "$1")"
-  [[ -n "$version" && "$version" == ${SUPPORTED_PREFIX}* ]]
+  local version normalized supported
+  version="$1"
+  normalized="$(normalize_version "$version")"
+  [[ -z "$normalized" ]] && return 1
+
+  for supported in "${SUPPORTED_VERSIONS[@]}"; do
+    if [[ "$normalized" == "$supported" ]]; then
+      return 0
+    fi
+  done
+
+  return 1
 }
 
 extract_runtime_version() {
@@ -100,8 +109,9 @@ init_hyprctl_prefix() {
 PKG_VERSION="$(normalize_version "$(pkg-config --modversion hyprland)")"
 
 if ! version_matches_minor "$PKG_VERSION"; then
-  print_err "Installed hyprland package is outside the supported line: $PKG_VERSION\n"
-  emit_json "unsupported_package" 3 "Installed hyprland package is outside the supported line."
+  print_err "Installed hyprland package is outside the supported targets: $PKG_VERSION\n"
+  print_err "Supported exact versions: $SUPPORTED_VERSIONS_TEXT\n"
+  emit_json "unsupported_package" 3 "Installed hyprland package is outside the supported targets."
   exit 3
 fi
 
@@ -119,8 +129,9 @@ if [[ -z "$RUNTIME_VERSION" ]]; then
 fi
 
 if ! version_matches_minor "$RUNTIME_VERSION"; then
-  print_err "Running Hyprland instance is outside the supported line: $RUNTIME_VERSION\n"
-  emit_json "unsupported_runtime" 3 "Running Hyprland instance is outside the supported line."
+  print_err "Running Hyprland instance is outside the supported targets: $RUNTIME_VERSION\n"
+  print_err "Supported exact versions: $SUPPORTED_VERSIONS_TEXT\n"
+  emit_json "unsupported_runtime" 3 "Running Hyprland instance is outside the supported targets."
   exit 3
 fi
 
@@ -141,8 +152,9 @@ if [[ -n "$HYPRLAND_SOURCE" ]]; then
   SOURCE_VERSION="$(normalize_version "$(tr -d '[:space:]' < "$HYPRLAND_SOURCE/VERSION")")"
 
   if ! version_matches_minor "$SOURCE_VERSION"; then
-    print_err "Hyprland source tree is outside the supported line: $SOURCE_VERSION\n"
-    emit_json "unsupported_source" 3 "Hyprland source tree is outside the supported line."
+    print_err "Hyprland source tree is outside the supported targets: $SOURCE_VERSION\n"
+    print_err "Supported exact versions: $SUPPORTED_VERSIONS_TEXT\n"
+    emit_json "unsupported_source" 3 "Hyprland source tree is outside the supported targets."
     exit 3
   fi
 
@@ -154,7 +166,8 @@ if [[ -n "$HYPRLAND_SOURCE" ]]; then
 fi
 
 print_out "Hyprtasking version contract check\n"
-print_out "Supported Hyprland line: $SUPPORTED_MINOR\n"
+print_out "Supported Hyprland targets: $SUPPORTED_TARGETS\n"
+print_out "Supported exact versions: $SUPPORTED_VERSIONS_TEXT\n"
 print_out "Installed hyprland package: $PKG_VERSION\n"
 print_out "Running Hyprland runtime: $RUNTIME_VERSION\n"
 if [[ -n "$HYPRLAND_SOURCE" ]]; then

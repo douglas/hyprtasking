@@ -2,13 +2,12 @@
 set -euo pipefail
 
 HYPRLAND_SOURCE=${1:-${HYPRLAND_SOURCE:-/home/douglas/src/hyprland}}
-SUPPORTED_MINOR="0.54.x"
-SUPPORTED_PREFIX="0.54."
 AUDIT_FORMAT=${AUDIT_FORMAT:-text}
 EXIT_MISSING_FILE=2
 EXIT_UNSUPPORTED_VERSION=3
 EXIT_CONTRACT_DRIFT=4
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+source "$SCRIPT_DIR/support-matrix.sh"
 source "$SCRIPT_DIR/compat-contract-manifest.sh"
 
 print_out() {
@@ -21,6 +20,17 @@ print_err() {
   if [[ "$AUDIT_FORMAT" != "json" ]]; then
     printf '%b' "$1" >&2
   fi
+}
+
+version_supported() {
+  local version candidate
+  version=$1
+  for candidate in "${SUPPORTED_VERSIONS[@]}"; do
+    if [[ "$version" == "$candidate" ]]; then
+      return 0
+    fi
+  done
+  return 1
 }
 
 json_escape() {
@@ -67,7 +77,8 @@ emit_json_result() {
   printf '"status":%s,' "$(json_string "$status")"
   printf '"exit_code":%s,' "$exit_code"
   printf '"source":%s,' "$(json_string "$HYPRLAND_SOURCE")"
-  printf '"supported_line":%s,' "$(json_string "$SUPPORTED_MINOR")"
+  printf '"supported_targets":%s,' "$(json_string "$SUPPORTED_TARGETS")"
+  printf '"supported_versions":%s,' "$(json_string "$SUPPORTED_VERSIONS_TEXT")"
   printf '"target_version":%s,' "$(json_string "${TARGET_VERSION:-}")"
   printf '"message":%s,' "$(json_string "$message")"
 
@@ -141,12 +152,14 @@ TARGET_VERSION="$(tr -d '[:space:]' < "$VERSION_FILE")"
 
 print_out "Hyprtasking compat audit\n"
 print_out "Source: $HYPRLAND_SOURCE\n"
-print_out "Supported Hyprland line: $SUPPORTED_MINOR\n"
+print_out "Supported Hyprland targets: $SUPPORTED_TARGETS\n"
+print_out "Supported exact versions: $SUPPORTED_VERSIONS_TEXT\n"
 print_out "Detected target version: $TARGET_VERSION\n"
 
-if [[ "$TARGET_VERSION" != ${SUPPORTED_PREFIX}* ]]; then
+if ! version_supported "$TARGET_VERSION"; then
   print_err "Unsupported Hyprland version for this plugin line: $TARGET_VERSION\n"
-  print_err "Expected supported line: $SUPPORTED_MINOR\n"
+  print_err "Expected supported targets: $SUPPORTED_TARGETS\n"
+  print_err "Supported exact versions: $SUPPORTED_VERSIONS_TEXT\n"
   print_err "Update the plugin compat layer before attempting to load against this tree.\n"
   emit_json_result "unsupported_version" "$EXIT_UNSUPPORTED_VERSION" "Unsupported Hyprland version for this plugin line: $TARGET_VERSION"
   exit "$EXIT_UNSUPPORTED_VERSION"
@@ -200,9 +213,9 @@ if ((failures > 0)); then
   done
   print_err "Compat contract reference: docs/compat-contract.md\n"
   print_err "Rerun with HYPRLAND_SOURCE set to the target Hyprland checkout after patching.\n"
-  emit_json_result "contract_drift" "$EXIT_CONTRACT_DRIFT" "One or more audited Hyprland contracts drifted on a supported line."
+  emit_json_result "contract_drift" "$EXIT_CONTRACT_DRIFT" "One or more audited Hyprland contracts drifted on a supported target."
   exit "$EXIT_CONTRACT_DRIFT"
 fi
 
-print_out "\nCompat audit passed for Hyprland $TARGET_VERSION on supported line $SUPPORTED_MINOR.\n"
+print_out "\nCompat audit passed for Hyprland $TARGET_VERSION on supported targets $SUPPORTED_TARGETS.\n"
 emit_json_result "ok" 0 "Compat audit passed."

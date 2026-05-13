@@ -88,15 +88,16 @@ assert_extended_dispatchers_ready() {
     exit 1
   fi
 
-  run_capture_hyprctl dispatch hyprtasking:movewindow __smoke_probe__
+  run_capture_hyprctl dispatch hyprtasking:select __smoke_probe__
   if [[ "$CAPTURED_OUTPUT" == *"Invalid dispatcher"* ]]; then
     fail_with_loaded_plugin_state \
-      "Hyprtasking movewindow dispatcher is not registered even though the plugin is listed."
+      "Hyprtasking select dispatcher is not registered even though the plugin is listed."
   fi
 
-  if [[ "$CAPTURED_OUTPUT" != "ok" ]]; then
-    printf 'Unexpected hyprtasking:movewindow probe response: %s\n' "$CAPTURED_OUTPUT" >&2
-    exit 1
+  run_capture_hyprctl dispatch hyprtasking:commit
+  if [[ "$CAPTURED_OUTPUT" == *"Invalid dispatcher"* ]]; then
+    fail_with_loaded_plugin_state \
+      "Hyprtasking commit dispatcher is not registered even though the plugin is listed."
   fi
 
   run_capture_hyprctl dispatch hyprtasking:health json
@@ -114,6 +115,72 @@ assert_extended_dispatchers_ready() {
 smoke_dispatchers() {
   assert_plugin_loaded
   assert_extended_dispatchers_ready
+}
+
+assert_runtime_disabled() {
+  run_capture_hyprctl dispatch hyprtasking:toggle __smoke_probe__
+  if [[ "$CAPTURED_OUTPUT" != *"runtime disabled"* ]]; then
+    printf 'Expected runtime to be disabled, got: %s\n' "$CAPTURED_OUTPUT" >&2
+    exit 1
+  fi
+}
+
+set_safety_option() {
+  local key=$1
+  local value=$2
+  run_hyprctl keyword "plugin:hyprtasking:${key}" "$value"
+}
+
+restore_safe_options() {
+  run_hyprctl keyword plugin:hyprtasking:drag_button 272
+  run_hyprctl keyword plugin:hyprtasking:select_button 273
+  run_hyprctl keyword plugin:hyprtasking:gestures:move_fingers 3
+  run_hyprctl keyword plugin:hyprtasking:gestures:open_fingers 4
+  run_hyprctl keyword plugin:hyprtasking:grid:rows 3
+  run_hyprctl keyword plugin:hyprtasking:grid:cols 3
+  run_hyprctl keyword plugin:hyprtasking:gestures:move_distance 300
+  run_hyprctl keyword plugin:hyprtasking:gestures:open_distance 300
+  run_capture_hyprctl plugin unload "$PLUGIN_PATH"
+  run_capture_hyprctl plugin load "$PLUGIN_PATH"
+  wait_for_plugin_ready
+  smoke_dispatchers
+}
+
+smoke_runtime_safety() {
+  assert_plugin_loaded
+  restore_safe_options
+
+  set_safety_option "grid:rows" 0
+  assert_runtime_disabled
+
+  restore_safe_options
+
+  set_safety_option "grid:cols" 0
+  assert_runtime_disabled
+
+  restore_safe_options
+
+  set_safety_option "gestures:move_distance" 0
+  assert_runtime_disabled
+
+  restore_safe_options
+
+  set_safety_option "gestures:open_distance" 0
+  assert_runtime_disabled
+
+  restore_safe_options
+
+  set_safety_option "drag_button" 272
+  set_safety_option "select_button" 272
+  assert_runtime_disabled
+
+  restore_safe_options
+
+  set_safety_option "gestures:move_fingers" 3
+  set_safety_option "gestures:open_fingers" 3
+  assert_runtime_disabled
+
+  restore_safe_options
 }
 
 wait_for_plugin_ready() {
@@ -255,6 +322,7 @@ case "$MODE" in
   all)
     smoke_load_unload
     smoke_dispatchers
+    smoke_runtime_safety
     smoke_toggle
     smoke_reload
     smoke_reload_open
@@ -266,6 +334,9 @@ case "$MODE" in
     ;;
   dispatchers)
     smoke_dispatchers
+    ;;
+  safety)
+    smoke_runtime_safety
     ;;
   load-unload)
     smoke_load_unload
@@ -284,7 +355,7 @@ case "$MODE" in
     run bash "$SCRIPT_DIR/manual-runtime-check.sh" "${2:-all}"
     ;;
   *)
-    printf 'Usage: %s [all|stress|dispatchers|load-unload|toggle|move|reload|reload-open|manual [all|drag|movewindow|gesture|reload-open|monitor-remove]]\n' "$0" >&2
+    printf 'Usage: %s [all|stress|dispatchers|safety|load-unload|toggle|move|reload|reload-open|manual [all|drag|typing-focus|gesture|reload-open|monitor-remove|render-reentry|hook-sunset]]\n' "$0" >&2
     exit 1
     ;;
 esac

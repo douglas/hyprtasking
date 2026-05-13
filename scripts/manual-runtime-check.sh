@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+source "$SCRIPT_DIR/support-matrix.sh"
+
 MODE=${1:-all}
 CHECKLIST_FORMAT=${CHECKLIST_FORMAT:-text}
 
@@ -93,20 +96,9 @@ print_drag() {
     'duplicate dragged windows, large drag offset, hidden selected workspace, or stuck mouse bind mode.'
 }
 
-print_movewindow() {
-  emit_text_scenario \
-    3 \
-    'Run hyprtasking:movewindow in each direction from an occupied workspace.' \
-    'hover a normal tiled window in the overview.' \
-    '' \
-    $'hyprctl dispatch hyprtasking:movewindow right\nhyprctl dispatch hyprtasking:movewindow left\nhyprctl dispatch hyprtasking:movewindow up\nhyprctl dispatch hyprtasking:movewindow down' \
-    'the hovered window moves to the target workspace, focus follows the move, and cursor/workspace state stays aligned.' \
-    'cursor ends up on the old workspace, the wrong window moves, or the target workspace transition is visually wrong.'
-}
-
 print_gesture() {
   emit_text_scenario \
-    4 \
+    3 \
     'Open and interrupt gesture navigation mid-open and mid-move.' \
     'ensure gestures are enabled in plugin config.' \
     'begin the open gesture, stop halfway, then begin a move gesture and interrupt it before completion.' \
@@ -148,6 +140,17 @@ print_render_reentry() {
     'crash, blank overview, repeated self-disable notification, or any recursion-like flicker/lockup when reopening after selection.'
 }
 
+print_hook_sunset() {
+  emit_text_scenario \
+    8 \
+    'Re-test whether the direct mouse-button hook can be removed.' \
+    "run this once on each supported Hyprland target: $SUPPORTED_VERSIONS_TEXT." \
+    'test a branch that routes overview mouse press/release through the cancellable event-bus path instead of the direct CInputManager::onMouseButton hook.' \
+    $'bash scripts/check-version-contract.sh\nhyprctl dispatch hyprtasking:health json' \
+    'for every supported target, drag/drop and right-click workspace selection still work with no stuck input, duplicate drag, or lost click; if all pass, remove the direct mouse hook.' \
+    'any supported target regresses drag/drop, right-click selection, typing focus after selection, or leaves mouse bind mode/cursor override stuck; keep the hook and record the failed target.'
+}
+
 print_typing_focus() {
   emit_text_scenario \
     2 \
@@ -186,18 +189,6 @@ json_typing_focus() {
     '' \
     'typing works immediately with no extra Enter, and Nautilus path editing activates on the first Ctrl+L.' \
     'the selected workspace is visible but does not accept immediate typing, or an extra Enter is needed before input lands.'
-}
-
-json_movewindow() {
-  emit_json_scenario \
-    "movewindow" \
-    3 \
-    'Run hyprtasking:movewindow in each direction from an occupied workspace.' \
-    'hover a normal tiled window in the overview.' \
-    '' \
-    $'hyprctl dispatch hyprtasking:movewindow right\nhyprctl dispatch hyprtasking:movewindow left\nhyprctl dispatch hyprtasking:movewindow up\nhyprctl dispatch hyprtasking:movewindow down' \
-    'the hovered window moves to the target workspace, focus follows the move, and cursor/workspace state stays aligned.' \
-    'cursor ends up on the old workspace, the wrong window moves, or the target workspace transition is visually wrong.'
 }
 
 json_gesture() {
@@ -248,6 +239,18 @@ json_render_reentry() {
     'crash, blank overview, repeated self-disable notification, or any recursion-like flicker/lockup when reopening after selection.'
 }
 
+json_hook_sunset() {
+  emit_json_scenario \
+    "hook-sunset" \
+    8 \
+    'Re-test whether the direct mouse-button hook can be removed.' \
+    "run this once on each supported Hyprland target: $SUPPORTED_VERSIONS_TEXT." \
+    'test a branch that routes overview mouse press/release through the cancellable event-bus path instead of the direct CInputManager::onMouseButton hook.' \
+    $'bash scripts/check-version-contract.sh\nhyprctl dispatch hyprtasking:health json' \
+    'for every supported target, drag/drop and right-click workspace selection still work with no stuck input, duplicate drag, or lost click; if all pass, remove the direct mouse hook.' \
+    'any supported target regresses drag/drop, right-click selection, typing focus after selection, or leaves mouse bind mode/cursor override stuck; keep the hook and record the failed target.'
+}
+
 emit_json_mode() {
   local scenarios=""
 
@@ -263,20 +266,17 @@ emit_json_mode() {
     all)
       append_scenario "$(json_drag)"
       append_scenario "$(json_typing_focus)"
-      append_scenario "$(json_movewindow)"
       append_scenario "$(json_gesture)"
       append_scenario "$(json_reload_open)"
       append_scenario "$(json_monitor_remove)"
       append_scenario "$(json_render_reentry)"
+      append_scenario "$(json_hook_sunset)"
       ;;
     drag)
       append_scenario "$(json_drag)"
       ;;
     typing-focus)
       append_scenario "$(json_typing_focus)"
-      ;;
-    movewindow)
-      append_scenario "$(json_movewindow)"
       ;;
     gesture)
       append_scenario "$(json_gesture)"
@@ -290,8 +290,11 @@ emit_json_mode() {
     render-reentry)
       append_scenario "$(json_render_reentry)"
       ;;
+    hook-sunset)
+      append_scenario "$(json_hook_sunset)"
+      ;;
     *)
-      printf 'Usage: %s [all|drag|typing-focus|movewindow|gesture|reload-open|monitor-remove|render-reentry]\n' "$0" >&2
+      printf 'Usage: %s [all|drag|typing-focus|gesture|reload-open|monitor-remove|render-reentry|hook-sunset]\n' "$0" >&2
       exit 1
       ;;
   esac
@@ -314,8 +317,6 @@ case "$MODE" in
     printf '\n'
     print_typing_focus
     printf '\n'
-    print_movewindow
-    printf '\n'
     print_gesture
     printf '\n'
     print_reload_open
@@ -323,6 +324,8 @@ case "$MODE" in
     print_monitor_remove
     printf '\n'
     print_render_reentry
+    printf '\n'
+    print_hook_sunset
     ;;
   drag)
     print_header
@@ -331,10 +334,6 @@ case "$MODE" in
   typing-focus)
     print_header
     print_typing_focus
-    ;;
-  movewindow)
-    print_header
-    print_movewindow
     ;;
   gesture)
     print_header
@@ -352,8 +351,12 @@ case "$MODE" in
     print_header
     print_render_reentry
     ;;
+  hook-sunset)
+    print_header
+    print_hook_sunset
+    ;;
   *)
-    printf 'Usage: %s [all|drag|typing-focus|movewindow|gesture|reload-open|monitor-remove|render-reentry]\n' "$0" >&2
+    printf 'Usage: %s [all|drag|typing-focus|gesture|reload-open|monitor-remove|render-reentry|hook-sunset]\n' "$0" >&2
     exit 1
     ;;
 esac

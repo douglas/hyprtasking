@@ -7,7 +7,7 @@ source "$SCRIPT_DIR/compat-contract-manifest.sh"
 
 AUDIT_COVERAGE_FORMAT=${AUDIT_COVERAGE_FORMAT:-text}
 EXIT_UNMAPPED_SYMBOLS=4
-TOKEN_REGEX='g_p[A-Za-z0-9_]+|\bm_[A-Za-z0-9_]+\b|Event::bus|changeWorkspace|dragController|removeAllOfType|onMouseButton|findFunctionsByName|getFunctionAddressFromSignature'
+TOKEN_REGEX='g_p[A-Za-z0-9_]+|\bm_[A-Za-z0-9_]+\b|Event::bus|changeWorkspace|dragController|removeAllOfType|onMouseButton|findFunctionsByName|removeFunctionHook|logicalBox|getWindowMainSurfaceBox|workspaceID|monitorID'
 
 print_out() {
   if [[ "$AUDIT_COVERAGE_FORMAT" != "json" ]]; then

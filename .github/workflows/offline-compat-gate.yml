@@ -13,14 +13,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - track: v0.54.0
-            ref: v0.54.0
-          - track: v0.54.1
-            ref: v0.54.1
-          - track: stable
-            ref: v0.54.2
-          - track: next
+          - track: v0.54.3
             ref: v0.54.3
+          - track: v0.55.0
+            ref: v0.55.0
     steps:
       - name: Checkout Hyprtasking
         uses: actions/checkout@v5
@@ -34,10 +30,13 @@ jobs:
 
       - name: Shell syntax checks
         run: |
+          bash -n scripts/check-version-contract.sh
           bash -n scripts/audit-compat.sh
           bash -n scripts/audit-compat-surface.sh
           bash -n scripts/audit-compat-coverage.sh
           bash -n scripts/audit-boundary.sh
+          bash -n scripts/generate-compat-contract.sh
+          bash -n scripts/update-supported-hyprland.sh
           bash -n scripts/release-check.sh
 
       - name: Install audit dependencies
@@ -47,6 +46,10 @@ jobs:
 
       - name: Compat audits
         run: |
+          if [[ "${{ matrix.track }}" == "v0.55.0" ]]; then
+            bash scripts/generate-compat-contract.sh "$GITHUB_WORKSPACE/hyprland"
+            git diff --exit-code -- scripts/contracts
+          fi
           bash scripts/audit-compat.sh "$GITHUB_WORKSPACE/hyprland"
           bash scripts/audit-compat-surface.sh "$GITHUB_WORKSPACE/hyprland"
           bash scripts/audit-compat-coverage.sh
