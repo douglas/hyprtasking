@@ -1,7 +1,7 @@
 # Debugging Playbook
 
 This is the maintainer playbook for diagnosing runtime failures in Hyprtasking.
-It is written for the current supported Hyprland line, `0.54.x`, and is meant
+It is written for the current supported Hyprland targets, `0.54.3` and `0.55.0`, and is meant
 to be followed in order.
 
 The shortest useful mental model is:
@@ -11,6 +11,9 @@ The shortest useful mental model is:
 3. input/render boundary correctness
 4. overview state logic
 5. focus and seat aftermath
+
+For a visual map of the current runtime surface and release gates, see
+[`architecture.md`](architecture.md).
 
 If you classify the bug into the right layer early, fixes become much faster and
 safer.
@@ -44,6 +47,8 @@ compat regressions cheaply.
 meson compile -C build
 meson test -C build logic-tests --print-errorlogs
 bash scripts/audit-boundary.sh
+bash scripts/audit-guidelines.sh
+bash scripts/audit-config-keys.sh
 ```
 
 Then, if the issue could involve version drift or Hyprland internals:
@@ -136,6 +141,10 @@ Start in:
 - `src/render.cpp`
 - `src/overview.cpp`
 
+Config reload always cancels active overview runtime state and reinitializes
+grid positions. If reload leaves a half-open overview, treat that as a bug in
+the reload lifecycle rather than a configuration mismatch.
+
 ### C. Input path failure
 
 Typical signs:
@@ -197,7 +206,7 @@ tail -f /tmp/hyprtasking-trace.log
 
 Notes:
 
-- this enables tracing for the currently loaded plugin instance
+- runtime toggle may require a config reload or plugin reload before trace output starts
 - if you want it to survive plugin unload/load or Hyprland restart, put
   `plugin:hyprtasking:debug:trace = 1` in config
 - trace is intentionally file-backed because plugin logs may not surface
@@ -294,7 +303,7 @@ After a fix, use the script scenarios that match the changed subsystem:
 ```bash
 bash scripts/manual-runtime-check.sh drag
 bash scripts/manual-runtime-check.sh typing-focus
-bash scripts/manual-runtime-check.sh movewindow
+bash scripts/manual-runtime-check.sh gesture
 bash scripts/manual-runtime-check.sh render-reentry
 bash scripts/manual-runtime-check.sh reload-open
 ```
@@ -303,7 +312,7 @@ General guidance:
 
 - use `drag` after click/drag or workspace-target fixes
 - use `typing-focus` after right-click or selection/focus fixes
-- use `movewindow` after cursor/workspace alignment changes
+- use `gesture` after swipe or grid-navigation changes
 - use `render-reentry` after hook or rendering fixes
 - use `reload-open` after reload-safety changes
 
@@ -339,10 +348,12 @@ The important point is not just to run the script, but to use its stage order:
 2. compat audits
 3. compat coverage audit
 4. boundary audit
-5. compile and tests
-6. load/unload and dispatcher smoke
-7. live smoke
-8. manual checklist
+5. guideline audit
+6. config-key audit
+7. compile and tests
+8. load/unload and dispatcher smoke
+9. live smoke
+10. manual checklist
 
 That order makes it much easier to distinguish architecture drift from runtime
 interaction regressions.
@@ -396,6 +407,7 @@ helpers are in `src/compat/runtime_compat.cpp`.
 When the debugging workflow or runtime contract changes, update these together:
 
 - [`docs/compat-contract.md`](compat-contract.md)
+- [`docs/architecture.md`](architecture.md)
 - this playbook
 - [`docs/troubleshooting.md`](troubleshooting.md) if user-facing diagnostic
   steps changed

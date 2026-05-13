@@ -1,8 +1,8 @@
 # Overview Input Regression Lessons
 
 This document captures the main lessons from the long debugging session that
-restored stable overview mouse interaction on the Hyprland `0.54.x` support
-line.
+restored stable overview mouse interaction on the Hyprland `0.54.3` support
+target.
 
 It is intentionally distilled. The goal is not to preserve every experiment in
 order, but to keep the high-value evidence, the wrong turns that were expensive,
@@ -47,7 +47,7 @@ We restored the old `bb58a45` mouse semantics more than once:
 
 - left press -> `start_window_drag()`
 - left release -> `end_window_drag()`
-- right press -> `exit_to_workspace()`
+- right press -> workspace selection
 
 Those changes were logically sound and matched the old branch, but behavior
 still did not move. That was the clue that the failure sat below overview state
@@ -210,4 +210,5 @@ tail -f /tmp/hyprtasking-trace.log
 ## Related Docs
 
 - [`docs/debugging-playbook.md`](debugging-playbook.md)
+- [`docs/architecture.md`](architecture.md)
 - [`docs/compat-contract.md`](compat-contract.md)
