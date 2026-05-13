@@ -502,3 +502,51 @@
 - Run the full release gate on the rewritten history before tagging.
 - Force-push only after explicitly deciding to replace the remote post-`v0.4`
   history.
+
+## Feature: Prepare Hyprtasking 0.5 release
+- **Status:** closed
+- **Started:** 2026-05-13T02:35:02+00:00
+- **Closed:** 2026-05-13T02:36:33+00:00
+- **Description:** prepare Hyprtasking 0.5 release
+
+### Summary
+- Performed a final README/docs/diagram drift check for the `0.5` release.
+- Added `CHANGELOG.md` with the release summary since `v0.4`.
+- Bumped the Meson project version to `0.5` before tagging.
+
+### Benchmarks
+- `meson compile -C build`
+- `meson test -C build --print-errorlogs`
+- `meson compile -C build-055`
+- `meson test -C build-055 --print-errorlogs`
+- `bash scripts/audit-boundary.sh`
+- `bash scripts/audit-guidelines.sh`
+- `bash scripts/audit-config-keys.sh`
+- `bash scripts/audit-compat-coverage.sh`
+- `bash -n scripts/*.sh`
+- `git diff --check`
+- `bash scripts/audit-compat.sh /tmp/hyprland-v0.54.3-src`
+- `bash scripts/audit-compat.sh /tmp/hyprland-v0.55.0-src`
+- `bash scripts/audit-compat-surface.sh /tmp/hyprland-v0.54.3-src`
+- `bash scripts/audit-compat-surface.sh /tmp/hyprland-v0.55.0-src`
+- `BUILD_DIR=/home/douglas/src/hyprtasking/build RELEASE_MODE=offline PRINT_MANUAL_CHECKLIST=0 HYPRLAND_SOURCE=/tmp/hyprland-v0.54.3-src bash scripts/release-check.sh`
+- `BUILD_DIR=/home/douglas/src/hyprtasking/build-055 RELEASE_MODE=offline PRINT_MANUAL_CHECKLIST=0 HYPRLAND_SOURCE=/tmp/hyprland-v0.55.0-src bash scripts/release-check.sh`
+
+### Kept Changes
+- Kept old dispatcher names only in migration guidance.
+- Kept the direct mouse-button hook documented as intentionally retained until
+  hook-sunset live testing passes across supported targets.
+
+### Rejected Attempts
+- None.
+
+### Lessons Learned
+- The docs, README, and diagrams were aligned after the Event::bus diagram
+  update; `CHANGELOG.md` was the missing release artifact.
+
+### Durable Docs Updated
+- `CHANGELOG.md`
+- `work_log.md`
+
+### Open Follow-ups
+- Force-push rewritten `main` and push `v0.5` after final validation.
