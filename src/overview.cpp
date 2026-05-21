@@ -391,6 +391,14 @@ bool HTView::navigate_selection(const std::string& arg) {
         return true;
     }
 
+    if (navigate_arg.kind == HTLogic::NavigateArgKind::Workspace) {
+        if (layout->find_layout_workspace(navigate_arg.workspace_id) == nullptr)
+            return true;
+
+        select_workspace(navigate_arg.workspace_id);
+        return true;
+    }
+
     return false;
 }
 

@@ -161,8 +161,8 @@ int main() {
     {
         const auto parsed = parseNavigateArg(" 12 ");
         expect(
-            parsed.kind == NavigateArgKind::Invalid,
-            "navigate parser should reject numeric slot args"
+            parsed.kind == NavigateArgKind::Workspace && parsed.workspace_id == 12,
+            "navigate parser should accept positive workspace args"
         );
     }
     {

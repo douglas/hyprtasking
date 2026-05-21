@@ -1,8 +1,7 @@
 #include "dispatchers.hpp"
 
-#include <string>
-
 #include <hyprland/src/plugins/PluginAPI.hpp>
+#include <string>
 
 #include "../globals.hpp"
 #include "../overview.hpp"
@@ -33,6 +32,15 @@ SDispatchResult requireCursorView(PHTVIEW& cursor_view, bool require_interactive
         return runtime_guard;
 
     cursor_view = ht_manager->get_view_from_cursor();
+    if (require_interactive && !isViewInteractivelyActive(cursor_view)) {
+        for (const PHTVIEW& view : ht_manager->views) {
+            if (!isViewInteractivelyActive(view))
+                continue;
+
+            cursor_view = view;
+            break;
+        }
+    }
     if (cursor_view == nullptr)
         return {.success = false, .error = "cursor_view is null"};
     if (require_interactive && !isViewInteractivelyActive(cursor_view))
@@ -124,7 +132,7 @@ SDispatchResult dispatchHealth(std::string arg) {
     });
 }
 
-}
+} // namespace
 
 namespace HTPlugin {
 
@@ -136,4 +144,4 @@ void registerDispatchers() {
     HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:health", dispatchHealth);
 }
 
-}
+} // namespace HTPlugin

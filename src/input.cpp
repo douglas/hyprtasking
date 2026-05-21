@@ -610,7 +610,6 @@ bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
                 swipe_view_id = swipe_view->monitor_id;
                 swipe_amt = config.open_distance;
             } else if (action == HTLogic::OpenSwipeStartAction::HideOverview) {
-                swipe_view->hide();
                 swipe_state = HT_SWIPE_OPEN;
                 swipe_view_id = swipe_view->monitor_id;
                 swipe_amt = 0.0;
@@ -633,6 +632,11 @@ bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
             }
 
             swipe_view->layout->close_open_lerp(*swipe_perc);
+            const PHLMONITOR swipe_monitor = swipe_view->get_monitor();
+            if (swipe_monitor != nullptr) {
+                HTCompat::damage_monitor(swipe_monitor);
+                HTCompat::schedule_frame_for_monitor(swipe_monitor);
+            }
         }
     } else if (e.fingers == move_fingers) {
         if (HTLogic::shouldConsumeMoveSwipe(swipe_state == HT_SWIPE_MOVE))
