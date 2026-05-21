@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.1 - 2026-05-21
+
+### Changed
+
+- Allow `hyprtasking:select` to accept positive numeric workspace IDs again,
+  selecting the matching overview workspace when it exists.
+- Keep overview swipe-close animations repainting during the closing gesture.
+- Let interactive dispatchers fall back to another active overview when the
+  cursor is not currently over one.
+
 ## 0.5 - 2026-05-13
 
 ### Changed

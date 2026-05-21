@@ -550,3 +550,37 @@
 
 ### Open Follow-ups
 - Force-push rewritten `main` and push `v0.5` after final validation.
+
+## Feature: Prepare Hyprtasking 0.5.1 release
+- **Status:** closed
+- **Started:** 2026-05-21T13:29:51-04:00
+- **Closed:** 2026-05-21T13:29:51-04:00
+- **Description:** prepare Hyprtasking 0.5.1 release
+
+### Summary
+- Added a `0.5.1` changelog entry for numeric workspace selection,
+  swipe-close repainting, and active overview dispatcher fallback.
+- Bumped the Meson project version to `0.5.1`.
+- Aligned the Nix package version with the release version.
+
+### Benchmarks
+- `meson setup build --reconfigure`
+- `meson compile -C build`
+- `meson test -C build --print-errorlogs`
+- `bash scripts/audit-boundary.sh`
+- `bash scripts/audit-guidelines.sh`
+- `bash scripts/audit-config-keys.sh`
+- `bash scripts/audit-compat-coverage.sh`
+- `bash -n scripts/audit-boundary.sh scripts/audit-compat-coverage.sh scripts/audit-compat-surface.sh scripts/audit-compat.sh scripts/audit-config-keys.sh scripts/audit-guidelines.sh scripts/check-version-contract.sh scripts/common-hyprctl.sh scripts/compat-contract-manifest.sh scripts/generate-compat-contract.sh scripts/manual-runtime-check.sh scripts/release-check.sh scripts/smoke-live.sh scripts/support-matrix.sh scripts/update-supported-hyprland.sh`
+- `git diff --check`
+
+### Blocked Checks
+- `bash scripts/check-version-contract.sh` could not run because no live
+  Hyprland instance was detectable from this shell.
+- Offline compatibility gates against `/tmp/hyprland-v0.54.3-src` and
+  `/tmp/hyprland-v0.55.0-src` were not run because those source trees were not
+  present.
+
+### Durable Docs Updated
+- `CHANGELOG.md`
+- `work_log.md`

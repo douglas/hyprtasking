@@ -1,5 +1,5 @@
 project('hyprtasking', 'cpp',
-  version: '0.5',
+  version: '0.5.1',
   default_options: ['buildtype=debug'],
   meson_version: '>= 1.1'
 )
