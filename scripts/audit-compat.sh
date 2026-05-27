@@ -26,7 +26,7 @@ version_supported() {
   local version candidate
   version=$1
   for candidate in "${SUPPORTED_VERSIONS[@]}"; do
-    if [[ "$version" == "$candidate" ]]; then
+    if [[ "$version" == "$candidate" || "$version" == "$candidate".* ]]; then
       return 0
     fi
   done
@@ -153,13 +153,13 @@ TARGET_VERSION="$(tr -d '[:space:]' < "$VERSION_FILE")"
 print_out "Hyprtasking compat audit\n"
 print_out "Source: $HYPRLAND_SOURCE\n"
 print_out "Supported Hyprland targets: $SUPPORTED_TARGETS\n"
-print_out "Supported exact versions: $SUPPORTED_VERSIONS_TEXT\n"
+print_out "Supported versions: $SUPPORTED_VERSIONS_TEXT\n"
 print_out "Detected target version: $TARGET_VERSION\n"
 
 if ! version_supported "$TARGET_VERSION"; then
   print_err "Unsupported Hyprland version for this plugin line: $TARGET_VERSION\n"
   print_err "Expected supported targets: $SUPPORTED_TARGETS\n"
-  print_err "Supported exact versions: $SUPPORTED_VERSIONS_TEXT\n"
+  print_err "Supported versions: $SUPPORTED_VERSIONS_TEXT\n"
   print_err "Update the plugin compat layer before attempting to load against this tree.\n"
   emit_json_result "unsupported_version" "$EXIT_UNSUPPORTED_VERSION" "Unsupported Hyprland version for this plugin line: $TARGET_VERSION"
   exit "$EXIT_UNSUPPORTED_VERSION"

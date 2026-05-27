@@ -1,6 +1,6 @@
 # Compat Contract
 
-Hyprtasking is maintained for Hyprland `0.54.3` and `0.55.0`.
+Hyprtasking is maintained for Hyprland `0.54.3` and the `0.55.x` patch series.
 
 The current runtime shape is diagrammed in [`architecture.md`](architecture.md).
 The update workflow is:
@@ -55,7 +55,7 @@ Contract definitions for audited Hyprland surfaces are centralized in:
 Surface contracts may include alternatives with `@@@` for intentional
 supported-version drift. Each `|||` segment is still required, but any `@@@`
 option inside a path or pattern may satisfy that segment. This is how the audit
-tracks `0.54.3` and `0.55.0` differences such as the mouse-button hook
+tracks `0.54.3` and `0.55.x` differences such as the mouse-button hook
 signature, renderer namespace move, config animation lookup, workspace-move
 alpha storage, and public accessor placement for monitor, workspace, and window
 geometry.
@@ -139,7 +139,7 @@ method.
 ## Config Policy
 
 The public config surface is intentionally limited to grid size, grid looping,
-mouse buttons, gestures, and trace logging. Hyprland `0.55.0` builds register
+mouse buttons, gestures, and trace logging. Hyprland `0.55.x` builds register
 those values with `addConfigValueV2`; `0.54.3` builds keep the legacy
 `addConfigValue` path.
 

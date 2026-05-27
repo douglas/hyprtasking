@@ -4,6 +4,8 @@
 
 #include <hyprland/src/render/pass/PassElement.hpp>
 
+inline constexpr const char* HT_PASS_ELEMENT_NAME = "HTDisableSimplification";
+
 class HTPassElement: public IPassElement {
   public:
     HTPassElement();
@@ -22,6 +24,6 @@ class HTPassElement: public IPassElement {
 #endif
 
     const char* passName() override {
-        return "HTDisableSimplification";
+        return HT_PASS_ELEMENT_NAME;
     }
 };

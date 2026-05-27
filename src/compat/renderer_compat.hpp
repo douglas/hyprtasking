@@ -99,6 +99,7 @@ void damage_window(PHLWINDOW window);
 void reset_overview_render_guard();
 void begin_overview_render_pass();
 void remove_clear_passes();
+void remove_overview_render_passes();
 void finalize_overview_render_pass();
 
 } // namespace HTCompat

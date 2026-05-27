@@ -217,6 +217,16 @@ void HTManager::reset() {
     refresh_cursor_override();
 }
 
+void HTManager::prepare_for_unload() {
+    hide_all_views();
+    reset_runtime_controls();
+    runtime_disabled = true;
+    disabled_source = "plugin_exit";
+    disabled_reason = "plugin unloading";
+    views.clear();
+    refresh_cursor_override();
+}
+
 bool HTManager::runtime_enabled() const {
     return !runtime_disabled;
 }

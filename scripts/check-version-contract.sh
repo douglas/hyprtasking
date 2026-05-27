@@ -77,7 +77,23 @@ version_matches_minor() {
   [[ -z "$normalized" ]] && return 1
 
   for supported in "${SUPPORTED_VERSIONS[@]}"; do
-    if [[ "$normalized" == "$supported" ]]; then
+    if [[ "$normalized" == "$supported" || "$normalized" == "$supported".* ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+support_target_for_version() {
+  local version normalized supported
+  version="$1"
+  normalized="$(normalize_version "$version")"
+  [[ -z "$normalized" ]] && return 1
+
+  for supported in "${SUPPORTED_VERSIONS[@]}"; do
+    if [[ "$normalized" == "$supported" || "$normalized" == "$supported".* ]]; then
+      printf '%s' "$supported"
       return 0
     fi
   done
@@ -110,7 +126,7 @@ PKG_VERSION="$(normalize_version "$(pkg-config --modversion hyprland)")"
 
 if ! version_matches_minor "$PKG_VERSION"; then
   print_err "Installed hyprland package is outside the supported targets: $PKG_VERSION\n"
-  print_err "Supported exact versions: $SUPPORTED_VERSIONS_TEXT\n"
+  print_err "Supported versions: $SUPPORTED_VERSIONS_TEXT\n"
   emit_json "unsupported_package" 3 "Installed hyprland package is outside the supported targets."
   exit 3
 fi
@@ -130,12 +146,15 @@ fi
 
 if ! version_matches_minor "$RUNTIME_VERSION"; then
   print_err "Running Hyprland instance is outside the supported targets: $RUNTIME_VERSION\n"
-  print_err "Supported exact versions: $SUPPORTED_VERSIONS_TEXT\n"
+  print_err "Supported versions: $SUPPORTED_VERSIONS_TEXT\n"
   emit_json "unsupported_runtime" 3 "Running Hyprland instance is outside the supported targets."
   exit 3
 fi
 
-if [[ "$PKG_VERSION" != "$RUNTIME_VERSION" ]]; then
+PKG_SUPPORT_TARGET="$(support_target_for_version "$PKG_VERSION")"
+RUNTIME_SUPPORT_TARGET="$(support_target_for_version "$RUNTIME_VERSION")"
+
+if [[ "$PKG_SUPPORT_TARGET" != "$RUNTIME_SUPPORT_TARGET" ]]; then
   print_err "Installed hyprland package ($PKG_VERSION) does not match the running Hyprland instance ($RUNTIME_VERSION).\n"
   emit_json "package_runtime_mismatch" 4 "Installed hyprland package does not match the running Hyprland instance."
   exit 4
@@ -153,12 +172,13 @@ if [[ -n "$HYPRLAND_SOURCE" ]]; then
 
   if ! version_matches_minor "$SOURCE_VERSION"; then
     print_err "Hyprland source tree is outside the supported targets: $SOURCE_VERSION\n"
-    print_err "Supported exact versions: $SUPPORTED_VERSIONS_TEXT\n"
+    print_err "Supported versions: $SUPPORTED_VERSIONS_TEXT\n"
     emit_json "unsupported_source" 3 "Hyprland source tree is outside the supported targets."
     exit 3
   fi
 
-  if [[ "$SOURCE_VERSION" != "$PKG_VERSION" ]]; then
+  SOURCE_SUPPORT_TARGET="$(support_target_for_version "$SOURCE_VERSION")"
+  if [[ "$SOURCE_SUPPORT_TARGET" != "$PKG_SUPPORT_TARGET" ]]; then
     print_err "Hyprland source tree ($SOURCE_VERSION) does not match installed package headers ($PKG_VERSION).\n"
     emit_json "source_package_mismatch" 4 "Hyprland source tree does not match installed package headers."
     exit 4
@@ -167,7 +187,7 @@ fi
 
 print_out "Hyprtasking version contract check\n"
 print_out "Supported Hyprland targets: $SUPPORTED_TARGETS\n"
-print_out "Supported exact versions: $SUPPORTED_VERSIONS_TEXT\n"
+print_out "Supported versions: $SUPPORTED_VERSIONS_TEXT\n"
 print_out "Installed hyprland package: $PKG_VERSION\n"
 print_out "Running Hyprland runtime: $RUNTIME_VERSION\n"
 if [[ -n "$HYPRLAND_SOURCE" ]]; then

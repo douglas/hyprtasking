@@ -39,6 +39,7 @@ class HTManager {
     PHLWINDOW get_window_from_cursor();
 
     void reset();
+    void prepare_for_unload();
     void sync_monitor_views();
     void reset_drag_state();
 

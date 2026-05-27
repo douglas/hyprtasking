@@ -1,7 +1,7 @@
 # Debugging Playbook
 
 This is the maintainer playbook for diagnosing runtime failures in Hyprtasking.
-It is written for the current supported Hyprland targets, `0.54.3` and `0.55.0`, and is meant
+It is written for the current supported Hyprland targets, `0.54.3` and `0.55.x`, and is meant
 to be followed in order.
 
 The shortest useful mental model is:

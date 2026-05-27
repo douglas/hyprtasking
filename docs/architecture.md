@@ -1,6 +1,6 @@
 # Architecture
 
-Hyprtasking is intentionally narrow on the supported `0.54.3` and `0.55.0`
+Hyprtasking is intentionally narrow on the supported `0.54.3` and `0.55.x`
 Hyprland targets.
 The public surface is the overview itself, mouse interaction, gestures, the
 core dispatchers, runtime health, and audited compat wrappers.

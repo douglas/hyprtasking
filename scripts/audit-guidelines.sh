@@ -98,8 +98,7 @@ else
   printf 'ok: hyprpm pins do not include stale Hyprland refs\n'
 fi
 
-for supported_version in "${SUPPORTED_VERSIONS[@]}"; do
-  supported_ref="v${supported_version}"
+for supported_ref in "${HYPRPM_REQUIRED_REFS[@]}"; do
   if ! rg -q "#${supported_ref}$" "$REPO_DIR/hyprpm.toml"; then
     printf 'error: hyprpm pins missing supported ref %s\n' "$supported_ref" >&2
     EXIT_CODE=1

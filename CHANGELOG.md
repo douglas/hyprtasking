@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.5.2 - 2026-05-27
+
+### Changed
+
+- Treat Hyprland `0.55.x` as a supported minor family for runtime and audit
+  compatibility checks.
+- Add `v0.55.0`, `v0.55.1`, and `v0.55.2` hyprpm rows for known 0.55
+  releases.
+- Keep the release and compatibility docs aligned with the `0.55.x` support
+  target.
+
+### Fixed
+
+- Harden plugin unload by quiescing overview state before hook teardown and
+  preventing cleanup exceptions from escaping `PLUGIN_EXIT`.
+- Remove Hyprtasking-owned render-pass elements before unloading so Hyprland
+  cannot retain plugin vtables after `dlclose`.
+
 ## 0.5.1 - 2026-05-21
 
 ### Changed

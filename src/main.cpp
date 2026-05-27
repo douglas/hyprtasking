@@ -1,4 +1,5 @@
 #include <exception>
+#include <string_view>
 
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprland/src/plugins/PluginSystem.hpp>
@@ -10,6 +11,31 @@
 #include "manager.hpp"
 #include "plugin/dispatchers.hpp"
 #include "plugin/runtime.hpp"
+
+namespace {
+
+template<typename Fn>
+void cleanup_step(std::string_view name, Fn&& fn) noexcept {
+    try {
+        fn();
+    } catch (const std::exception& e) {
+        try {
+            Log::logger->log(Log::ERR, "[Hyprtasking] {} cleanup failed: {}", name, e.what());
+        } catch (...) {
+        }
+    } catch (...) {
+        try {
+            Log::logger->log(
+                Log::ERR,
+                "[Hyprtasking] {} cleanup failed with unknown exception",
+                name
+            );
+        } catch (...) {
+        }
+    }
+}
+
+} // namespace
 
 APICALL EXPORT std::string PLUGIN_API_VERSION() {
     return HYPRLAND_API_VERSION;
@@ -78,8 +104,11 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
 APICALL EXPORT void PLUGIN_EXIT() {
     Log::logger->log(LOG, "[Hyprtasking] Plugin exiting");
 
-    HTPlugin::unregisterCallbacks();
-    HTCompat::shutdownRendererHooks();
-    if (ht_manager != nullptr)
-        ht_manager->reset();
+    cleanup_step("manager_unload", [] {
+        if (ht_manager != nullptr)
+            ht_manager->prepare_for_unload();
+    });
+    cleanup_step("callbacks", [] { HTPlugin::unregisterCallbacks(); });
+    cleanup_step("renderer_hooks", [] { HTCompat::shutdownRendererHooks(); });
+    cleanup_step("manager_destroy", [] { ht_manager.reset(); });
 }

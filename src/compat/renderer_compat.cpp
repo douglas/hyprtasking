@@ -291,6 +291,7 @@ bool initializeRendererHooks() {
 }
 
 void shutdownRendererHooks() {
+    remove_overview_render_passes();
     remove_function_hook(render_workspace_hook, "renderWorkspace");
     remove_function_hook(should_render_window_hook, "shouldRenderWindow");
     remove_function_hook(is_solitary_blocked_hook, "isSolitaryBlocked");
@@ -701,6 +702,15 @@ void remove_clear_passes() {
         return;
 
     g_pHyprRenderer->m_renderPass.removeAllOfType(CLEAR_PASS_ELEMENT_NAME);
+}
+
+void remove_overview_render_passes() {
+    if (!g_pHyprRenderer.get())
+        return;
+
+    g_pHyprRenderer->m_renderPass.removeAllOfType(HT_PASS_ELEMENT_NAME);
+    g_pHyprRenderer->m_renderPass.removeAllOfType(CLEAR_PASS_ELEMENT_NAME);
+    reset_overview_render_guard();
 }
 
 void finalize_overview_render_pass() {

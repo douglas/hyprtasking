@@ -2,7 +2,7 @@
 
 Hyprtasking uses two tracks to keep updates predictable while protecting runtime stability:
 
-1. `main` (stable): current supported Hyprland targets (`0.54.3` and `0.55.0`).
+1. `main` (stable): current supported Hyprland targets (`0.54.3` and `0.55.x`).
 2. `preview/hyprland-next` (preview): future Hyprland adaptation work.
 
 ## Operating Rules
