@@ -22,7 +22,12 @@ struct CompatDecision {
 
 std::string normalizeVersion(std::string_view version);
 bool versionMatchesExactly(std::string_view left, std::string_view right);
+bool versionMatchesSupportedTarget(std::string_view version, std::string_view supported_version);
 bool versionIsSupported(
+    std::string_view version,
+    std::span<const std::string_view> supported_versions
+);
+std::string supportTargetForVersion(
     std::string_view version,
     std::span<const std::string_view> supported_versions
 );

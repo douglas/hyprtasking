@@ -5,7 +5,7 @@ Hyprtasking hard-gates runtime activation to explicit, audited versions.
 | Version | Status | CI coverage |
 | --- | --- | --- |
 | `0.54.3` | stable baseline | offline compat gate + generated-contract drift check |
-| `0.55.0` | supported | offline compat gate + generated-contract drift check |
+| `0.55.x` | supported minor family | offline compat gate + generated-contract drift check; local runtime rebuild smoke checked on `0.55.2` |
 
 ## Update Workflow
 

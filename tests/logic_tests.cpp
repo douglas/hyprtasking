@@ -76,7 +76,7 @@ int main() {
     using namespace HTLogic;
     constexpr std::array<std::string_view, 2> SUPPORTED_VERSIONS = {
         "0.54.3",
-        "0.55.0",
+        "0.55",
     };
 
     {
@@ -93,6 +93,14 @@ int main() {
         expect(
             result.status == CompatStatus::Supported,
             "compat support should set supported status for 0.55.0"
+        );
+    }
+    {
+        const auto result = decideCompatSupport(true, "0.55.2", "0.55.0", SUPPORTED_VERSIONS);
+        expect(result.supported, "compat support should accept supported 0.55 patch drift");
+        expect(
+            result.status == CompatStatus::Supported,
+            "compat support should keep 0.55 patch drift in the supported family"
         );
     }
     {
@@ -136,11 +144,11 @@ int main() {
     }
     {
         const auto result = decideCompatSupport(true, "0.55.1", "0.55.1", SUPPORTED_VERSIONS);
-        expect(!result.supported, "compat support should hard-reject unknown patch releases");
+        expect(result.supported, "compat support should accept supported 0.55 patch releases");
     }
     expect(
-        versionIsSupported("v0.55.0", SUPPORTED_VERSIONS),
-        "compat version matching should accept v-prefixed supported versions"
+        versionIsSupported("v0.55.2", SUPPORTED_VERSIONS),
+        "compat version matching should accept v-prefixed supported minor versions"
     );
     expect(
         !versionIsSupported("0.54.2", SUPPORTED_VERSIONS),

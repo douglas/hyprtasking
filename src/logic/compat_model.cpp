@@ -23,14 +23,37 @@ bool versionMatchesExactly(std::string_view left, std::string_view right) {
     return normalizeVersion(left) == normalizeVersion(right);
 }
 
+bool versionMatchesSupportedTarget(std::string_view version, std::string_view supported_version) {
+    const auto normalized = normalizeVersion(version);
+    const auto supported = normalizeVersion(supported_version);
+
+    return normalized == supported || normalized.starts_with(supported + ".");
+}
+
 bool versionIsSupported(
     std::string_view version,
     std::span<const std::string_view> supported_versions
 ) {
-    const auto normalized = normalizeVersion(version);
     return std::ranges::any_of(supported_versions, [&](const std::string_view candidate) {
-        return normalized == normalizeVersion(candidate);
+        return versionMatchesSupportedTarget(version, candidate);
     });
+}
+
+std::string supportTargetForVersion(
+    std::string_view version,
+    std::span<const std::string_view> supported_versions
+) {
+    const auto target = std::ranges::find_if(
+        supported_versions,
+        [&](const std::string_view candidate) {
+            return versionMatchesSupportedTarget(version, candidate);
+        }
+    );
+
+    if (target == supported_versions.end())
+        return "";
+
+    return normalizeVersion(*target);
 }
 
 std::string supportedVersionsList(std::span<const std::string_view> supported_versions) {
@@ -55,6 +78,8 @@ CompatDecision decideCompatSupport(
     const auto normalized_package = normalizeVersion(package_version);
     const auto normalized_runtime = normalizeVersion(runtime_version);
     const auto supported_versions_list = supportedVersionsList(supported_versions);
+    const auto package_support_target = supportTargetForVersion(package_version, supported_versions);
+    const auto runtime_support_target = supportTargetForVersion(runtime_version, supported_versions);
 
     if (!versionIsSupported(package_version, supported_versions)) {
         return {
@@ -80,7 +105,7 @@ CompatDecision decideCompatSupport(
         };
     }
 
-    if (!versionMatchesExactly(runtime_version, package_version)) {
+    if (runtime_support_target != package_support_target) {
         return {
             .supported = false,
             .status = CompatStatus::RuntimePackageMismatch,

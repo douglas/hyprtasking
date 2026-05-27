@@ -12,7 +12,7 @@ namespace {
 
 constexpr std::array<std::string_view, 2> SUPPORTED_HYPRLAND_VERSIONS = {
     "0.54.3",
-    "0.55.0",
+    "0.55",
 };
 
 constexpr HTCompat::HookSpec INPUT_MOUSE_BUTTON_HOOK = {
