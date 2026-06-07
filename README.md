@@ -470,6 +470,15 @@ bind = , RIGHT, hyprtasking:select, right
 bind = , UP, hyprtasking:select, up
 bind = , DOWN, hyprtasking:select, down
 bind = , RETURN, hyprtasking:commit,
+bind = , 1, hyprtasking:select-commit, 1
+bind = , 2, hyprtasking:select-commit, 2
+bind = , 3, hyprtasking:select-commit, 3
+bind = , 4, hyprtasking:select-commit, 4
+bind = , 5, hyprtasking:select-commit, 5
+bind = , 6, hyprtasking:select-commit, 6
+bind = , 7, hyprtasking:select-commit, 7
+bind = , 8, hyprtasking:select-commit, 8
+bind = , 9, hyprtasking:select-commit, 9
 bind = , ESCAPE, hyprtasking:toggle, cursor
 submap = reset
 
@@ -497,14 +506,18 @@ plugin {
             rows = 3
             cols = 3
             loop = false
+            auto = true
+            center_partial_rows = true
         }
+
+        active_only = true
     }
 }
 ```
 
 ### Binding recipes
 
-Selection + Enter recipe:
+Selection + Enter / number-key commit recipe:
 
 ```ini
 bind = SUPER, tab, hyprtasking:toggle, cursor
@@ -514,6 +527,15 @@ bind = , RIGHT, hyprtasking:select, right
 bind = , UP, hyprtasking:select, up
 bind = , DOWN, hyprtasking:select, down
 bind = , RETURN, hyprtasking:commit,
+bind = , 1, hyprtasking:select-commit, 1
+bind = , 2, hyprtasking:select-commit, 2
+bind = , 3, hyprtasking:select-commit, 3
+bind = , 4, hyprtasking:select-commit, 4
+bind = , 5, hyprtasking:select-commit, 5
+bind = , 6, hyprtasking:select-commit, 6
+bind = , 7, hyprtasking:select-commit, 7
+bind = , 8, hyprtasking:select-commit, 8
+bind = , 9, hyprtasking:select-commit, 9
 bind = , ESCAPE, hyprtasking:toggle, cursor
 submap = reset
 ```
@@ -532,6 +554,33 @@ If `keyword source` prints `invalid dispatcher` and your config still uses
 Configs that depended on conditional wrapper dispatchers should instead use
 the `hyprtasking` submap shown above so bare keys only exist while the overview
 is open.
+
+### Active Overview Mode
+
+When `active_only = 1`, the overview shows only workspaces that are active
+or contain windows. Empty inactive workspaces are hidden. Combined with
+`grid:auto = 1`, the grid shape is computed dynamically from the visible count,
+with partial final rows centered and tiles preserving the monitor aspect ratio.
+
+Recommended Amit-style config:
+```
+plugin {
+    hyprtasking {
+        active_only = 1
+        grid:auto = 1
+        grid:center_partial_rows = 1
+    }
+}
+
+bindd = SUPER, code:49, Window overview, hyprtasking:toggle, cursor
+```
+
+Runtime bind setup (do not persist unless requested):
+```
+hyprctl keyword unbind "SUPER, grave" || true
+hyprctl keyword unbind "SUPER, code:49" || true
+hyprctl keyword bindd "SUPER, code:49, Window overview, hyprtasking:toggle, cursor"
+```
 
 ### Dispatchers
 
@@ -552,6 +601,9 @@ is open.
 
 - `hyprtasking:commit` switches to the currently selected workspace and closes the overview
     - intended for use inside the `hyprtasking` submap so that bare Enter works only while the overview is open
+
+- `hyprtasking:select-commit, WORKSPACE_ID` selects a visible workspace by ID and immediately closes the overview onto it
+    - intended for use inside the `hyprtasking` submap so bare number keys activate visible workspace tiles
 
 - `hyprtasking:health` prints runtime status and the disable reason (if runtime
   was disabled) in both logs and notification output. Pass `json` for
@@ -602,3 +654,8 @@ Visual styling uses fixed built-in defaults.
 | `grid:rows` | `Hyprlang::INT` | The number of rows to display on the grid overlay. Must be `>= 1`; invalid values disable runtime for safety. | `3` |
 | `grid:cols` | `Hyprlang::INT` | The number of columns to display on the grid overlay. Must be `>= 1`; invalid values disable runtime for safety. | `3` |
 | `grid:loop` | `Hyprlang::INT` | When enabled, moving right at the far right of the grid will wrap around to the leftmost workspace, etc. | `false` |
+| `grid:auto` | `Hyprlang::INT` | When enabled, computes a compact grid shape dynamically from the visible workspace count instead of using fixed rows/cols. | `false` |
+| `grid:center_partial_rows` | `Hyprlang::INT` | When enabled and `grid:auto` is on, horizontally centers the final partial row. | `false` |
+| `active_only` | `Hyprlang::INT` | When enabled, shows only active and non-empty workspaces; empty inactive workspaces are hidden. | `false` |
+| `show_labels` | `Hyprlang::INT` | When enabled, draws workspace number labels on each tile. | `false` |
+| `wallpaper_bg` | `Hyprlang::INT` | When enabled, draws the monitor wallpaper behind the overview tiles instead of a solid overlay. | `false` |
