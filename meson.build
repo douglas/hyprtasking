@@ -40,6 +40,7 @@ configure_file(
 
 core_src = [
   'src/config.cpp',
+  'src/compat/label_renderer.cpp',
   'src/compat/renderer_compat.cpp',
   'src/compat/runtime_compat.cpp',
   'src/input.cpp',
@@ -58,6 +59,7 @@ layout_src = [
 ]
 
 logic_src = [
+  'src/logic/active_grid_model.cpp',
   'src/logic/compat_model.cpp',
   'src/logic/controller_state.cpp',
   'src/logic/gesture_model.cpp',
@@ -87,6 +89,8 @@ dependencies = [
   dependency('libudev'),
   dependency('wayland-server'),
   dependency('xkbcommon'),
+  dependency('cairo'),
+  dependency('pangocairo'),
   hyprland_dep,
 ]
 
@@ -99,6 +103,7 @@ shared_module(meson.project_name(), src,
 logic_tests = executable('logic-tests',
   [
     'tests/logic_tests.cpp',
+    'src/logic/active_grid_model.cpp',
     'src/logic/compat_model.cpp',
     'src/logic/controller_state.cpp',
     'src/logic/gesture_model.cpp',

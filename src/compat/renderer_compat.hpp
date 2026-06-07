@@ -2,11 +2,13 @@
 
 #include <cstdint>
 #include <hyprland/src/SharedDefs.hpp>
+#include <vector>
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/helpers/time/Time.hpp>
 #include <hyprland/src/render/pass/BorderPassElement.hpp>
 #include <hyprland/src/render/pass/RectPassElement.hpp>
 #include <hyprland/src/render/pass/RendererHintsPassElement.hpp>
+#include <hyprland/src/render/pass/TexPassElement.hpp>
 #include <hyprutils/math/Box.hpp>
 #include <hyprutils/math/Vector2D.hpp>
 
@@ -66,6 +68,8 @@ PHLWORKSPACE workspace_by_id(WORKSPACEID workspace_id);
 PHLWORKSPACE window_workspace(PHLWINDOW window);
 WORKSPACEID window_workspace_id(PHLWINDOW window);
 PHLMONITOR window_monitor(PHLWINDOW window);
+int workspace_window_count(PHLWORKSPACE workspace);
+std::vector<PHLWORKSPACE> workspaces_for_monitor(PHLMONITOR monitor);
 CBox window_main_surface_box(PHLWINDOW window);
 Vector2D window_real_position(PHLWINDOW window);
 Vector2D window_real_position_goal(PHLWINDOW window);
@@ -92,6 +96,8 @@ bool move_workspace_to_monitor(
     bool no_warp_cursor = false
 );
 bool warp_pointer(const Vector2D& position);
+SP<Render::ITexture> monitor_background_texture(PHLMONITOR monitor);
+void add_texture_pass(const CTexPassElement::SRenderData& data);
 void add_rect_pass(const CRectPassElement::SRectData& data);
 void add_border_pass(const CBorderPassElement::SBorderData& data);
 void add_renderer_hints_pass(const HTRenderModifData& data);

@@ -468,6 +468,26 @@ WORKSPACEID workspace_id(PHLWORKSPACE workspace) {
     return workspace->m_id;
 }
 
+int workspace_window_count(PHLWORKSPACE workspace) {
+    if (workspace == nullptr)
+        return 0;
+
+    return workspace->getWindows();
+}
+
+std::vector<PHLWORKSPACE> workspaces_for_monitor(PHLMONITOR monitor) {
+    std::vector<PHLWORKSPACE> result;
+    if (monitor == nullptr || !g_pCompositor)
+        return result;
+
+    const MONITORID mid = monitor_id(monitor);
+    for (const auto& ws : g_pCompositor->getWorkspacesCopy()) {
+        if (ws != nullptr && !ws->m_isSpecialWorkspace && workspace_monitor_id(ws) == mid)
+            result.push_back(ws);
+    }
+    return result;
+}
+
 PHLWORKSPACE workspace_by_id(WORKSPACEID workspace_id) {
     if (workspace_id == WORKSPACE_INVALID || !g_pCompositor)
         return nullptr;
@@ -636,6 +656,20 @@ bool warp_pointer(const Vector2D& position) {
 
     g_pPointerManager->warpTo(position);
     return true;
+}
+
+SP<Render::ITexture> monitor_background_texture(PHLMONITOR monitor) {
+    if (monitor == nullptr)
+        return nullptr;
+
+    return monitor->m_background;
+}
+
+void add_texture_pass(const CTexPassElement::SRenderData& data) {
+    if (!g_pHyprRenderer.get())
+        return;
+
+    g_pHyprRenderer->m_renderPass.add(makeUnique<CTexPassElement>(data));
 }
 
 void add_rect_pass(const CRectPassElement::SRectData& data) {

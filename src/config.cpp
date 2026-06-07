@@ -222,6 +222,11 @@ bool register_values() {
     success = add_int_config("grid:rows", 3, "Overview grid rows") && success;
     success = add_int_config("grid:cols", 3, "Overview grid columns") && success;
     success = add_int_config("grid:loop", 0, "Loop directional grid movement") && success;
+    success = add_int_config("active_only", 0, "Show only active/non-empty workspaces") && success;
+    success = add_int_config("grid:auto", 0, "Use dynamic compact grid") && success;
+    success = add_int_config("grid:center_partial_rows", 0, "Center partial final rows") && success;
+    success = add_int_config("show_labels", 0, "Show workspace number labels on tiles") && success;
+    success = add_int_config("wallpaper_bg", 0, "Use wallpaper as overview background") && success;
 
     return success;
 }
@@ -242,6 +247,11 @@ bool refresh_runtime_config_or_disable(std::string_view source) {
     config.grid_rows = int_config_or("grid:rows", config.grid_rows);
     config.grid_cols = int_config_or("grid:cols", config.grid_cols);
     config.grid_loop = int_config_or("grid:loop", config.grid_loop ? 1 : 0) != 0;
+    config.active_only = int_config_or("active_only", config.active_only ? 1 : 0) != 0;
+    config.grid_auto = int_config_or("grid:auto", config.grid_auto ? 1 : 0) != 0;
+    config.grid_center_partial_rows = int_config_or("grid:center_partial_rows", config.grid_center_partial_rows ? 1 : 0) != 0;
+    config.show_labels = int_config_or("show_labels", config.show_labels ? 1 : 0) != 0;
+    config.wallpaper_bg = int_config_or("wallpaper_bg", config.wallpaper_bg ? 1 : 0) != 0;
 
     if (const auto error = validate_runtime_config(config); error.has_value()) {
         HTRuntimeFail::disable(source, *error);

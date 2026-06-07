@@ -27,6 +27,11 @@ struct RuntimeConfig {
     int grid_rows = 3;
     int grid_cols = 3;
     bool grid_loop = false;
+    bool active_only = false;
+    bool grid_auto = false;
+    bool grid_center_partial_rows = false;
+    bool show_labels = false;
+    bool wallpaper_bg = false;
 };
 
 namespace Detail {

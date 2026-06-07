@@ -12,12 +12,18 @@ class HTLayoutGrid: public HTLayoutBase {
     PHLANIMVAR<float> scale;
     PHLANIMVAR<Vector2D> offset;
     WORKSPACEID close_render_workspace_id = WORKSPACE_INVALID;
+    int effective_rows = 3;
+    int effective_cols = 3;
+
+    std::vector<WORKSPACEID> collect_visible_workspaces(PHLMONITOR monitor);
+    void compute_effective_shape(const std::vector<WORKSPACEID>& visible_ids, PHLMONITOR monitor);
+    void place_workspaces(const std::vector<WORKSPACEID>& visible_ids, PHLMONITOR monitor, HTViewStage stage);
 
   public:
     HTLayoutGrid(VIEWID view_id);
     ~HTLayoutGrid() = default;
 
-    CBox calculate_ws_box(int x, int y, HTViewStage stage);
+    CBox calculate_ws_box(double x, double y, HTViewStage stage);
 
     void close_open_lerp(float perc);
     void on_show(CallbackFun on_complete = nullptr);

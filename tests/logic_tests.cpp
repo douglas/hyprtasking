@@ -6,6 +6,7 @@
 #include <string_view>
 #include <vector>
 
+#include "../src/logic/active_grid_model.hpp"
 #include "../src/logic/compat_model.hpp"
 #include "../src/logic/controller_state.hpp"
 #include "../src/logic/geometry_model.hpp"
@@ -518,6 +519,153 @@ int main() {
     {
         const auto result = shouldKeepOverviewOpen(80.0f, 100.0f);
         expect(result.has_value() && !*result, "high swipe progress should close the overview");
+    }
+
+    // Active grid model tests
+    {
+        const auto shape = HTLogic::computeActiveGridShape(0);
+        expect(shape.rows == 0 && shape.cols == 0, "grid shape for zero should be empty");
+    }
+    {
+        const auto shape = HTLogic::computeActiveGridShape(1);
+        expect(shape.rows == 1 && shape.cols == 1, "grid shape for 1 should be 1x1");
+    }
+    {
+        const auto shape = HTLogic::computeActiveGridShape(2);
+        expect(shape.rows == 1 && shape.cols == 2, "grid shape for 2 should be 1x2");
+    }
+    {
+        const auto shape = HTLogic::computeActiveGridShape(3);
+        expect(shape.rows == 2 && shape.cols == 2, "grid shape for 3 should be 2x2");
+    }
+    {
+        const auto shape = HTLogic::computeActiveGridShape(4);
+        expect(shape.rows == 2 && shape.cols == 2, "grid shape for 4 should be 2x2");
+    }
+    {
+        const auto shape = HTLogic::computeActiveGridShape(5);
+        expect(shape.rows == 2 && shape.cols == 3, "grid shape for 5 should be 2x3");
+    }
+    {
+        const auto shape = HTLogic::computeActiveGridShape(6);
+        expect(shape.rows == 2 && shape.cols == 3, "grid shape for 6 should be 2x3");
+    }
+    {
+        const auto shape = HTLogic::computeActiveGridShape(7);
+        expect(shape.rows == 3 && shape.cols == 3, "grid shape for 7 should be 3x3");
+    }
+    {
+        const auto shape = HTLogic::computeActiveGridShape(9);
+        expect(shape.rows == 3 && shape.cols == 3, "grid shape for 9 should be 3x3");
+    }
+    {
+        const auto shape = HTLogic::computeActiveGridShape(10);
+        expect(shape.rows == 3 && shape.cols == 4, "grid shape for 10 should be 3x4");
+    }
+    {
+        const auto shape = HTLogic::computeActiveGridShape(12);
+        expect(shape.rows == 3 && shape.cols == 4, "grid shape for 12 should be 3x4");
+    }
+    {
+        const auto shape = HTLogic::computeActiveGridShape(-1);
+        expect(shape.rows == 0 && shape.cols == 0, "grid shape for negative should be empty");
+    }
+    // placement tests
+    {
+        const auto shape = HTLogic::computeActiveGridShape(5);
+        const auto p0 = HTLogic::placementForIndex(0, 5, shape);
+        expect(p0.row == 0 && p0.col == 0 && p0.itemsInRow == 3 && p0.rowOffsetCells == 0.0,
+               "placement for first in full row should have no offset");
+        const auto p3 = HTLogic::placementForIndex(3, 5, shape);
+        expect(p3.row == 1 && p3.col == 0 && p3.itemsInRow == 2 && p3.rowOffsetCells == 0.5,
+               "placement for first in partial row should have centering offset");
+        const auto p4 = HTLogic::placementForIndex(4, 5, shape);
+        expect(p4.row == 1 && p4.col == 1 && p4.itemsInRow == 2 && p4.rowOffsetCells == 0.5,
+               "placement for second in partial row should have centering offset");
+    }
+    {
+        const auto shape = HTLogic::computeActiveGridShape(1);
+        const auto p = HTLogic::placementForIndex(0, 1, shape);
+        expect(p.row == 0 && p.col == 0 && p.itemsInRow == 1 && p.rowOffsetCells == 0.0,
+               "placement for single item should be centered");
+    }
+    {
+        const auto shape = HTLogic::computeActiveGridShape(4);
+        const auto p3 = HTLogic::placementForIndex(3, 4, shape);
+        expect(p3.row == 1 && p3.col == 1 && p3.itemsInRow == 2 && p3.rowOffsetCells == 0.0,
+               "placement for last in full row should have no offset");
+    }
+    // aspect-aware shape tests
+    {
+        const auto shape = HTLogic::computeActiveGridShape(6, 16.0 / 9.0);
+        expect(shape.cols >= 2 && shape.rows >= 2, "aspect-aware shape for 6 should be reasonable");
+    }
+    {
+        const auto shape = HTLogic::computeActiveGridShape(6, 0.0);
+        expect(shape.rows == 2 && shape.cols == 3, "aspect-aware with invalid aspect should fall back");
+    }
+    // placementForIndex integration tests
+    {
+        const auto shape = HTLogic::computeActiveGridShape(5, 1.0);
+        const auto p0 = HTLogic::placementForIndex(0, 5, shape);
+        const auto p3 = HTLogic::placementForIndex(3, 5, shape);
+        const auto p4 = HTLogic::placementForIndex(4, 5, shape);
+        expect(p0.row == 0 && p0.col == 0 && p0.rowOffsetCells == 0.0,
+               "placement[0] should be at row 0 with no offset");
+        expect(p3.row == 1 && p3.col == 0 && p3.rowOffsetCells == 0.5,
+               "placement[3] should be in partial row with centering offset");
+        expect(p4.row == 1 && p4.col == 1 && p4.rowOffsetCells == 0.5,
+               "placement[4] should be in partial row with centering offset");
+    }
+    {
+        const auto shape = HTLogic::computeActiveGridShape(65, 16.0 / 9.0);
+        const auto last = HTLogic::placementForIndex(64, 65, shape);
+        expect(last.row >= 0 && last.col >= 0 && last.row < shape.rows && last.col < shape.cols,
+               "placement for last of 65 should be within valid bounds");
+    }
+    {
+        const auto shape = HTLogic::computeActiveGridShape(0, 1.0);
+        const auto p = HTLogic::placementForIndex(0, 0, shape);
+        expect(p.row == 0 && p.col == 0, "placement for empty should return safe defaults");
+    }
+    // capVisibleWorkspaces tests
+    {
+        const auto ids = HTLogic::capVisibleWorkspaces({1, 2, 3, 4, 5}, 8, 1);
+        expect(ids.size() == 5, "cap under limit should keep all IDs");
+    }
+    {
+        const auto ids = HTLogic::capVisibleWorkspaces({1, 2, 3, 4, 5}, 3, 1);
+        expect(ids.size() == 3, "cap over limit should truncate to max slots");
+        expect(ids[0] == 1 && ids[1] == 2 && ids[2] == 3,
+               "cap should keep first N IDs");
+    }
+    {
+        const auto ids = HTLogic::capVisibleWorkspaces({2, 3, 4, 5}, 3, 1);
+        expect(ids.size() == 3, "cap should truncate to max slots");
+        expect(ids.back() == 1, "active ID not in list should replace last slot");
+    }
+    {
+        const auto ids = HTLogic::capVisibleWorkspaces({1, 2, 3}, 3, 1);
+        expect(ids.size() == 3 && ids.back() == 3,
+               "active ID already present should not alter list");
+    }
+    {
+        const auto ids = HTLogic::capVisibleWorkspaces({1, 2, 3, 4, 5}, 0, 1);
+        expect(ids.empty(), "cap with zero max slots should return empty");
+    }
+    {
+        const auto ids = HTLogic::capVisibleWorkspaces({1, 2, 3}, 5, -1);
+        expect(ids.size() == 3, "invalid active ID should not alter list");
+    }
+    {
+        const auto ids = HTLogic::capVisibleWorkspaces({}, 1, 7);
+        expect(ids.size() == 1 && ids[0] == 7,
+               "empty visible list should keep valid active ID when space exists");
+    }
+    {
+        const auto ids = HTLogic::capVisibleWorkspaces({1, 2, 3}, 3, -42);
+        expect(ids.size() == 3 && ids.back() == -42,
+               "named negative active workspace IDs other than WORKSPACE_INVALID should be preserved");
     }
 
     return 0;
