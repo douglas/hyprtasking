@@ -4,6 +4,7 @@
 #include <string>
 
 #include "../globals.hpp"
+#include "../logic/navigation_model.hpp"
 #include "../overview.hpp"
 #include "../runtime_validation.hpp"
 #include "guards.hpp"
@@ -110,6 +111,25 @@ SDispatchResult dispatchCommit([[maybe_unused]] std::string arg) {
     });
 }
 
+SDispatchResult dispatchSelectCommit(std::string arg) {
+    return guardedDispatch("dispatch_select_commit", [&]() -> SDispatchResult {
+        PHTVIEW cursor_view = nullptr;
+        const auto view_guard = requireCursorView(cursor_view, true);
+        if (!view_guard.success)
+            return view_guard;
+
+        const auto parsed = HTLogic::parseNavigateArg(arg);
+        if (parsed.kind != HTLogic::NavigateArgKind::Workspace)
+            return {.success = false, .error = "invalid workspace"};
+
+        if (!cursor_view->select_workspace(parsed.workspace_id))
+            return {.success = false, .error = "workspace unavailable"};
+        if (!cursor_view->commit_selection())
+            return {.success = false, .error = "selection unavailable"};
+        return {};
+    });
+}
+
 SDispatchResult dispatchHealth(std::string arg) {
     return guardedDispatch("dispatch_health", [&]() -> SDispatchResult {
         const bool json = arg == "json";
@@ -128,6 +148,8 @@ SDispatchResult dispatchHealth(std::string arg) {
             CHyprColor {0.2, 0.8, 0.2, 1.0},
             5000
         );
+        if (arg == "print" || arg == "print-json")
+            return {.success = false, .error = health};
         return {};
     });
 }
@@ -141,6 +163,7 @@ void registerDispatchers() {
     HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:move", dispatchMove);
     HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:select", dispatchSelect);
     HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:commit", dispatchCommit);
+    HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:select-commit", dispatchSelectCommit);
     HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:health", dispatchHealth);
 }
 
