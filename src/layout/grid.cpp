@@ -488,7 +488,15 @@ void HTLayoutGrid::place_workspaces(const std::vector<WORKSPACEID>& visible_ids,
             HTCompat::move_workspace_to_monitor(workspace, monitor);
         }
 
-        const CBox ws_box = calculate_ws_box(visual_x, logical_y, stage);
+        CBox ws_box = calculate_ws_box(visual_x, logical_y, stage);
+        // When center_partial_rows places tiles at fractional column positions,
+        // round to integer pixels to avoid subpixel tearing during animation
+        // with multi-window workspaces (sharp edges become misaligned at
+        // half-pixel offsets during zoom-out).
+        if (config.grid_center_partial_rows) {
+            ws_box.x = std::round(ws_box.x);
+            ws_box.y = std::round(ws_box.y);
+        }
         overview_layout[ws_id] = HTWorkspace {placement.col, logical_y, ws_box};
     }
 }
