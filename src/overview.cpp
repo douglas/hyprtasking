@@ -141,12 +141,18 @@ void HTView::set_runtime_state(bool new_active, bool new_closing, bool new_navig
 
     if (!was_interactively_active && is_interactively_active) {
         if (!HTCompat::enter_submap("hyprtasking")) {
-            HTRuntimeFail::disable("set_runtime_state", "failed entering hyprtasking submap");
+            Log::logger->log(
+                Log::WARN,
+                "[Hyprtasking] failed entering optional hyprtasking submap; continuing without submap"
+            );
         }
     } else if (was_interactively_active && !is_interactively_active) {
         if (ht_manager != nullptr && !ht_manager->has_interactively_active_view()) {
             if (!HTCompat::exit_submap())
-                HTRuntimeFail::disable("set_runtime_state", "failed resetting hyprtasking submap");
+                Log::logger->log(
+                    Log::WARN,
+                    "[Hyprtasking] failed resetting optional hyprtasking submap; continuing"
+                );
         }
     }
 
@@ -323,6 +329,27 @@ void HTView::move(std::string arg) {
     move_id(id);
 }
 
+bool HTView::select_workspace(WORKSPACEID workspace_id) {
+    const PHLMONITOR monitor = get_monitor();
+    if (monitor == nullptr || workspace_id == WORKSPACE_INVALID)
+        return false;
+
+    layout->build_overview_layout(HT_VIEW_CLOSED);
+    if (layout->find_layout_workspace(workspace_id) == nullptr)
+        return false;
+
+    set_keyboard_workspace(workspace_id);
+    const HTCursorWorkspaceContext cursor_context = ht_manager == nullptr
+        ? HTCursorWorkspaceContext {}
+        : ht_manager->resolve_cursor_workspace(false);
+    const WORKSPACEID cursor_workspace_id =
+        cursor_context.monitor == monitor ? cursor_context.workspace_id : WORKSPACE_INVALID;
+    suppress_hover_workspace(cursor_workspace_id);
+    HTCompat::damage_monitor(monitor);
+    HTCompat::schedule_frame_for_monitor(monitor);
+    return true;
+}
+
 bool HTView::navigate_selection(const std::string& arg) {
     const auto navigate_arg = HTLogic::parseNavigateArg(arg);
     if (navigate_arg.kind == HTLogic::NavigateArgKind::Invalid)
@@ -337,17 +364,6 @@ bool HTView::navigate_selection(const std::string& arg) {
 
     const WORKSPACEID active_workspace_id = HTCompat::workspace_id(active_workspace);
     layout->build_overview_layout(HT_VIEW_CLOSED);
-    auto select_workspace = [&](WORKSPACEID target_ws_id) {
-        set_keyboard_workspace(target_ws_id);
-        const HTCursorWorkspaceContext cursor_context = ht_manager == nullptr
-            ? HTCursorWorkspaceContext {}
-            : ht_manager->resolve_cursor_workspace(false);
-        const WORKSPACEID cursor_workspace_id =
-            cursor_context.monitor == monitor ? cursor_context.workspace_id : WORKSPACE_INVALID;
-        suppress_hover_workspace(cursor_workspace_id);
-        HTCompat::damage_monitor(monitor);
-        HTCompat::schedule_frame_for_monitor(monitor);
-    };
 
     if (navigate_arg.kind == HTLogic::NavigateArgKind::Direction) {
         const WORKSPACEID source_ws_id =
@@ -387,17 +403,11 @@ bool HTView::navigate_selection(const std::string& arg) {
         if (target_ws_id == WORKSPACE_INVALID)
             return true;
 
-        select_workspace(target_ws_id);
-        return true;
+        return select_workspace(target_ws_id);
     }
 
-    if (navigate_arg.kind == HTLogic::NavigateArgKind::Workspace) {
-        if (layout->find_layout_workspace(navigate_arg.workspace_id) == nullptr)
-            return true;
-
-        select_workspace(navigate_arg.workspace_id);
-        return true;
-    }
+    if (navigate_arg.kind == HTLogic::NavigateArgKind::Workspace)
+        return select_workspace(navigate_arg.workspace_id);
 
     return false;
 }

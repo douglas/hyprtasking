@@ -47,6 +47,7 @@ class HTView {
     void move_id(WORKSPACEID ws_id);
     // arg is up, down, left, right;
     void move(std::string arg);
+    bool select_workspace(WORKSPACEID workspace_id);
     bool navigate_selection(const std::string& arg);
 };
 
