@@ -40,4 +40,6 @@ class HTLayoutGrid: public HTLayoutBase {
     void build_overview_layout(HTViewStage stage);
     void render();
     void cancel_animation_callbacks();
+
+    HTBackgroundDropInfo background_drop_info() override;
 };

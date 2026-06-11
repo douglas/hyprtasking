@@ -60,4 +60,10 @@ class HTLayoutBase {
     std::optional<Vector2D> global_to_workspace_monitor_coords(Vector2D pos, WORKSPACEID workspace_id);
     Vector2D local_ws_scaled_to_global(Vector2D pos, WORKSPACEID workspace_id);
     Vector2D local_ws_unscaled_to_global(Vector2D pos, WORKSPACEID workspace_id);
+
+    struct HTBackgroundDropInfo {
+        bool        can_drop = false;
+        WORKSPACEID next_workspace_id = WORKSPACE_INVALID;
+    };
+    virtual HTBackgroundDropInfo background_drop_info() { return {}; }
 };

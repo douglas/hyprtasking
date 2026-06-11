@@ -339,45 +339,71 @@ bool HTManager::end_window_drag() {
     const std::optional<WORKSPACEID> dragged_workspace_id = dragged_workspace == nullptr
         ? std::nullopt
         : std::optional<WORKSPACEID> {HTCompat::workspace_id(dragged_workspace)};
-    const auto drop_decision =
-        HTLogic::resolveDropWorkspace(hovered_workspace_id, dragged_workspace_id);
-    if (!drop_decision.valid) {
-        Log::logger->log(LOG, "[Hyprtasking] tried to drop on null workspace??");
-        trace_log(
-            "[Hyprtasking][trace] end_window_drag failed: no hovered or fallback dragged workspace"
-        );
-        return false;
+    PHLWORKSPACE cursor_workspace = nullptr;
+    bool        drop_on_new_workspace = false;
+
+    // Background drop: dropping on empty space outside tiles creates a new workspace
+    if (hovered_workspace_id == WORKSPACE_INVALID && cursor_view != nullptr && cursor_view->active) {
+        const auto bg_info = cursor_view->layout->background_drop_info();
+        if (bg_info.can_drop && bg_info.next_workspace_id != WORKSPACE_INVALID) {
+            cursor_workspace = HTCompat::resolve_workspace_target(
+                cursor_monitor, bg_info.next_workspace_id, true);
+            if (cursor_workspace != nullptr) {
+                drop_on_new_workspace = true;
+                HTCompat::move_window_to_workspace(dragged_window, cursor_workspace);
+                // Rebuild layout with open-state positions so the new workspace
+                // gets a tile for the coordinate mapping below.
+                cursor_view->layout->build_overview_layout(HT_VIEW_OPENED);
+                Log::logger->log(
+                    LOG,
+                    "[Hyprtasking] Background drop created new workspace {}",
+                    bg_info.next_workspace_id
+                );
+            }
+        }
     }
 
-    PHLWORKSPACE cursor_workspace = HTCompat::resolve_workspace_target(
-        cursor_monitor,
-        drop_decision.workspace_id,
-        drop_decision.create_if_missing
-    );
+    if (!drop_on_new_workspace) {
+        const auto drop_decision =
+            HTLogic::resolveDropWorkspace(hovered_workspace_id, dragged_workspace_id);
+        if (!drop_decision.valid) {
+            Log::logger->log(LOG, "[Hyprtasking] tried to drop on null workspace??");
+            trace_log(
+                "[Hyprtasking][trace] end_window_drag failed: no hovered or fallback dragged workspace"
+            );
+            return false;
+        }
 
-    if (cursor_workspace == nullptr) {
-        Log::logger->log(
-            LOG,
-            "[Hyprtasking] drop target workspace {} could not be resolved",
-            drop_decision.workspace_id
+        cursor_workspace = HTCompat::resolve_workspace_target(
+            cursor_monitor,
+            drop_decision.workspace_id,
+            drop_decision.create_if_missing
         );
-        trace_log(
-            "[Hyprtasking][trace] end_window_drag failed: resolve_workspace_target returned null"
-        );
-        return false;
-    }
 
-    if (drop_decision.snap_to_workspace) {
-        // Ensure that the mouse coords are snapped to inside the workspace box itself
-        use_mouse_coords =
-            cursor_view->layout->get_global_ws_box(HTCompat::workspace_id(cursor_workspace))
-                .closestPoint(use_mouse_coords);
+        if (cursor_workspace == nullptr) {
+            Log::logger->log(
+                LOG,
+                "[Hyprtasking] drop target workspace {} could not be resolved",
+                drop_decision.workspace_id
+            );
+            trace_log(
+                "[Hyprtasking][trace] end_window_drag failed: resolve_workspace_target returned null"
+            );
+            return false;
+        }
 
-        Log::logger->log(
-            LOG,
-            "[Hyprtasking] Dragging to invalid position, snapping to last ws {}",
-            HTCompat::workspace_id(cursor_workspace)
-        );
+        if (drop_decision.snap_to_workspace) {
+            // Ensure that the mouse coords are snapped to inside the workspace box itself
+            use_mouse_coords =
+                cursor_view->layout->get_global_ws_box(HTCompat::workspace_id(cursor_workspace))
+                    .closestPoint(use_mouse_coords);
+
+            Log::logger->log(
+                LOG,
+                "[Hyprtasking] Dragging to invalid position, snapping to last ws {}",
+                HTCompat::workspace_id(cursor_workspace)
+            );
+        }
     }
 
     Log::logger->log(

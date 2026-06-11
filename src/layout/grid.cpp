@@ -685,6 +685,25 @@ void HTLayoutGrid::render() {
         render_dragged_window_snapshot(*render_snapshot);
 }
 
+HTLayoutBase::HTBackgroundDropInfo HTLayoutGrid::background_drop_info() {
+    const int capacity = HTConfig::MAX_GRID_ROWS * HTConfig::MAX_GRID_COLS;
+    if (static_cast<int>(overview_layout.size()) >= capacity)
+        return {};
+
+    WORKSPACEID next_id = 0;
+    for (const auto& [ws_id, layout] : overview_layout) {
+        if (ws_id > next_id)
+            next_id = ws_id;
+    }
+    next_id++;
+
+    // Sanity cap to prevent runaway IDs
+    if (next_id > 999)
+        return {};
+
+    return {.can_drop = true, .next_workspace_id = next_id};
+}
+
 void HTLayoutGrid::cancel_animation_callbacks() {
     close_render_workspace_id = WORKSPACE_INVALID;
     scale->resetAllCallbacks();
