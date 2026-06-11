@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include <hyprland/src/helpers/AnimatedVariable.hpp>
 
@@ -12,6 +13,7 @@ class HTLayoutGrid: public HTLayoutBase {
     PHLANIMVAR<float> scale;
     PHLANIMVAR<Vector2D> offset;
     WORKSPACEID close_render_workspace_id = WORKSPACE_INVALID;
+    std::vector<WORKSPACEID> forced_visible_workspace_ids;
     int effective_rows = 3;
     int effective_cols = 3;
 
@@ -42,4 +44,5 @@ class HTLayoutGrid: public HTLayoutBase {
     void cancel_animation_callbacks();
 
     HTBackgroundDropInfo background_drop_info() override;
+    void force_include_workspace(WORKSPACEID workspace_id) override;
 };

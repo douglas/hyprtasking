@@ -10,6 +10,9 @@ that behaves like the old hyprexpo dynamic grid.
 - Grid shape is compact and dynamic (not fixed 3×3)
 - Partial final rows are centered
 - Tiles preserve monitor aspect ratio
+- Dragging a window from a tile onto the background creates a new workspace
+  using the next ID after the highest visible workspace, then keeps the overview
+  open and refreshes the grid so the new tile appears immediately
 
 ## Config
 

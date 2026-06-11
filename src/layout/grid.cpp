@@ -433,6 +433,34 @@ std::vector<WORKSPACEID> HTLayoutGrid::collect_visible_workspaces(PHLMONITOR mon
         }
         if (active_ws_id != WORKSPACE_INVALID && std::find(visible_ids.begin(), visible_ids.end(), active_ws_id) == visible_ids.end())
             visible_ids.push_back(active_ws_id);
+
+        forced_visible_workspace_ids.erase(
+            std::remove_if(
+                forced_visible_workspace_ids.begin(),
+                forced_visible_workspace_ids.end(),
+                [&](WORKSPACEID forced_ws_id) {
+                    const PHLWORKSPACE forced_workspace = HTCompat::workspace_by_id(forced_ws_id);
+                    return forced_workspace == nullptr || HTCompat::workspace_monitor(forced_workspace) != monitor;
+                }
+            ),
+            forced_visible_workspace_ids.end()
+        );
+
+        forced_visible_workspace_ids.erase(
+            std::remove_if(
+                forced_visible_workspace_ids.begin(),
+                forced_visible_workspace_ids.end(),
+                [&](WORKSPACEID forced_ws_id) {
+                    return std::find(visible_ids.begin(), visible_ids.end(), forced_ws_id)
+                        != visible_ids.end();
+                }
+            ),
+            forced_visible_workspace_ids.end()
+        );
+
+        for (const WORKSPACEID forced_ws_id : forced_visible_workspace_ids)
+            visible_ids.push_back(forced_ws_id);
+
         std::sort(visible_ids.begin(), visible_ids.end());
     } else {
         for (int y = 0; y < ROWS; y++) {
@@ -683,6 +711,15 @@ void HTLayoutGrid::render() {
 
     if (render_snapshot.has_value())
         render_dragged_window_snapshot(*render_snapshot);
+}
+
+void HTLayoutGrid::force_include_workspace(WORKSPACEID workspace_id) {
+    if (workspace_id == WORKSPACE_INVALID)
+        return;
+    if (std::find(forced_visible_workspace_ids.begin(), forced_visible_workspace_ids.end(), workspace_id)
+        != forced_visible_workspace_ids.end())
+        return;
+    forced_visible_workspace_ids.push_back(workspace_id);
 }
 
 HTLayoutBase::HTBackgroundDropInfo HTLayoutGrid::background_drop_info() {

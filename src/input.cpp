@@ -350,10 +350,15 @@ bool HTManager::end_window_drag() {
                 cursor_monitor, bg_info.next_workspace_id, true);
             if (cursor_workspace != nullptr) {
                 drop_on_new_workspace = true;
+                cursor_view->layout->force_include_workspace(bg_info.next_workspace_id);
+                HTCompat::move_workspace_to_monitor(cursor_workspace, cursor_monitor);
                 HTCompat::move_window_to_workspace(dragged_window, cursor_workspace);
                 // Rebuild layout with open-state positions so the new workspace
-                // gets a tile for the coordinate mapping below.
+                // gets a tile for the coordinate mapping below, even if Hyprland
+                // has not updated workspace window counts yet.
                 cursor_view->layout->build_overview_layout(HT_VIEW_OPENED);
+                HTCompat::damage_monitor(cursor_monitor);
+                HTCompat::schedule_frame_for_monitor(cursor_monitor);
                 Log::logger->log(
                     LOG,
                     "[Hyprtasking] Background drop created new workspace {}",
@@ -480,7 +485,21 @@ bool HTManager::end_window_drag() {
     // otherwise the window leaves blur (?) artifacts on all
     // workspaces
     HTCompat::reset_window_workspace_move_alpha(dragged_window);
+
+    const WORKSPACEID final_workspace_id = HTCompat::workspace_id(cursor_workspace);
+    if (drop_on_new_workspace)
+        cursor_view->layout->force_include_workspace(final_workspace_id);
+
     restore_workspace.dismiss();
+
+    if (drop_on_new_workspace) {
+        // Re-run the normal show path after the drop completes. Manual
+        // close/reopen already proves this path rebuilds the active overview
+        // with the newly-created workspace visible; doing it here avoids relying
+        // on a mid-drag layout mutation to take effect in the current view.
+        cursor_view->show();
+    }
+
     trace_log(
         "[Hyprtasking][trace] end_window_drag completed for workspace {}",
         HTCompat::workspace_id(cursor_workspace)

@@ -66,4 +66,5 @@ class HTLayoutBase {
         WORKSPACEID next_workspace_id = WORKSPACE_INVALID;
     };
     virtual HTBackgroundDropInfo background_drop_info() { return {}; }
+    virtual void force_include_workspace(WORKSPACEID workspace_id) {}
 };
