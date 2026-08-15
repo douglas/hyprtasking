@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.3 - 2026-08-15
+
+### Added
+
+- Support Hyprland `0.56.0` and `0.56.2`, including matching hyprpm pins.
+
+### Fixed
+
+- Render all workspace thumbnails during overview transforms on Hyprland 0.56,
+  including multi-window grids, blur, and borders.
+- Use Hyprland's Lua plugin API for live smoke checks on Hyprland 0.56+.
+
 ## 0.5.2 - 2026-05-27
 
 ### Changed

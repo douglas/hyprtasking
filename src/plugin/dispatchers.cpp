@@ -162,7 +162,16 @@ int luaCommit(lua_State* state) {
 }
 
 int luaHealth(lua_State* state) {
-    return luaResult(state, dispatchHealth(luaL_optstring(state, 1, "")));
+    const auto arg = luaL_optstring(state, 1, "");
+    const auto result = dispatchHealth(arg);
+    if (!result.success)
+        return luaResult(state, result);
+
+    const auto health = ht_manager == nullptr
+        ? std::string {"{\"runtime_enabled\":false,\"error\":\"ht_manager is null\"}"}
+        : ht_manager->runtime_health_summary(std::string {arg} == "json");
+    lua_pushstring(state, health.c_str());
+    return 1;
 }
 
 } // namespace

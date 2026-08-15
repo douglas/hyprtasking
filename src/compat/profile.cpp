@@ -32,7 +32,12 @@ constexpr HTCompat::HookSpec INPUT_MOUSE_BUTTON_HOOK = {
 constexpr HTCompat::HookSpec RENDER_WORKSPACE_HOOK = {
     .label = "renderWorkspace",
     .query = "renderWorkspace",
-#if HT_HYPRLAND_GE_0_55
+#if HT_HYPRLAND_GE_0_56
+    .signature =
+        "_ZN6Render13IHyprRenderer15renderWorkspaceEN9Hyprutils6Memory14CSharedPointer"
+        "IN7Monitor8CMonitorEEENS3_I10CWorkspaceEERKNSt6chrono10time_pointINS9_3_V212"
+        "steady_clockENS9_8durationIlSt5ratioILl1ELl1000000000EEEEEERKNS1_4Math4CBoxE",
+#elif HT_HYPRLAND_GE_0_55
     .signature =
         "_ZN6Render13IHyprRenderer15renderWorkspaceEN9Hyprutils6Memory14CSharedPointerI8"
         "CMonitorEENS3_I10CWorkspaceEERKNSt6chrono10time_pointINS8_3_V212steady_clockENS"
@@ -43,9 +48,76 @@ constexpr HTCompat::HookSpec RENDER_WORKSPACE_HOOK = {
 #endif
 };
 
+constexpr HTCompat::HookSpec RENDER_TEXTURE_HOOK = {
+    .label = "renderTexture",
+#if HT_HYPRLAND_GE_0_56
+    .query =
+        "_ZN6Render2GL15CHyprOpenGLImpl13renderTextureEN9Hyprutils6Memory14CSharedPointer"
+        "INS_8ITextureEEERKNS2_4Math4CBoxENS1_18STextureRenderDataE",
+    .signature =
+        "_ZN6Render2GL15CHyprOpenGLImpl13renderTextureEN9Hyprutils6Memory14CSharedPointer"
+        "INS_8ITextureEEERKNS2_4Math4CBoxENS1_18STextureRenderDataE",
+#else
+    .query = "renderTexture",
+    .signature = "",
+#endif
+};
+
+constexpr HTCompat::HookSpec RENDER_BORDER_HOOK = {
+    .label = "renderBorder",
+#if HT_HYPRLAND_GE_0_56
+    .query =
+        "_ZN6Render2GL15CHyprOpenGLImpl12renderBorderERKN9Hyprutils4Math4CBoxERKN6Config18"
+        "CGradientValueDataENS1_17SBorderRenderDataE",
+    .signature =
+        "_ZN6Render2GL15CHyprOpenGLImpl12renderBorderERKN9Hyprutils4Math4CBoxERKN6Config18"
+        "CGradientValueDataENS1_17SBorderRenderDataE",
+#else
+    .query = "renderBorder",
+    .signature = "",
+#endif
+};
+
+constexpr HTCompat::HookSpec RENDER_BORDER_LERP_HOOK = {
+    .label = "renderBorder (lerp)",
+#if HT_HYPRLAND_GE_0_56
+    .query =
+        "_ZN6Render2GL15CHyprOpenGLImpl12renderBorderERKN9Hyprutils4Math4CBoxERKN6Config18"
+        "CGradientValueDataESA_fNS1_17SBorderRenderDataE",
+    .signature =
+        "_ZN6Render2GL15CHyprOpenGLImpl12renderBorderERKN9Hyprutils4Math4CBoxERKN6Config18"
+        "CGradientValueDataESA_fNS1_17SBorderRenderDataE",
+#else
+    .query = "renderBorder",
+    .signature = "",
+#endif
+};
+
+constexpr HTCompat::HookSpec BLUR_OPTIMIZATIONS_HOOK = {
+    .label = "shouldUseNewBlurOptimizations",
+#if HT_HYPRLAND_GE_0_56
+    .query =
+        "_ZN6Render13IHyprRenderer29shouldUseNewBlurOptimizationsEN9Hyprutils6Memory14CSharedPointer"
+        "IN7Desktop4View13CLayerSurfaceEEENS3_INS5_7CWindowEEE",
+    .signature =
+        "_ZN6Render13IHyprRenderer29shouldUseNewBlurOptimizationsEN9Hyprutils6Memory14CSharedPointer"
+        "IN7Desktop4View13CLayerSurfaceEEENS3_INS5_7CWindowEEE",
+#else
+    .query = "shouldUseNewBlurOptimizations",
+    .signature = "",
+#endif
+};
+
 constexpr HTCompat::HookSpec SHOULD_RENDER_WINDOW_HOOK = {
     .label = "shouldRenderWindow",
-#if HT_HYPRLAND_GE_0_55
+#if HT_HYPRLAND_GE_0_56
+    .query =
+        "_ZN6Render13IHyprRenderer18shouldRenderWindowEN9Hyprutils6Memory14CSharedPointer"
+        "IN7Desktop4View7CWindowEEENS3_IN7Monitor8CMonitorEEE",
+    .signature =
+        "_ZN6Render13IHyprRenderer18shouldRenderWindowEN9Hyprutils6Memory14CSharedPointer"
+        "IN7Desktop4View7CWindowEEENS3_IN7Monitor8CMonitorEEE",
+#elif HT_HYPRLAND_GE_0_55
     .query =
         "_ZN6Render13IHyprRenderer18shouldRenderWindowEN9Hyprutils6Memory14CS"
         "haredPointerIN7Desktop4View7CWindowEEENS3_I8CMonitorEE",
@@ -64,7 +136,18 @@ constexpr HTCompat::HookSpec SHOULD_RENDER_WINDOW_HOOK = {
 
 constexpr HTCompat::HookSpec RENDER_WINDOW_SYMBOL = {
     .label = "renderWindow",
-#if HT_HYPRLAND_GE_0_55
+#if HT_HYPRLAND_GE_0_56
+    .query =
+        "_ZN6Render13IHyprRenderer12renderWindowEN9Hyprutils6Memory14CSharedPointer"
+        "IN7Desktop4View7CWindowEEENS3_IN7Monitor8CMonitorEEERKNSt6chrono10time_point"
+        "INSB_3_V212steady_clockENSB_8durationIlSt5ratioILl1ELl1000000000EEEEEEbNS_15"
+        "eRenderPassModeEbb",
+    .signature =
+        "_ZN6Render13IHyprRenderer12renderWindowEN9Hyprutils6Memory14CSharedPointer"
+        "IN7Desktop4View7CWindowEEENS3_IN7Monitor8CMonitorEEERKNSt6chrono10time_point"
+        "INSB_3_V212steady_clockENSB_8durationIlSt5ratioILl1ELl1000000000EEEEEEbNS_15"
+        "eRenderPassModeEbb",
+#elif HT_HYPRLAND_GE_0_55
     .query =
         "_ZN6Render13IHyprRenderer12renderWindowEN9Hyprutils6Memory14CSharedPointer"
         "IN7Desktop4View7CWindowEEENS3_I8CMonitorEERKNSt6chrono10time_pointINSA_3"
@@ -92,7 +175,11 @@ constexpr HTCompat::HookSpec RENDER_WINDOW_SYMBOL = {
 constexpr HTCompat::HookSpec SOLITARY_BLOCKED_HOOK = {
     .label = "isSolitaryBlocked",
     .query = "isSolitaryBlocked",
+#if HT_HYPRLAND_GE_0_56
+    .signature = "_ZN7Monitor8CMonitor17isSolitaryBlockedEb",
+#else
     .signature = "_ZN8CMonitor17isSolitaryBlockedEb",
+#endif
 };
 
 } // namespace
@@ -109,6 +196,22 @@ const HookSpec& input_mouse_button_spec() {
 
 const HookSpec& render_workspace_spec() {
     return RENDER_WORKSPACE_HOOK;
+}
+
+const HookSpec& render_texture_spec() {
+    return RENDER_TEXTURE_HOOK;
+}
+
+const HookSpec& render_border_spec() {
+    return RENDER_BORDER_HOOK;
+}
+
+const HookSpec& render_border_lerp_spec() {
+    return RENDER_BORDER_LERP_HOOK;
+}
+
+const HookSpec& blur_optimizations_spec() {
+    return BLUR_OPTIMIZATIONS_HOOK;
 }
 
 const HookSpec& should_render_window_spec() {

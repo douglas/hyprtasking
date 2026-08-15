@@ -114,11 +114,11 @@ int main() {
         );
     }
     {
-        const auto result = decideCompatSupport(true, "0.56.0", "0.55.0", SUPPORTED_VERSIONS);
+        const auto result = decideCompatSupport(true, "0.56.0", "0.56.0", SUPPORTED_VERSIONS);
         expect(result.supported, "compat support should accept Hyprland 0.56.0");
         expect(
-            result.status == CompatStatus::RuntimePackageMismatch,
-            "compat support should reject mismatched supported minor lines"
+            result.status == CompatStatus::Supported,
+            "compat support should set supported status for Hyprland 0.56.0"
         );
     }
     {
