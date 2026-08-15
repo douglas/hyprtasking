@@ -79,7 +79,7 @@ export HYPRLAND_INSTANCE_SIGNATURE="$(
 hyprctl instances
 ```
 
-After this, retry your command (for example `hyprctl dispatch hyprtasking:health`).
+After this, retry your command (for example `hyprctl eval 'hl.plugin.hyprtasking.health()'` on Hyprland 0.56+).
 
 ### Cause 2: fcitx5 in-process input method module
 
@@ -214,7 +214,7 @@ failure", check the Hyprland log for the `[Hyprtasking] runtime disabled`
 message which includes the reason and a state snapshot.
 
 ```bash
-hyprctl dispatch hyprtasking:health json
+hyprctl eval 'hl.plugin.hyprtasking.health("json")'
 ```
 
 This returns the current runtime health state including whether the plugin is
@@ -247,7 +247,7 @@ load, the package version and runtime likely drifted out of the supported set.
 1. Check package/runtime compatibility:
    `bash scripts/check-version-contract.sh`
 2. Check runtime state and disable reason:
-   `hyprctl dispatch hyprtasking:health json`
+   `hyprctl eval 'hl.plugin.hyprtasking.health("json")'`
 3. Rebuild/reload the plugin against the currently installed headers:
    `meson setup build --reconfigure --buildtype=release && ninja -C build`
 4. Reload the plugin binary (not just config):

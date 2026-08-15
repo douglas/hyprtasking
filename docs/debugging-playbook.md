@@ -111,7 +111,7 @@ Use:
 ```bash
 bash scripts/smoke-live.sh dispatchers
 bash scripts/smoke-live.sh load-unload
-hyprctl dispatch hyprtasking:health json
+hyprctl eval 'hl.plugin.hyprtasking.health("json")'
 ```
 
 Start in:

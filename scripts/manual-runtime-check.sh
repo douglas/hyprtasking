@@ -113,7 +113,7 @@ print_reload_open() {
     'Reload Hyprland while the overview is open.' \
     '' \
     '' \
-    $'hyprctl dispatch hyprtasking:toggle cursor\nhyprctl reload' \
+    $'hyprctl eval \'hl.plugin.hyprtasking.toggle("cursor")\'\nhyprctl reload' \
     'Hyprtasking reloads cleanly, dispatchers remain registered, and the compositor stays usable.' \
     'invalid dispatcher, overview remains half-open, cursor override persists, or Hyprland becomes unstable.'
 }
@@ -135,7 +135,7 @@ print_render_reentry() {
     'Repeatedly reopen the overview, select a workspace, and reopen immediately.' \
     'use grid layout on a monitor with several populated workspaces.' \
     'open the overview, select a workspace, reopen it immediately, repeat several times, then run a reload-open cycle and repeat once more.' \
-    $'hyprctl dispatch hyprtasking:toggle cursor\nhyprctl reload' \
+    $'hyprctl eval \'hl.plugin.hyprtasking.toggle("cursor")\'\nhyprctl reload' \
     'Hyprland stays alive, the overview keeps rendering normally, and Hyprtasking does not disable itself for the session.' \
     'crash, blank overview, repeated self-disable notification, or any recursion-like flicker/lockup when reopening after selection.'
 }
@@ -146,7 +146,7 @@ print_hook_sunset() {
     'Re-test whether the direct mouse-button hook can be removed.' \
     "run this once on each supported Hyprland target: $SUPPORTED_VERSIONS_TEXT." \
     'test a branch that routes overview mouse press/release through the cancellable event-bus path instead of the direct CInputManager::onMouseButton hook.' \
-    $'bash scripts/check-version-contract.sh\nhyprctl dispatch hyprtasking:health json' \
+    $'bash scripts/check-version-contract.sh\nhyprctl eval \'hl.plugin.hyprtasking.health("json")\'' \
     'for every supported target, drag/drop and right-click workspace selection still work with no stuck input, duplicate drag, or lost click; if all pass, remove the direct mouse hook.' \
     'any supported target regresses drag/drop, right-click selection, typing focus after selection, or leaves mouse bind mode/cursor override stuck; keep the hook and record the failed target.'
 }
@@ -210,7 +210,7 @@ json_reload_open() {
     'Reload Hyprland while the overview is open.' \
     '' \
     '' \
-    $'hyprctl dispatch hyprtasking:toggle cursor\nhyprctl reload' \
+    $'hyprctl eval \'hl.plugin.hyprtasking.toggle("cursor")\'\nhyprctl reload' \
     'Hyprtasking reloads cleanly, dispatchers remain registered, and the compositor stays usable.' \
     'invalid dispatcher, overview remains half-open, cursor override persists, or Hyprland becomes unstable.'
 }
@@ -234,7 +234,7 @@ json_render_reentry() {
     'Repeatedly reopen the overview, select a workspace, and reopen immediately.' \
     'use grid layout on a monitor with several populated workspaces.' \
     'open the overview, select a workspace, reopen it immediately, repeat several times, then run a reload-open cycle and repeat once more.' \
-    $'hyprctl dispatch hyprtasking:toggle cursor\nhyprctl reload' \
+    $'hyprctl eval \'hl.plugin.hyprtasking.toggle("cursor")\'\nhyprctl reload' \
     'Hyprland stays alive, the overview keeps rendering normally, and Hyprtasking does not disable itself for the session.' \
     'crash, blank overview, repeated self-disable notification, or any recursion-like flicker/lockup when reopening after selection.'
 }
@@ -246,7 +246,7 @@ json_hook_sunset() {
     'Re-test whether the direct mouse-button hook can be removed.' \
     "run this once on each supported Hyprland target: $SUPPORTED_VERSIONS_TEXT." \
     'test a branch that routes overview mouse press/release through the cancellable event-bus path instead of the direct CInputManager::onMouseButton hook.' \
-    $'bash scripts/check-version-contract.sh\nhyprctl dispatch hyprtasking:health json' \
+    $'bash scripts/check-version-contract.sh\nhyprctl eval \'hl.plugin.hyprtasking.health("json")\'' \
     'for every supported target, drag/drop and right-click workspace selection still work with no stuck input, duplicate drag, or lost click; if all pass, remove the direct mouse hook.' \
     'any supported target regresses drag/drop, right-click selection, typing focus after selection, or leaves mouse bind mode/cursor override stuck; keep the hook and record the failed target.'
 }

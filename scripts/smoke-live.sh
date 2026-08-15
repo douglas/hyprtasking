@@ -45,6 +45,42 @@ run_capture_hyprctl() {
   run_capture "${HYPRCTL_PREFIX[@]}" "$@"
 }
 
+hyprland_uses_lua_plugin_calls() {
+  local version
+  version="$("${HYPRCTL_PREFIX[@]}" version 2>/dev/null)"
+  version="$(hypr_extract_semver "$version")" || return 1
+
+  local major minor patch
+  IFS=. read -r major minor patch <<< "$version"
+  ((major > 0 || minor >= 56))
+}
+
+run_capture_hyprtasking() {
+  local dispatcher=$1
+  local arg=${2:-}
+  local function=${dispatcher#hyprtasking:}
+  local lua_code
+
+  if hyprland_uses_lua_plugin_calls; then
+    if [[ -n "$arg" ]]; then
+      lua_code="hl.plugin.hyprtasking.${function}(\"${arg}\")"
+    else
+      lua_code="hl.plugin.hyprtasking.${function}()"
+    fi
+
+    printf '$ %s\n' "${HYPRCTL_PREFIX[*]} eval $lua_code"
+    CAPTURED_OUTPUT="$("${HYPRCTL_PREFIX[@]}" eval "$lua_code" 2>&1)" || true
+    printf '%s\n' "$CAPTURED_OUTPUT"
+    return
+  fi
+
+  run_capture_hyprctl dispatch "$dispatcher" "$arg"
+}
+
+run_hyprtasking() {
+  run_capture_hyprtasking "$@"
+}
+
 assert_plugin_loaded() {
   run_capture_hyprctl plugin list
   if ! printf '%s\n' "$CAPTURED_OUTPUT" | rg -q '^Plugin Hyprtasking by '; then
@@ -62,7 +98,7 @@ fail_with_loaded_plugin_state() {
 }
 
 assert_dispatcher_ready() {
-  run_capture_hyprctl dispatch hyprtasking:toggle __smoke_probe__
+  run_capture_hyprtasking hyprtasking:toggle __smoke_probe__
   if [[ "$CAPTURED_OUTPUT" == *"Invalid dispatcher"* ]]; then
     fail_with_loaded_plugin_state \
       "Hyprtasking is loaded, but its dispatchers are not registered. This usually means a stale or partially initialized instance is already resident."
@@ -77,7 +113,7 @@ assert_dispatcher_ready() {
 assert_extended_dispatchers_ready() {
   assert_dispatcher_ready
 
-  run_capture_hyprctl dispatch hyprtasking:move __smoke_probe__
+  run_capture_hyprtasking hyprtasking:move __smoke_probe__
   if [[ "$CAPTURED_OUTPUT" == *"Invalid dispatcher"* ]]; then
     fail_with_loaded_plugin_state \
       "Hyprtasking move dispatcher is not registered even though the plugin is listed."
@@ -88,19 +124,19 @@ assert_extended_dispatchers_ready() {
     exit 1
   fi
 
-  run_capture_hyprctl dispatch hyprtasking:select __smoke_probe__
+  run_capture_hyprtasking hyprtasking:select __smoke_probe__
   if [[ "$CAPTURED_OUTPUT" == *"Invalid dispatcher"* ]]; then
     fail_with_loaded_plugin_state \
       "Hyprtasking select dispatcher is not registered even though the plugin is listed."
   fi
 
-  run_capture_hyprctl dispatch hyprtasking:commit
+  run_capture_hyprtasking hyprtasking:commit
   if [[ "$CAPTURED_OUTPUT" == *"Invalid dispatcher"* ]]; then
     fail_with_loaded_plugin_state \
       "Hyprtasking commit dispatcher is not registered even though the plugin is listed."
   fi
 
-  run_capture_hyprctl dispatch hyprtasking:health json
+  run_capture_hyprtasking hyprtasking:health json
   if [[ "$CAPTURED_OUTPUT" == *"Invalid dispatcher"* ]]; then
     fail_with_loaded_plugin_state \
       "Hyprtasking health dispatcher is not registered even though the plugin is listed."
@@ -118,7 +154,7 @@ smoke_dispatchers() {
 }
 
 assert_runtime_disabled() {
-  run_capture_hyprctl dispatch hyprtasking:toggle __smoke_probe__
+  run_capture_hyprtasking hyprtasking:toggle __smoke_probe__
   if [[ "$CAPTURED_OUTPUT" != *"runtime disabled"* ]]; then
     printf 'Expected runtime to be disabled, got: %s\n' "$CAPTURED_OUTPUT" >&2
     exit 1
@@ -193,7 +229,7 @@ wait_for_plugin_ready() {
     run_capture_hyprctl plugin list
     if printf '%s\n' "$CAPTURED_OUTPUT" | rg -q '^Plugin Hyprtasking by '; then
       saw_plugin=1
-      run_capture_hyprctl dispatch hyprtasking:toggle __smoke_probe__
+      run_capture_hyprtasking hyprtasking:toggle __smoke_probe__
       if [[ "$CAPTURED_OUTPUT" != *"Invalid dispatcher"* ]]; then
         return 0
       fi
@@ -221,10 +257,10 @@ smoke_toggle() {
   local cycle
   for ((cycle = 0; cycle < TOGGLE_CYCLES; cycle++)); do
     smoke_dispatchers
-    run_hyprctl dispatch hyprtasking:toggle cursor
-    run_hyprctl dispatch hyprtasking:move right
-    run_hyprctl dispatch hyprtasking:move left
-    run_hyprctl dispatch hyprtasking:toggle cursor
+    run_hyprtasking hyprtasking:toggle cursor
+    run_hyprtasking hyprtasking:move right
+    run_hyprtasking hyprtasking:move left
+    run_hyprtasking hyprtasking:toggle cursor
   done
   run_hyprctl plugin list
 }
@@ -243,12 +279,12 @@ smoke_reload_open() {
   local cycle
   for ((cycle = 0; cycle < RELOAD_CYCLES; cycle++)); do
     smoke_dispatchers
-    run_hyprctl dispatch hyprtasking:toggle cursor
+    run_hyprtasking hyprtasking:toggle cursor
     run_hyprctl reload
     wait_for_plugin_ready
     smoke_dispatchers
-    run_hyprctl dispatch hyprtasking:toggle cursor
-    run_hyprctl dispatch hyprtasking:toggle cursor
+    run_hyprtasking hyprtasking:toggle cursor
+    run_hyprtasking hyprtasking:toggle cursor
   done
 }
 

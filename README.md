@@ -523,7 +523,7 @@ Quick mismatch check:
 ```bash
 hyprctl plugin list
 hyprctl keyword source ~/.config/hypr/personal-hyprtasking.conf
-hyprctl dispatch hyprtasking:health
+hyprctl eval 'hl.plugin.hyprtasking.health()'
 ```
 
 If `keyword source` prints `invalid dispatcher` and your config still uses
@@ -565,7 +565,7 @@ Invalid safety-sensitive config disables Hyprtasking for the current session and
 passes input/rendering back to Hyprland. This includes non-positive grid
 dimensions, duplicate drag/select mouse buttons, duplicate gesture finger
 counts, and non-positive gesture distances. Run
-`hyprctl dispatch hyprtasking:health json` to inspect the failure source and
+`hyprctl eval 'hl.plugin.hyprtasking.health("json")'` to inspect the failure source and
 reason.
 
 ### Gesture recipes
