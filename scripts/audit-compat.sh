@@ -63,6 +63,25 @@ contract_pattern_matches() {
   rg -q -U "$regex" "$path"
 }
 
+contract_pattern_matches_any() {
+  local literal=$1
+  local relpath=$2
+  local path_options path
+  path_options="${relpath//@@@/$'\n'}"
+
+  while IFS= read -r path; do
+    [[ -z "$path" ]] && continue
+    path="$HYPRLAND_SOURCE/$path"
+    [[ -f "$path" ]] || continue
+
+    if contract_pattern_matches "$literal" "$path"; then
+      return 0
+    fi
+  done <<< "$path_options"
+
+  return 1
+}
+
 emit_json_result() {
   local status=$1
   local exit_code=$2
@@ -115,13 +134,30 @@ require_file() {
   fi
 }
 
+require_any_file() {
+  local relpath=$1
+  local path_options path
+  path_options="${relpath//@@@/$'\n'}"
+
+  while IFS= read -r path; do
+    [[ -z "$path" ]] && continue
+    if [[ -f "$HYPRLAND_SOURCE/$path" ]]; then
+      return
+    fi
+  done <<< "$path_options"
+
+  print_err "Missing required file: $HYPRLAND_SOURCE/$relpath\n"
+  emit_json_result "missing_file" "$EXIT_MISSING_FILE" "Missing required file: $HYPRLAND_SOURCE/$relpath"
+  exit "$EXIT_MISSING_FILE"
+}
+
 require_match() {
   local pattern=$1
-  local path=$2
+  local relpath=$2
   local label=$3
 
-  if ! contract_pattern_matches "$pattern" "$path"; then
-    print_err "Missing $label in $path\n"
+  if ! contract_pattern_matches_any "$pattern" "$relpath"; then
+    print_err "Missing $label in $HYPRLAND_SOURCE/$relpath\n"
     return 1
   fi
 
@@ -187,14 +223,13 @@ record_failure() {
 while IFS=$'\t' read -r label relpath owner patterns; do
   [[ -z "$label" ]] && continue
 
-  local_path="$HYPRLAND_SOURCE/$relpath"
-  require_file "$local_path"
+  require_any_file "$relpath"
   CHECK_LABELS+=("$label")
 
   pattern_list="${patterns//|||/$'\n'}"
   while IFS= read -r pattern; do
     [[ -z "$pattern" ]] && continue
-    check_contract "$pattern" "$local_path" "$label" "$owner"
+    check_contract "$pattern" "$relpath" "$label" "$owner"
   done <<< "$pattern_list"
 done < <(compat_core_contracts_stream)
 

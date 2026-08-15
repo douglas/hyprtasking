@@ -3,6 +3,11 @@
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <string>
 
+extern "C" {
+#include <lauxlib.h>
+#include <lua.h>
+}
+
 #include "../globals.hpp"
 #include "../overview.hpp"
 #include "../runtime_validation.hpp"
@@ -132,6 +137,34 @@ SDispatchResult dispatchHealth(std::string arg) {
     });
 }
 
+int luaResult(lua_State* state, const SDispatchResult& result) {
+    if (result.success)
+        return 0;
+
+    lua_pushstring(state, result.error.empty() ? "hyprtasking action failed" : result.error.c_str());
+    return lua_error(state);
+}
+
+int luaToggle(lua_State* state) {
+    return luaResult(state, dispatchToggleView(luaL_checkstring(state, 1)));
+}
+
+int luaMove(lua_State* state) {
+    return luaResult(state, dispatchMove(luaL_checkstring(state, 1)));
+}
+
+int luaSelect(lua_State* state) {
+    return luaResult(state, dispatchSelect(luaL_checkstring(state, 1)));
+}
+
+int luaCommit(lua_State* state) {
+    return luaResult(state, dispatchCommit({}));
+}
+
+int luaHealth(lua_State* state) {
+    return luaResult(state, dispatchHealth(luaL_optstring(state, 1, "")));
+}
+
 } // namespace
 
 namespace HTPlugin {
@@ -142,6 +175,17 @@ void registerDispatchers() {
     HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:select", dispatchSelect);
     HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:commit", dispatchCommit);
     HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:health", dispatchHealth);
+
+    const auto addLuaFunction = [](const std::string& name, PLUGIN_LUA_FN function) {
+        if (!HyprlandAPI::addLuaFunction(PHANDLE, "hyprtasking", name, function))
+            Log::logger->log(Log::ERR, "[Hyprtasking] failed to register hl.plugin.hyprtasking.{}", name);
+    };
+
+    addLuaFunction("toggle", luaToggle);
+    addLuaFunction("move", luaMove);
+    addLuaFunction("select", luaSelect);
+    addLuaFunction("commit", luaCommit);
+    addLuaFunction("health", luaHealth);
 }
 
 } // namespace HTPlugin

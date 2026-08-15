@@ -35,6 +35,10 @@ struct CompatibilityResult {
 std::span<const std::string_view> supported_hyprland_versions();
 const HookSpec& input_mouse_button_spec();
 const HookSpec& render_workspace_spec();
+const HookSpec& render_texture_spec();
+const HookSpec& render_border_spec();
+const HookSpec& render_border_lerp_spec();
+const HookSpec& blur_optimizations_spec();
 const HookSpec& should_render_window_spec();
 const HookSpec& render_window_spec();
 const HookSpec& solitary_blocked_spec();

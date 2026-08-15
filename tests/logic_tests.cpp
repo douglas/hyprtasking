@@ -74,9 +74,11 @@ gridWorkspaceID(long view_id, int first_ws_offset, int rows, int cols, int x, in
 
 int main() {
     using namespace HTLogic;
-    constexpr std::array<std::string_view, 2> SUPPORTED_VERSIONS = {
+    constexpr std::array<std::string_view, 4> SUPPORTED_VERSIONS = {
         "0.54.3",
         "0.55",
+        "0.56.0",
+        "0.56.2",
     };
 
     {
@@ -113,18 +115,18 @@ int main() {
     }
     {
         const auto result = decideCompatSupport(true, "0.56.0", "0.55.0", SUPPORTED_VERSIONS);
-        expect(!result.supported, "compat support should reject unsupported Hyprland runtimes");
+        expect(result.supported, "compat support should accept Hyprland 0.56.0");
         expect(
-            result.status == CompatStatus::UnsupportedRuntimeVersion,
-            "compat support should expose unsupported runtime status"
+            result.status == CompatStatus::RuntimePackageMismatch,
+            "compat support should reject mismatched supported minor lines"
         );
     }
     {
         const auto result = decideCompatSupport(true, "0.55.0", "0.56.0", SUPPORTED_VERSIONS);
-        expect(!result.supported, "compat support should reject unsupported package minors");
+        expect(!result.supported, "compat support should reject mismatched package minors");
         expect(
-            result.status == CompatStatus::UnsupportedPackageVersion,
-            "compat support should expose unsupported package status"
+            result.status == CompatStatus::RuntimePackageMismatch,
+            "compat support should expose runtime/package mismatch status"
         );
     }
     {
@@ -145,6 +147,10 @@ int main() {
     {
         const auto result = decideCompatSupport(true, "0.55.1", "0.55.1", SUPPORTED_VERSIONS);
         expect(result.supported, "compat support should accept supported 0.55 patch releases");
+    }
+    {
+        const auto result = decideCompatSupport(true, "0.56.2", "0.56.2", SUPPORTED_VERSIONS);
+        expect(result.supported, "compat support should accept Hyprland 0.56.2");
     }
     expect(
         versionIsSupported("v0.55.2", SUPPORTED_VERSIONS),

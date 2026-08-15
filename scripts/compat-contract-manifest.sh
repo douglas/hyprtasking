@@ -45,7 +45,7 @@ compat_core_builtin_contracts_stream() {
     "renderWindow"
   printf '%s\t%s\t%s\t%s\n' \
     "isSolitaryBlocked symbol" \
-    "src/helpers/Monitor.hpp" \
+    "src/helpers/Monitor.hpp@@@src/output/Monitor.hpp" \
     "src/compat/profile.cpp" \
     "isSolitaryBlocked"
   printf '%s\t%s\t%s\t%s\n' \
@@ -68,7 +68,7 @@ compat_surface_builtin_contracts_stream() {
     "m_dispatchers|||static SDispatchResult                         changeMouseBindMode(const eMouseBindMode mode);"
   printf '%s\t%s\t%s\t%s\n' \
     "cursor override controller" \
-    "src/managers/cursor/CursorShapeOverrideController.hpp" \
+    "src/managers/cursor/CursorShapeOverrideController.hpp@@@src/pointer/cursor/CursorShapeOverrideController.hpp" \
     "src/compat/runtime_compat.cpp" \
     "void setOverride(const std::string& name, eCursorShapeOverrideGroup group);|||void unsetOverride(eCursorShapeOverrideGroup group);|||inline UP<CShapeOverrideController> overrideController = makeUnique<CShapeOverrideController>();"
   printf '%s\t%s\t%s\t%s\n' \
@@ -83,19 +83,19 @@ compat_surface_builtin_contracts_stream() {
     "void           dragEnd();|||eMouseBindMode mode() const;|||bool           draggingTiled() const;|||SP<ITarget> target() const;"
   printf '%s\t%s\t%s\t%s\n' \
     "pointer warp API" \
-    "src/managers/PointerManager.hpp" \
+    "src/managers/PointerManager.hpp@@@src/pointer/PointerManager.hpp" \
     "src/compat/renderer_compat.cpp" \
     "void warpTo(const Vector2D& logical);"
   printf '%s\t%s\t%s\t%s\n' \
     "compositor lookup and workspace APIs" \
-    "src/Compositor.hpp" \
+    "src/Compositor.hpp@@@src/state/MonitorState.hpp@@@src/state/MonitorQuery.hpp@@@src/state/WorkspaceState.hpp@@@src/state/WorkspaceQuery.hpp@@@src/state/WorkspacePlacementController.hpp@@@src/desktop/state/GlobalWindowController.hpp@@@src/desktop/state/ViewHitTester.hpp@@@src/output/Monitor.hpp" \
     "src/compat/runtime_compat.cpp, src/compat/renderer_compat.cpp" \
-    "m_monitors|||PHLMONITOR             getMonitorFromID(const MONITORID&);|||PHLMONITOR             getMonitorFromCursor();|||vectorToWindowUnified(const Vector2D&|||PHLWORKSPACE           getWorkspaceByID(const WORKSPACEID&);|||void                   moveWorkspaceToMonitor(PHLWORKSPACE, PHLMONITOR, bool noWarpCursor = false);|||void                   scheduleFrameForMonitor(PHLMONITOR, Aquamarine::IOutput::scheduleFrameReason reason = Aquamarine::IOutput::AQ_SCHEDULE_CLIENT_UNKNOWN);|||[[nodiscard]] PHLWORKSPACE          createNewWorkspace(const WORKSPACEID&, const MONITORID&,|||void                                moveWindowToWorkspaceSafe(PHLWINDOW pWindow, PHLWORKSPACE pWorkspace);"
+    "m_monitors@@@const std::vector<PHLMONITOR>& monitors() const;|||PHLMONITOR             getMonitorFromID(const MONITORID&);@@@CMonitorQuery&& id(MONITORID id) &&;|||PHLMONITOR             getMonitorFromCursor();@@@CMonitorQuery&& vec(Vector2D vec) &&;|||vectorToWindowUnified(const Vector2D&@@@PHLWINDOW              windowAt(const Vector2D& pos, uint16_t properties, PHLWINDOW ignoreWindow = nullptr) const;|||PHLWORKSPACE           getWorkspaceByID(const WORKSPACEID&);@@@CWorkspaceQuery&& id(const WORKSPACEID& id) &&;|||void                   moveWorkspaceToMonitor(PHLWORKSPACE, PHLMONITOR, bool noWarpCursor = false);@@@void moveWorkspaceToMonitor(PHLWORKSPACE, PHLMONITOR, bool noWarpCursor = false) const;|||void                   scheduleFrameForMonitor(PHLMONITOR, Aquamarine::IOutput::scheduleFrameReason reason = Aquamarine::IOutput::AQ_SCHEDULE_CLIENT_UNKNOWN);@@@void         scheduleFrame(Aquamarine::IOutput::scheduleFrameReason reason = Aquamarine::IOutput::AQ_SCHEDULE_CLIENT_UNKNOWN);|||[[nodiscard]] PHLWORKSPACE          createNewWorkspace(const WORKSPACEID&, const MONITORID&,@@@[[nodiscard]] PHLWORKSPACE create(const WORKSPACEID& id, const MONITORID& monid, const std::string& name = \"\", bool isEmpty = true);|||void                                moveWindowToWorkspaceSafe(PHLWINDOW pWindow, PHLWORKSPACE pWorkspace);@@@void moveWindowToWorkspace(PHLWINDOW pWindow, PHLWORKSPACE pWorkspace) const;"
   printf '%s\t%s\t%s\t%s\n' \
     "monitor focus and render fields" \
-    "src/helpers/Monitor.hpp" \
+    "src/helpers/Monitor.hpp@@@src/output/Monitor.hpp" \
     "src/compat/renderer_compat.cpp" \
-    "PHLWORKSPACE                m_activeWorkspace        = nullptr;|||std::string                 m_description      = \"\";|||void        changeWorkspace(const PHLWORKSPACE& pWorkspace, bool internal = false, bool noMouseMove = false, bool noFocus = false);|||Vector2D                    m_position         = Vector2D(-1, -1);|||MONITORID                   m_id                     = MONITOR_INVALID;|||float                       m_scale                  = 1;|||Vector2D                    m_transformedSize  = Vector2D(0, 0);|||wl_output_transform         m_transform       = WL_OUTPUT_TRANSFORM_NORMAL;|||uint32_t    isSolitaryBlocked(bool full = false);|||CBox        logicalBox();"
+    "PHLWORKSPACE                m_activeWorkspace        = nullptr;|||std::string                 m_description      = \"\";|||void        changeWorkspace(const PHLWORKSPACE& pWorkspace, bool internal = false, bool noMouseMove = false, bool noFocus = false);|||Vector2D                    m_position         = Vector2D(-1, -1);|||MONITORID                   m_id                     = MONITOR_INVALID;|||float                       m_scale                  = 1;|||Vector2D                    m_transformedSize  = Vector2D(0, 0);|||wl_output_transform         m_transform       = WL_OUTPUT_TRANSFORM_NORMAL;|||uint32_t    isSolitaryBlocked(bool full = false);|||CBox        logicalBox();@@@virtual CBox                        logicalBox() const override;"
   printf '%s\t%s\t%s\t%s\n' \
     "workspace render state fields" \
     "src/desktop/Workspace.hpp" \
@@ -103,9 +103,9 @@ compat_surface_builtin_contracts_stream() {
     "PHLMONITORREF   m_monitor;|||PHLANIMVAR<Vector2D> m_renderOffset;|||bool m_visible = false;|||WORKSPACEID     m_id   = WORKSPACE_INVALID;|||MONITORID   monitorID();"
   printf '%s\t%s\t%s\t%s\n' \
     "window animation and workspace fields" \
-    "src/desktop/view/Window.hpp" \
+    "src/desktop/view/Window.hpp@@@src/desktop/view/types/GeometricMovableAnimated.hpp" \
     "src/compat/renderer_compat.cpp, src/compat/runtime_compat.cpp" \
-    "PHLANIMVAR<Vector2D> m_realPosition;|||PHLANIMVAR<Vector2D> m_realSize;|||PHLWORKSPACE     m_workspace;|||PHLMONITORREF    m_monitor, m_prevMonitor;|||PHLANIMVAR<float> m_movingFromWorkspaceAlpha;@@@PHLANIMVAR<float>&       alpha(eWindowAlpha type);|||PHLANIMVAR<float> m_movingToWorkspaceAlpha;@@@const PHLANIMVAR<float>& alpha(eWindowAlpha type) const;|||WORKSPACEID                workspaceID();|||CBox                       getWindowMainSurfaceBox() const"
+    "PHLANIMVAR<Vector2D> m_realPosition;@@@PHLANIMVAR<Vector2D>& positionAnimation();|||PHLANIMVAR<Vector2D> m_realSize;@@@PHLANIMVAR<Vector2D>& sizeAnimation();|||PHLWORKSPACE     m_workspace;|||PHLMONITORREF    m_monitor, m_prevMonitor;|||PHLANIMVAR<float> m_movingFromWorkspaceAlpha;@@@PHLANIMVAR<float>&       alpha(eWindowAlpha type);|||PHLANIMVAR<float> m_movingToWorkspaceAlpha;@@@const PHLANIMVAR<float>& alpha(eWindowAlpha type) const;|||WORKSPACEID                workspaceID();|||CBox                       getWindowMainSurfaceBox() const"
   printf '%s\t%s\t%s\t%s\n' \
     "render pass API" \
     "src/render/pass/Pass.hpp" \
@@ -135,7 +135,7 @@ compat_surface_builtin_contracts_stream() {
     "renderer singleton and pass handles" \
     "src/render/Renderer.hpp" \
     "src/compat/runtime_compat.cpp, src/compat/renderer_compat.cpp" \
-    "inline UP<CHyprRenderer> g_pHyprRenderer;@@@inline UP<Render::IHyprRenderer> g_pHyprRenderer;|||CRenderPass m_renderPass = {};@@@CRenderPass  m_renderPass;"
+    "inline UP<CHyprRenderer> g_pHyprRenderer;@@@inline UP<Render::IHyprRenderer> g_pHyprRenderer;|||CRenderPass m_renderPass = {};@@@CRenderPass  m_renderPass;|||SRenderData                  m_renderData;"
   printf '%s\t%s\t%s\t%s\n' \
     "compositor singleton handle" \
     "src/Compositor.hpp" \
@@ -153,9 +153,9 @@ compat_surface_builtin_contracts_stream() {
     "inline UP<CKeybindManager> g_pKeybindManager;"
   printf '%s\t%s\t%s\t%s\n' \
     "pointer singleton handle" \
-    "src/managers/PointerManager.hpp" \
+    "src/managers/PointerManager.hpp@@@src/pointer/PointerManager.hpp" \
     "src/compat/renderer_compat.cpp" \
-    "inline UP<CPointerManager> g_pPointerManager;"
+    "inline UP<CPointerManager> g_pPointerManager;@@@UP<CPointerManager>& mgr();"
   printf '%s\t%s\t%s\t%s\n' \
     "event-loop singleton handle" \
     "src/managers/eventLoop/EventLoopManager.hpp" \
@@ -168,14 +168,14 @@ compat_surface_builtin_contracts_stream() {
     "inline UP<CConfigManager> g_pConfigManager;@@@UP<IConfigManager>& mgr();|||getAnimationPropertyConfig(const std::string&);"
   printf '%s\t%s\t%s\t%s\n' \
     "animation singleton handles" \
-    "src/managers/animation/AnimationManager.hpp" \
+    "src/managers/animation/AnimationManager.hpp@@@src/animation/AnimationManager.hpp" \
     "src/compat/runtime_compat.cpp" \
-    "inline UP<CHyprAnimationManager> g_pAnimationManager;"
+    "inline UP<CHyprAnimationManager> g_pAnimationManager;@@@UP<CHyprAnimationManager>& mgr();"
   printf '%s\t%s\t%s\t%s\n' \
     "desktop animation singleton handle" \
-    "src/managers/animation/DesktopAnimationManager.hpp" \
+    "src/managers/animation/DesktopAnimationManager.hpp@@@src/animation/WorkspaceAnimationController.hpp" \
     "src/compat/renderer_compat.cpp" \
-    "inline UP<CDesktopAnimationManager> g_pDesktopAnimationManager = makeUnique<CDesktopAnimationManager>();"
+    "inline UP<CDesktopAnimationManager> g_pDesktopAnimationManager = makeUnique<CDesktopAnimationManager>();@@@void startAnimation(PHLWORKSPACE ws, eAnimationType type, bool left = true, bool instant = false, std::optional<std::string> style = std::nullopt);"
 }
 
 stream_contract_file() {

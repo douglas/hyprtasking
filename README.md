@@ -4,7 +4,7 @@
 </div>
 
 > [!Important]
-> - Maintained for Hyprland `v0.54.3` and `v0.55.0`.
+> - Maintained for Hyprland `v0.54.3`, `v0.55.0`, `v0.55.2`, `v0.55.4`, `v0.56.0`, and `v0.56.2`.
 
 ## This Fork
 

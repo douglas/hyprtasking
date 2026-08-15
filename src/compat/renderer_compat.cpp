@@ -1,10 +1,8 @@
 #include "renderer_compat.hpp"
 
+#include <cmath>
 #include <format>
 #include <hyprland/src/config/ConfigValue.hpp>
-#include <hyprland/src/helpers/Monitor.hpp>
-#include <hyprland/src/managers/PointerManager.hpp>
-#include <hyprland/src/managers/animation/DesktopAnimationManager.hpp>
 #include <hyprland/src/render/OpenGL.hpp>
 #include <hyprland/src/render/Renderer.hpp>
 #include <hyprutils/utils/ScopeGuard.hpp>
@@ -18,7 +16,15 @@
 #include "../plugin/guards.hpp"
 #include "../runtime_fail.hpp"
 #include "../types.hpp"
+#include "animation_compat.hpp"
+#include "monitor_compat.hpp"
+#include "pointer_compat.hpp"
 #include "profile.hpp"
+
+#if HT_HYPRLAND_GE_0_56
+    #include <hyprland/src/state/WorkspacePlacementController.hpp>
+    #include <hyprland/src/state/WorkspaceState.hpp>
+#endif
 
 namespace {
 
@@ -88,7 +94,7 @@ uint32_t solitaryBlockedOriginal(void* thisptr, bool full) {
             "hook_is_solitary_blocked",
             "missing isSolitaryBlocked original call-through"
         );
-        return static_cast<uint32_t>(CMonitor::SC_UNKNOWN);
+        return static_cast<uint32_t>(HTCompat::MonitorClass::SC_UNKNOWN);
     }
 
     return (*(origIsSolitaryBlocked)is_solitary_blocked_hook->m_original)(thisptr, full);
@@ -175,6 +181,157 @@ void hookRenderWorkspace(
     }
 }
 
+#if HT_HYPRLAND_GE_0_56
+using render_texture_t = void (*) (
+    void*,
+    SP<Render::ITexture>,
+    const CBox&,
+    Render::GL::CHyprOpenGLImpl::STextureRenderData
+);
+
+bool overview_render_modif_active() {
+    if (g_pHyprRenderer == nullptr || ht_manager == nullptr || !ht_manager->runtime_enabled())
+        return false;
+
+    const auto& render_modif = g_pHyprRenderer->m_renderData.renderModif;
+    if (!render_modif.enabled || render_modif.modifs.empty())
+        return false;
+
+    if (ht_manager->has_active_view())
+        return true;
+
+    const PHLMONITOR monitor = g_pHyprRenderer->m_renderData.pMonitor.lock();
+    const PHTVIEW view = monitor == nullptr ? nullptr : ht_manager->get_view_from_monitor(monitor);
+    return view != nullptr && view->navigating;
+}
+
+void hookRenderTexture(
+    void* thisptr,
+    SP<Render::ITexture> texture,
+    const CBox& box,
+    Render::GL::CHyprOpenGLImpl::STextureRenderData data
+) {
+    if (render_texture_hook == nullptr || render_texture_hook->m_original == nullptr) {
+        disable_runtime_for_render_failure("hook_render_texture", "missing renderTexture original call-through");
+        return;
+    }
+
+    const auto call_original = [&](const CBox& render_box) {
+        ((render_texture_t)render_texture_hook->m_original)(thisptr, texture, render_box, data);
+    };
+    if (!overview_render_modif_active()) {
+        call_original(box);
+        return;
+    }
+
+    const PHLMONITOR monitor = g_pHyprRenderer->m_renderData.pMonitor.lock();
+    if (monitor == nullptr) {
+        call_original(box);
+        return;
+    }
+
+    CRegion full_damage {0, 0, monitor->m_transformedSize.x, monitor->m_transformedSize.y};
+    data.damage = &full_damage;
+    data.clipRegion = {};
+    const CBox previous_clip_box = g_pHyprRenderer->m_renderData.clipBox;
+    g_pHyprRenderer->m_renderData.clipBox = {};
+    CScopeGuard restore_clip_box {[previous_clip_box] {
+        g_pHyprRenderer->m_renderData.clipBox = previous_clip_box;
+    }};
+
+    auto& render_modif = g_pHyprRenderer->m_renderData.renderModif;
+    if (!data.blur) {
+        call_original(box);
+        return;
+    }
+
+    CBox transformed_box = box;
+    render_modif.applyToBox(transformed_box);
+    const bool previous_modif_enabled = render_modif.enabled;
+    render_modif.enabled = false;
+    CScopeGuard restore_modif {[previous_modif_enabled] {
+        g_pHyprRenderer->m_renderData.renderModif.enabled = previous_modif_enabled;
+    }};
+    call_original(transformed_box);
+}
+
+using render_border_t = void (*) (
+    void*,
+    const CBox&,
+    const Config::CGradientValueData&,
+    Render::GL::CHyprOpenGLImpl::SBorderRenderData
+);
+using render_border_lerp_t = void (*) (
+    void*,
+    const CBox&,
+    const Config::CGradientValueData&,
+    const Config::CGradientValueData&,
+    float,
+    Render::GL::CHyprOpenGLImpl::SBorderRenderData
+);
+using blur_optimizations_t = bool (*) (void*, PHLLS, PHLWINDOW);
+
+template <typename CallOriginal>
+void render_border_for_overview(
+    const CBox& box,
+    Render::GL::CHyprOpenGLImpl::SBorderRenderData& data,
+    CallOriginal&& call_original
+) {
+    if (!overview_render_modif_active()) {
+        call_original(box, data);
+        return;
+    }
+
+    auto& render_modif = g_pHyprRenderer->m_renderData.renderModif;
+    CBox transformed_box = box;
+    render_modif.applyToBox(transformed_box);
+    data.borderSize = std::round(data.borderSize * render_modif.combinedScale());
+    const bool previous_modif_enabled = render_modif.enabled;
+    render_modif.enabled = false;
+    CScopeGuard restore_modif {[previous_modif_enabled] {
+        g_pHyprRenderer->m_renderData.renderModif.enabled = previous_modif_enabled;
+    }};
+    call_original(transformed_box, data);
+}
+
+void hookRenderBorder(
+    void* thisptr,
+    const CBox& box,
+    const Config::CGradientValueData& gradient,
+    Render::GL::CHyprOpenGLImpl::SBorderRenderData data
+) {
+    render_border_for_overview(box, data, [&](const CBox& render_box, const auto& render_data) {
+        ((render_border_t)render_border_hook->m_original)(thisptr, render_box, gradient, render_data);
+    });
+}
+
+void hookRenderBorderLerp(
+    void* thisptr,
+    const CBox& box,
+    const Config::CGradientValueData& first_gradient,
+    const Config::CGradientValueData& second_gradient,
+    float lerp,
+    Render::GL::CHyprOpenGLImpl::SBorderRenderData data
+) {
+    render_border_for_overview(box, data, [&](const CBox& render_box, const auto& render_data) {
+        ((render_border_lerp_t)render_border_lerp_hook->m_original)(
+            thisptr,
+            render_box,
+            first_gradient,
+            second_gradient,
+            lerp,
+            render_data
+        );
+    });
+}
+
+bool hookBlurOptimizations(void* thisptr, PHLLS layer, PHLWINDOW window) {
+    if (overview_render_modif_active())
+        return false;
+    return ((blur_optimizations_t)blur_optimizations_hook->m_original)(thisptr, layer, window);
+}
+#endif
+
 bool hookShouldRenderWindow(void* thisptr, PHLWINDOW window, PHLMONITOR monitor) {
     const bool original_result = HTCompat::should_render_window_original(thisptr, window, monitor);
     return HTPlugin::guardedValue("hook_should_render_window", original_result, [&] {
@@ -207,7 +364,7 @@ uint32_t hookIsSolitaryBlocked(void* thisptr, bool full) {
                 return solitaryBlockedOriginal(thisptr, full);
 
             if (view->active || view->navigating)
-                return static_cast<uint32_t>(CMonitor::SC_UNKNOWN);
+                return static_cast<uint32_t>(HTCompat::MonitorClass::SC_UNKNOWN);
 
             return solitaryBlockedOriginal(thisptr, full);
         }
@@ -232,6 +389,68 @@ bool initializeRendererHooks() {
         .signature = render_workspace.signature,
         .method = render_workspace.method,
     };
+
+#if HT_HYPRLAND_GE_0_56
+    const auto render_texture = install_function_hook(
+        render_texture_hook,
+        render_texture_spec(),
+        (void*)hookRenderTexture
+    );
+    if (!render_texture.installed) {
+        disable_runtime_for_render_failure("initialize_renderer_hooks", render_texture.error);
+        shutdownRendererHooks();
+        return false;
+    }
+    render_texture_hook_info = {
+        .signature = render_texture.signature,
+        .method = render_texture.method,
+    };
+
+    const auto render_border = install_function_hook(
+        render_border_hook,
+        render_border_spec(),
+        (void*)hookRenderBorder
+    );
+    if (!render_border.installed) {
+        disable_runtime_for_render_failure("initialize_renderer_hooks", render_border.error);
+        shutdownRendererHooks();
+        return false;
+    }
+    render_border_hook_info = {
+        .signature = render_border.signature,
+        .method = render_border.method,
+    };
+
+    const auto render_border_lerp = install_function_hook(
+        render_border_lerp_hook,
+        render_border_lerp_spec(),
+        (void*)hookRenderBorderLerp
+    );
+    if (!render_border_lerp.installed) {
+        disable_runtime_for_render_failure("initialize_renderer_hooks", render_border_lerp.error);
+        shutdownRendererHooks();
+        return false;
+    }
+    render_border_lerp_hook_info = {
+        .signature = render_border_lerp.signature,
+        .method = render_border_lerp.method,
+    };
+
+    const auto blur_optimizations = install_function_hook(
+        blur_optimizations_hook,
+        blur_optimizations_spec(),
+        (void*)hookBlurOptimizations
+    );
+    if (!blur_optimizations.installed) {
+        disable_runtime_for_render_failure("initialize_renderer_hooks", blur_optimizations.error);
+        shutdownRendererHooks();
+        return false;
+    }
+    blur_optimizations_hook_info = {
+        .signature = blur_optimizations.signature,
+        .method = blur_optimizations.method,
+    };
+#endif
 
     const auto should_render_window = install_function_hook(
         should_render_window_hook,
@@ -293,10 +512,18 @@ bool initializeRendererHooks() {
 void shutdownRendererHooks() {
     remove_overview_render_passes();
     remove_function_hook(render_workspace_hook, "renderWorkspace");
+    remove_function_hook(render_texture_hook, "renderTexture");
+    remove_function_hook(render_border_hook, "renderBorder");
+    remove_function_hook(render_border_lerp_hook, "renderBorder (lerp)");
+    remove_function_hook(blur_optimizations_hook, "shouldUseNewBlurOptimizations");
     remove_function_hook(should_render_window_hook, "shouldRenderWindow");
     remove_function_hook(is_solitary_blocked_hook, "isSolitaryBlocked");
     render_window = nullptr;
     render_workspace_hook_info = {};
+    render_texture_hook_info = {};
+    render_border_hook_info = {};
+    render_border_lerp_hook_info = {};
+    blur_optimizations_hook_info = {};
     should_render_window_hook_info = {};
     render_window_symbol_info = {};
     is_solitary_blocked_hook_info = {};
@@ -469,10 +696,17 @@ WORKSPACEID workspace_id(PHLWORKSPACE workspace) {
 }
 
 PHLWORKSPACE workspace_by_id(WORKSPACEID workspace_id) {
+#if HT_HYPRLAND_GE_0_56
+    if (workspace_id == WORKSPACE_INVALID || !State::workspaceState())
+        return nullptr;
+
+    return State::workspaceState()->query().id(workspace_id).run();
+#else
     if (workspace_id == WORKSPACE_INVALID || !g_pCompositor)
         return nullptr;
 
     return g_pCompositor->getWorkspaceByID(workspace_id);
+#endif
 }
 
 PHLWORKSPACE window_workspace(PHLWINDOW window) {
@@ -507,35 +741,55 @@ Vector2D window_real_position(PHLWINDOW window) {
     if (window == nullptr)
         return {};
 
+#if HT_HYPRLAND_GE_0_56
+    return window->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+#else
     return window->m_realPosition->value();
+#endif
 }
 
 Vector2D window_real_position_goal(PHLWINDOW window) {
     if (window == nullptr)
         return {};
 
+#if HT_HYPRLAND_GE_0_56
+    return window->position(Desktop::View::IGeometric::GEOMETRIC_GOAL);
+#else
     return window->m_realPosition->goal();
+#endif
 }
 
 Vector2D window_real_size(PHLWINDOW window) {
     if (window == nullptr)
         return {};
 
+#if HT_HYPRLAND_GE_0_56
+    return window->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+#else
     return window->m_realSize->value();
+#endif
 }
 
 void set_window_real_position(PHLWINDOW window, const Vector2D& position) {
     if (window == nullptr)
         return;
 
+#if HT_HYPRLAND_GE_0_56
+    window->positionAnimation()->setValueAndWarp(position);
+#else
     window->m_realPosition->setValueAndWarp(position);
+#endif
 }
 
 void set_window_real_position_goal(PHLWINDOW window, const Vector2D& position) {
     if (window == nullptr)
         return;
 
+#if HT_HYPRLAND_GE_0_56
+    *window->positionAnimation() = position;
+#else
     *window->m_realPosition = position;
+#endif
 }
 
 void reset_window_workspace_move_alpha(PHLWINDOW window) {
@@ -590,15 +844,7 @@ void set_workspace_render_visibility(PHLWORKSPACE workspace, bool visible) {
     if (workspace == nullptr)
         return;
 
-    if (g_pDesktopAnimationManager) {
-        g_pDesktopAnimationManager->startAnimation(
-            workspace,
-            visible ? CDesktopAnimationManager::ANIMATION_TYPE_IN
-                    : CDesktopAnimationManager::ANIMATION_TYPE_OUT,
-            false,
-            true
-        );
-    }
+    HTCompat::start_workspace_visibility_animation(workspace, visible);
     workspace->m_visible = visible;
 }
 
@@ -616,25 +862,44 @@ resolve_workspace_target(PHLMONITOR monitor, WORKSPACEID workspace_id, bool crea
         return nullptr;
 
     PHLWORKSPACE workspace = HTCompat::workspace_by_id(workspace_id);
-    if (workspace == nullptr && create_if_missing)
+    if (workspace == nullptr && create_if_missing) {
+#if HT_HYPRLAND_GE_0_56
+        if (!State::workspaceState())
+            return nullptr;
+
+        workspace = State::workspaceState()->create(workspace_id, HTCompat::monitor_id(monitor));
+#else
         workspace = g_pCompositor->createNewWorkspace(workspace_id, HTCompat::monitor_id(monitor));
+#endif
+    }
 
     return workspace;
 }
 
 bool move_workspace_to_monitor(PHLWORKSPACE workspace, PHLMONITOR monitor, bool no_warp_cursor) {
-    if (workspace == nullptr || monitor == nullptr || !g_pCompositor)
+    if (workspace == nullptr || monitor == nullptr)
+        return false;
+
+#if HT_HYPRLAND_GE_0_56
+    if (!State::workspacePlacementController())
+        return false;
+
+    State::workspacePlacementController()->moveWorkspaceToMonitor(workspace, monitor, no_warp_cursor);
+#else
+    if (!g_pCompositor)
         return false;
 
     g_pCompositor->moveWorkspaceToMonitor(workspace, monitor, no_warp_cursor);
+#endif
     return true;
 }
 
 bool warp_pointer(const Vector2D& position) {
-    if (!HTLogic::isFinitePoint(position.x, position.y) || !g_pPointerManager)
+    const auto pointer_manager = HTCompat::pointer_manager();
+    if (!HTLogic::isFinitePoint(position.x, position.y) || pointer_manager == nullptr)
         return false;
 
-    g_pPointerManager->warpTo(position);
+    pointer_manager->warpTo(position);
     return true;
 }
 
