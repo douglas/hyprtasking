@@ -405,7 +405,7 @@ void HTLayoutGrid::render() {
     CBox monitor_box = {{0, 0}, transformed_size};
 
     CRectPassElement::SRectData data;
-    data.color = CHyprColor {0x000000FF}.stripA();
+    data.color = CHyprColor {0.F, 0.F, 0.F, 1.F};
     data.box = monitor_box;
     HTCompat::add_rect_pass(data);
 

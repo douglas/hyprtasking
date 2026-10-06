@@ -29,9 +29,8 @@ void HTLayoutBase::render_workspace_with_optional_state(
     const Time::steady_tp& time,
     const CBox& render_box
 ) {
-    if (workspace == nullptr)
-        return;
-
+    // Hyprland renders wallpaper and layers for a null workspace as well.
+    // Empty grid slots may not have a workspace until a window is moved there.
     HTScopedWorkspaceRender render_workspace(monitor, workspace);
     HTCompat::render_workspace_original(monitor, workspace, time, render_box);
     HTCompat::remove_clear_passes();
