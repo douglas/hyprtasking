@@ -26,6 +26,7 @@
 #include "cursor_compat.hpp"
 #include "monitor_compat.hpp"
 #include "pointer_compat.hpp"
+#include "profile.hpp"
 
 SDispatchResult
 HTCompat::invoke_dispatcher(const std::string& dispatch_name, const std::string& dispatch_arg) {
@@ -331,24 +332,22 @@ bool HTCompat::invoke_mouse_button_original(
     IPointer::SButtonEvent event,
     SP<IPointer> mouse
 ) {
-    if (thisptr == nullptr || input_mouse_button_hook == nullptr)
-        return false;
-    if (input_mouse_button_hook->m_original == nullptr)
+    using origOnMouseButton = void (*)(void*, IPointer::SButtonEvent, SP<IPointer>);
+    const auto original = hook_original<origOnMouseButton>(input_mouse_button_hook);
+    if (thisptr == nullptr || original == nullptr)
         return false;
 
-    using origOnMouseButton = void (*)(void*, IPointer::SButtonEvent, SP<IPointer>);
-    ((origOnMouseButton)input_mouse_button_hook->m_original)(thisptr, event, mouse);
+    original(thisptr, event, mouse);
     return true;
 }
 #else
 bool HTCompat::invoke_mouse_button_original(void* thisptr, IPointer::SButtonEvent event) {
-    if (thisptr == nullptr || input_mouse_button_hook == nullptr)
-        return false;
-    if (input_mouse_button_hook->m_original == nullptr)
+    using origOnMouseButton = void (*)(void*, IPointer::SButtonEvent);
+    const auto original = hook_original<origOnMouseButton>(input_mouse_button_hook);
+    if (thisptr == nullptr || original == nullptr)
         return false;
 
-    using origOnMouseButton = void (*)(void*, IPointer::SButtonEvent);
-    ((origOnMouseButton)input_mouse_button_hook->m_original)(thisptr, event);
+    original(thisptr, event);
     return true;
 }
 #endif

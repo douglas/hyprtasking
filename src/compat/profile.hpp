@@ -47,5 +47,19 @@ HookInstallResult
 install_function_hook(CFunctionHook*& hook, const HookSpec& spec, void* destination);
 bool function_hook_original_ready(CFunctionHook* hook);
 bool remove_function_hook(CFunctionHook*& hook, std::string_view label);
+
+// Typed call-through for an installed hook; nullptr when it is not ready.
+template<typename Fn>
+Fn hook_original(CFunctionHook* hook) {
+    if (!function_hook_original_ready(hook))
+        return nullptr;
+
+    return reinterpret_cast<Fn>(hook->m_original);
+}
+
+template<typename Fn>
+void* hook_destination(Fn* function) {
+    return reinterpret_cast<void*>(function);
+}
 CompatibilityResult verify_compatibility();
 } // namespace HTCompat

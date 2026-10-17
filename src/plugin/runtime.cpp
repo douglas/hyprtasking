@@ -131,7 +131,7 @@ bool initializeMouseButtonHook() {
     const auto mouse_button = HTCompat::install_function_hook(
         input_mouse_button_hook,
         HTCompat::input_mouse_button_spec(),
-        (void*)hookMouseButton
+        HTCompat::hook_destination(hookMouseButton)
     );
     if (!mouse_button.installed) {
         return disable_runtime_on_setup_failure("initialize_mouse_button_hook", mouse_button.error);
