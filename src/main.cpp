@@ -10,6 +10,7 @@
 #include "globals.hpp"
 #include "manager.hpp"
 #include "plugin/dispatchers.hpp"
+#include "plugin/guards.hpp"
 #include "plugin/runtime.hpp"
 #include "trace.hpp"
 
@@ -19,18 +20,10 @@ template<typename Fn>
 void cleanup_step(std::string_view name, Fn&& fn) noexcept {
     try {
         fn();
-    } catch (const std::exception& e) {
-        try {
-            Log::logger->log(Log::ERR, "[Hyprtasking] {} cleanup failed: {}", name, e.what());
-        } catch (...) {
-        }
     } catch (...) {
+        const char* reason = HTPlugin::current_exception_what();
         try {
-            Log::logger->log(
-                Log::ERR,
-                "[Hyprtasking] {} cleanup failed with unknown exception",
-                name
-            );
+            Log::logger->log(Log::ERR, "[Hyprtasking] {} cleanup failed: {}", name, reason);
         } catch (...) {
         }
     }
@@ -55,8 +48,10 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         ht_manager->block_runtime("compatibility_gate", compatibility.error);
         // Plugin API registration stays available so health reports the reason
         // and config keys do not error, but no HTCompat state is touched.
-        HTPlugin::initializeConfig();
-        HTPlugin::registerDispatchers();
+        HTPlugin::guardedCallback("plugin_init", [] {
+            HTPlugin::initializeConfig();
+            HTPlugin::registerDispatchers();
+        });
         Log::logger->log(
             Log::ERR,
             "[Hyprtasking] Compatibility gate blocked runtime activation: {}",
@@ -71,10 +66,9 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         return {"Hyprtasking", "A workspace management plugin", "douglas", HT_PROJECT_VERSION};
     }
 
-    HTPlugin::initializeConfig();
-    HTPlugin::registerDispatchers();
-
     try {
+        HTPlugin::initializeConfig();
+        HTPlugin::registerDispatchers();
         const bool callbacks_ready = HTPlugin::registerCallbacks();
         const bool renderer_hooks_ready = HTCompat::initializeRendererHooks();
         if (callbacks_ready && renderer_hooks_ready && ht_manager->runtime_enabled()) {
@@ -89,16 +83,10 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
                 );
             }
         }
-    } catch (const std::exception& e) {
-        HTPlugin::unregisterCallbacks();
-        HTCompat::shutdownRendererHooks();
-        if (ht_manager != nullptr)
-            ht_manager->disable_runtime("plugin_init", e.what());
     } catch (...) {
         HTPlugin::unregisterCallbacks();
         HTCompat::shutdownRendererHooks();
-        if (ht_manager != nullptr)
-            ht_manager->disable_runtime("plugin_init", "unknown exception");
+        HTPlugin::disable_runtime_for_current_exception("plugin_init");
     }
 
     Log::logger->log(LOG, "[Hyprtasking] Plugin initialized");
