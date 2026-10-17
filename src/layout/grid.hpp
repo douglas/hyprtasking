@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string>
 
 #include <hyprland/src/helpers/AnimatedVariable.hpp>
@@ -9,6 +10,23 @@
 
 class HTLayoutGrid: public HTLayoutBase {
   private:
+    struct GridGeometry {
+        Vector2D transformed_size;
+        Vector2D gaps;
+        Vector2D start_offset;
+        double   opened_scale = 1.;
+    };
+    struct LayoutShape {
+        int  block = -1;
+        int  rows = 0;
+        int  cols = 0;
+        bool operator==(const LayoutShape&) const = default;
+    };
+
+    std::optional<GridGeometry> grid_geometry();
+    CBox cell_box(const GridGeometry& geometry, int x, int y, HTViewStage stage) const;
+
+    LayoutShape layout_shape;
     PHLANIMVAR<float> scale;
     PHLANIMVAR<Vector2D> offset;
     WORKSPACEID close_render_workspace_id = WORKSPACE_INVALID;

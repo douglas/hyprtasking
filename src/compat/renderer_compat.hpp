@@ -81,8 +81,8 @@ bool restore_monitor_workspace(
     bool use_change_workspace
 );
 void set_workspace_render_visibility(PHLWORKSPACE workspace, bool visible);
-HTGradientValueData active_border_color();
-HTGradientValueData inactive_border_color();
+const HTGradientValueData& active_border_color();
+const HTGradientValueData& inactive_border_color();
 PHLWORKSPACE
 resolve_workspace_target(PHLMONITOR monitor, WORKSPACEID workspace_id, bool create_if_missing);
 bool move_workspace_to_monitor(
@@ -94,7 +94,6 @@ bool warp_pointer(const Vector2D& position);
 void add_rect_pass(const CRectPassElement::SRectData& data);
 void add_border_pass(const CBorderPassElement::SBorderData& data);
 void add_renderer_hints_pass(const HTRenderModifData& data);
-void damage_window(PHLWINDOW window);
 void reset_overview_render_guard();
 void begin_overview_render_pass();
 void remove_clear_passes();

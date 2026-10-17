@@ -45,6 +45,5 @@ void render_window_at_box(
     HTCompat::add_renderer_hints_pass(data);
     CScopeGuard reset_hints([] { HTCompat::add_renderer_hints_pass(HTRenderModifData {}); });
 
-    HTCompat::damage_window(window);
     HTCompat::render_window_original(window, monitor, time, true, HT_RENDER_PASS_MAIN, false, true);
 }

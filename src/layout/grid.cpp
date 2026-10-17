@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <format>
+#include <optional>
 #include <hyprutils/math/Vector2D.hpp>
 #include <hyprutils/utils/ScopeGuard.hpp>
 #include <string_view>
@@ -259,10 +260,10 @@ void HTLayoutGrid::init_position() {
     scale->setValueAndWarp(1.f);
 }
 
-CBox HTLayoutGrid::calculate_ws_box(int x, int y, HTViewStage stage) {
+std::optional<HTLayoutGrid::GridGeometry> HTLayoutGrid::grid_geometry() {
     const PHLMONITOR monitor = get_monitor();
     if (monitor == nullptr)
-        return {};
+        return std::nullopt;
 
     const auto& config = HTConfig::runtime_config();
     const int ROWS = config.grid_rows;
@@ -277,7 +278,7 @@ CBox HTLayoutGrid::calculate_ws_box(int x, int y, HTViewStage stage) {
         return skip_invalid_geometry(
             "grid_config_validation",
             std::format("Invalid grid dimensions rows={} cols={}", ROWS, COLS),
-            CBox {}
+            std::optional<GridGeometry> {}
         );
     }
     if (!HTLogic::gridCellCount(ROWS, COLS, HTConfig::MAX_GRID_ROWS, HTConfig::MAX_GRID_COLS)
@@ -291,7 +292,7 @@ CBox HTLayoutGrid::calculate_ws_box(int x, int y, HTViewStage stage) {
                 HTConfig::MAX_GRID_ROWS,
                 HTConfig::MAX_GRID_COLS
             ),
-            CBox {}
+            std::optional<GridGeometry> {}
         );
     }
     if (!HTLogic::isPositiveFinite(monitor_scale) || !HTLogic::isPositiveFinite(transformed_size.x)
@@ -304,7 +305,7 @@ CBox HTLayoutGrid::calculate_ws_box(int x, int y, HTViewStage stage) {
                 transformed_size.x,
                 transformed_size.y
             ),
-            CBox {}
+            std::optional<GridGeometry> {}
         );
     }
 
@@ -317,7 +318,7 @@ CBox HTLayoutGrid::calculate_ws_box(int x, int y, HTViewStage stage) {
                 transformed_size.x,
                 transformed_size.y
             ),
-            CBox {}
+            std::optional<GridGeometry> {}
         );
     }
 
@@ -335,19 +336,40 @@ CBox HTLayoutGrid::calculate_ws_box(int x, int y, HTViewStage stage) {
         render_x = render_y * mon_aspect;
     }
 
+    return GridGeometry {
+        .transformed_size = transformed_size,
+        .gaps = gaps,
+        .start_offset = start_offset,
+        .opened_scale = render_x / transformed_size.x,
+    };
+}
+
+CBox HTLayoutGrid::cell_box(const GridGeometry& geometry, int x, int y, HTViewStage stage) const {
     float use_scale = scale->value();
     Vector2D use_offset = offset->value();
     if (stage == HT_VIEW_CLOSED) {
         use_scale = 1;
         use_offset = Vector2D {0, 0};
     } else if (stage == HT_VIEW_OPENED) {
-        use_scale = render_x / transformed_size.x;
+        use_scale = geometry.opened_scale;
         use_offset = Vector2D {0, 0};
     }
 
-    const Vector2D ws_sz = transformed_size * use_scale;
-    return CBox {Vector2D {x, y} * (ws_sz + gaps) + gaps + use_offset + start_offset, ws_sz};
-};
+    const Vector2D ws_sz = geometry.transformed_size * use_scale;
+    return CBox {
+        Vector2D {x, y} * (ws_sz + geometry.gaps) + geometry.gaps + use_offset + geometry.start_offset,
+        ws_sz
+    };
+}
+
+CBox HTLayoutGrid::calculate_ws_box(int x, int y, HTViewStage stage) {
+    const auto geometry = grid_geometry();
+    if (!geometry.has_value())
+        return {};
+
+    return cell_box(*geometry, x, y, stage);
+}
+
 
 void HTLayoutGrid::set_grid_block(int block) {
     grid_block = block;
@@ -370,20 +392,30 @@ void HTLayoutGrid::place_workspaces() {
     }
 }
 
+// Runs every frame while the overview renders: geometry is computed once and
+// the map is only rebuilt when the set of workspace ids changes.
 void HTLayoutGrid::build_overview_layout(HTViewStage stage) {
-    overview_layout.clear();
-    if (grid_block < 0 || get_monitor() == nullptr)
+    const auto geometry = grid_block < 0 ? std::nullopt : grid_geometry();
+    if (!geometry.has_value()) {
+        overview_layout.clear();
+        layout_shape = {};
         return;
+    }
 
     const auto& config = HTConfig::runtime_config();
     const int ROWS = config.grid_rows;
     const int COLS = config.grid_cols;
+    const LayoutShape shape {.block = grid_block, .rows = ROWS, .cols = COLS};
+    if (shape != layout_shape) {
+        overview_layout.clear();
+        overview_layout.reserve(static_cast<size_t>(ROWS * COLS));
+        layout_shape = shape;
+    }
 
     for (int y = 0; y < ROWS; y++) {
         for (int x = 0; x < COLS; x++) {
             const WORKSPACEID ws_id = (grid_block * ROWS + y) * COLS + x + 1;
-            const CBox ws_box = calculate_ws_box(x, y, stage);
-            overview_layout[ws_id] = HTWorkspace {x, y, ws_box};
+            overview_layout[ws_id] = HTWorkspace {x, y, cell_box(*geometry, x, y, stage)};
         }
     }
 }
@@ -399,8 +431,8 @@ void HTLayoutGrid::render() {
     if (monitor == nullptr)
         return;
 
-    const HTGradientValueData active_col = HTCompat::active_border_color();
-    const HTGradientValueData inactive_col = HTCompat::inactive_border_color();
+    const HTGradientValueData& active_col = HTCompat::active_border_color();
+    const HTGradientValueData& inactive_col = HTCompat::inactive_border_color();
 
     constexpr float BORDERSIZE = 4.F;
 
@@ -473,7 +505,7 @@ void HTLayoutGrid::render() {
         if (global_box.expand(BORDERSIZE).intersection(global_mon_box).empty())
             continue;
 
-        const HTGradientValueData border_col =
+        const HTGradientValueData& border_col =
             selected_workspace_id == ws_id ? active_col : inactive_col;
         CBox border_box = ws_layout.box;
 
@@ -501,7 +533,7 @@ void HTLayoutGrid::render() {
             if (HTCompat::monitor_transform(monitor) % 2 == 1)
                 std::swap(render_box.w, render_box.h);
 
-            const HTGradientValueData border_col =
+            const HTGradientValueData& border_col =
                 selected_workspace_id == HTCompat::workspace_id(start_workspace) ? active_col
                                                                                  : inactive_col;
             CBox border_box = ws_box;

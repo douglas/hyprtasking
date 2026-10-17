@@ -101,12 +101,14 @@ uint32_t solitaryBlockedOriginal(void* thisptr, bool full) {
     return original(thisptr, full);
 }
 
-HTGradientValueData fallback_border_color(bool active) {
-    return HTGradientValueData {CHyprColor {active ? 0x33ccffee : 0x444444ee}};
+const HTGradientValueData& fallback_border_color(bool active) {
+    static const HTGradientValueData active_fallback {CHyprColor {0x33ccffee}};
+    static const HTGradientValueData inactive_fallback {CHyprColor {0x444444ee}};
+    return active ? active_fallback : inactive_fallback;
 }
 
 #if HT_HYPRLAND_GE_0_55
-HTGradientValueData border_color_from_config(bool active) {
+const HTGradientValueData& border_color_from_config(bool active) {
     static auto active_color =
         CConfigValue<Config::IComplexConfigValue>("general:col.active_border");
     static auto inactive_color =
@@ -119,7 +121,7 @@ HTGradientValueData border_color_from_config(bool active) {
     return *static_cast<HTGradientValueData*>(config.ptr());
 }
 #else
-HTGradientValueData border_color_from_config(bool active) {
+const HTGradientValueData& border_color_from_config(bool active) {
     static auto active_color = CConfigValue<Hyprlang::CUSTOMTYPE>("general:col.active_border");
     static auto inactive_color = CConfigValue<Hyprlang::CUSTOMTYPE>("general:col.inactive_border");
 
@@ -863,11 +865,11 @@ void set_workspace_render_visibility(PHLWORKSPACE workspace, bool visible) {
     workspace->m_visible = visible;
 }
 
-HTGradientValueData active_border_color() {
+const HTGradientValueData& active_border_color() {
     return border_color_from_config(true);
 }
 
-HTGradientValueData inactive_border_color() {
+const HTGradientValueData& inactive_border_color() {
     return border_color_from_config(false);
 }
 
@@ -939,13 +941,6 @@ void add_renderer_hints_pass(const HTRenderModifData& data) {
     g_pHyprRenderer->m_renderPass.add(
         makeUnique<CRendererHintsPassElement>(CRendererHintsPassElement::SData {data})
     );
-}
-
-void damage_window(PHLWINDOW window) {
-    if (window == nullptr || !g_pHyprRenderer.get())
-        return;
-
-    g_pHyprRenderer->damageWindow(window);
 }
 
 void reset_overview_render_guard() {

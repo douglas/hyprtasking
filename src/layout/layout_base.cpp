@@ -12,6 +12,7 @@ HTLayoutBase::HTLayoutBase(VIEWID new_view_id) : view_id(new_view_id) {
 }
 
 void HTLayoutBase::begin_render() {
+    rendered_workspace_cells = false;
     HTCompat::begin_overview_render_pass();
 }
 
@@ -25,10 +26,14 @@ void HTLayoutBase::render_workspace_with_optional_state(
     // Empty grid slots may not have a workspace until a window is moved there.
     HTScopedWorkspaceRender render_workspace(monitor, workspace);
     HTCompat::render_workspace_original(monitor, workspace, time, render_box);
-    HTCompat::remove_clear_passes();
+    rendered_workspace_cells = true;
 }
 
 void HTLayoutBase::post_render() {
+    // Pass elements run after the frame is built, so one sweep removes the
+    // clear passes added by every rendered workspace cell.
+    if (rendered_workspace_cells)
+        HTCompat::remove_clear_passes();
     HTCompat::finalize_overview_render_pass();
 }
 
