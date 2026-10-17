@@ -60,6 +60,7 @@ PHLWORKSPACE active_monitor_workspace(PHLMONITOR monitor);
 PHLMONITOR workspace_monitor(PHLWORKSPACE workspace);
 MONITORID workspace_monitor_id(PHLWORKSPACE workspace);
 bool workspace_render_visible(PHLWORKSPACE workspace);
+bool workspace_render_at_rest(PHLWORKSPACE workspace);
 WORKSPACEID workspace_id(PHLWORKSPACE workspace);
 PHLWORKSPACE workspace_by_id(WORKSPACEID workspace_id);
 PHLWORKSPACE window_workspace(PHLWINDOW window);

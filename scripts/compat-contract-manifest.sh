@@ -100,7 +100,7 @@ compat_surface_builtin_contracts_stream() {
     "workspace render state fields" \
     "src/desktop/Workspace.hpp" \
     "src/compat/renderer_compat.cpp" \
-    "PHLMONITORREF   m_monitor;|||PHLANIMVAR<Vector2D> m_renderOffset;|||bool m_visible = false;|||WORKSPACEID     m_id   = WORKSPACE_INVALID;|||MONITORID   monitorID();"
+    "PHLMONITORREF   m_monitor;|||PHLANIMVAR<Vector2D> m_renderOffset;|||PHLANIMVAR<float> m_alpha;|||bool m_visible = false;|||WORKSPACEID     m_id   = WORKSPACE_INVALID;|||MONITORID   monitorID();"
   printf '%s\t%s\t%s\t%s\n' \
     "window animation and workspace fields" \
     "src/desktop/view/Window.hpp@@@src/desktop/view/types/GeometricMovableAnimated.hpp" \

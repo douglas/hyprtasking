@@ -706,6 +706,15 @@ MONITORID workspace_monitor_id(PHLWORKSPACE workspace) {
     return workspace->monitorID();
 }
 
+bool workspace_render_at_rest(PHLWORKSPACE workspace) {
+    if (workspace == nullptr || workspace->m_alpha == nullptr
+        || workspace->m_renderOffset == nullptr)
+        return false;
+
+    return !workspace->m_alpha->isBeingAnimated() && !workspace->m_renderOffset->isBeingAnimated()
+        && workspace->m_alpha->value() == 1.F && workspace->m_renderOffset->value() == Vector2D {};
+}
+
 bool workspace_render_visible(PHLWORKSPACE workspace) {
     if (workspace == nullptr)
         return false;
@@ -865,11 +874,18 @@ bool restore_monitor_workspace(
     return true;
 }
 
+// The overview flips every grid workspace visible and back each frame. An
+// instant IN animation only warps alpha to 1 and the render offset to 0, so
+// skip restarting it (config lookups, update callback, per-window warps) when
+// the workspace already rests there. Hiding only needs the flag: Hyprland
+// does not render workspaces that are not visible, and its own workspace
+// switches restart these animations from their start values.
 void set_workspace_render_visibility(PHLWORKSPACE workspace, bool visible) {
     if (workspace == nullptr)
         return;
 
-    HTCompat::start_workspace_visibility_animation(workspace, visible);
+    if (visible && !workspace_render_at_rest(workspace))
+        HTCompat::start_workspace_visibility_animation(workspace, true);
     workspace->m_visible = visible;
 }
 
