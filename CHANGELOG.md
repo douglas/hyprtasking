@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.5.4 - 2026-10-16
+
+### Changed
+
+- Assign each monitor's block of workspaces by monitor name and keep it
+  across hotplug, so disabling one monitor no longer shifts another onto
+  different workspaces.
+- Reject invalid config values with a notification and a `config_error`
+  health field while keeping the previous values, instead of disabling the
+  plugin for the session.
+- Redraw the overview only while something changes, plus a 100 ms idle
+  refresh, instead of at full refresh rate.
+- Build optimized binaries by default, including hyprpm installs.
+- Write traces to `$XDG_RUNTIME_DIR/hyprtasking-trace.log`.
+- Report invalid `move` and `select` arguments as failures.
+
+### Fixed
+
+- Run the compatibility gate before touching Hyprland internals.
+- Stop moving workspaces between monitors from inside the render hook.
+- End window drags when the overview closes, the config reloads, or a drop
+  fails.
+- Avoid undefined behavior when Lua actions raise errors.
+- Null-check every hook call-through, check solitary blocking for the
+  queried monitor, and resync views on monitor layout changes.
+- Keep the overview active when toggled during a workspace move animation.
+- Cancel deferred callbacks and timers before unload.
+- Build against Hyprland 0.54.3 again (Lua bindings are now 0.55+ only).
+- Fix the offline compat gate on all supported tracks and add a build,
+  sanitizer test, and formatting CI job.
+
 ## 0.5.3 - 2026-08-15
 
 ### Added
