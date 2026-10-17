@@ -526,6 +526,9 @@ hyprctl keyword source ~/.config/hypr/personal-hyprtasking.conf
 hyprctl eval 'hl.plugin.hyprtasking.health()'
 ```
 
+The `hl.plugin.hyprtasking.*` Lua functions need Hyprland 0.55 or newer. On
+0.54.3, use `hyprctl dispatch hyprtasking:health` instead.
+
 If `keyword source` prints `invalid dispatcher` and your config still uses
 `hyprtasking:navigate` or `hyprtasking:commit_selection`, switch those binds to
 `hyprtasking:select` and `hyprtasking:commit`.

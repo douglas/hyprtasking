@@ -3,10 +3,15 @@
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <string>
 
+#include "../build_contract.hpp"
+
+// Plugin Lua functions arrived in Hyprland 0.55.
+#if HT_HYPRLAND_GE_0_55
 extern "C" {
-#include <lauxlib.h>
-#include <lua.h>
+    #include <lauxlib.h>
+    #include <lua.h>
 }
+#endif
 
 #include "../config.hpp"
 #include "../globals.hpp"
@@ -140,6 +145,7 @@ SDispatchResult dispatchHealth(std::string arg) {
     });
 }
 
+#if HT_HYPRLAND_GE_0_55
 // lua_error longjmps, which skips C++ destructors. Keep every non-trivial
 // object in an inner scope so nothing is alive when the error is raised.
 template<typename Fn>
@@ -194,6 +200,7 @@ int luaHealth(lua_State* state) {
     }
     return 1;
 }
+#endif
 
 } // namespace
 
@@ -206,6 +213,7 @@ void registerDispatchers() {
     HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:commit", dispatchCommit);
     HyprlandAPI::addDispatcherV2(PHANDLE, "hyprtasking:health", dispatchHealth);
 
+#if HT_HYPRLAND_GE_0_55
     const auto addLuaFunction = [](const std::string& name, PLUGIN_LUA_FN function) {
         if (!HyprlandAPI::addLuaFunction(PHANDLE, "hyprtasking", name, function))
             Log::logger->log(Log::ERR, "[Hyprtasking] failed to register hl.plugin.hyprtasking.{}", name);
@@ -216,6 +224,7 @@ void registerDispatchers() {
     addLuaFunction("select", luaSelect);
     addLuaFunction("commit", luaCommit);
     addLuaFunction("health", luaHealth);
+#endif
 }
 
 } // namespace HTPlugin
