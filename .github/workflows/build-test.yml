@@ -1,0 +1,46 @@
+name: Build and Test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    # Arch ships current Hyprland headers and pkg-config files.
+    container: archlinux:latest
+    steps:
+      - name: Install build dependencies
+        run: |
+          pacman -Syu --noconfirm --needed base-devel git meson ninja hyprland lua \
+            pixman libdrm libinput systemd-libs wayland libxkbcommon clang
+
+      - name: Checkout Hyprtasking
+        uses: actions/checkout@v5
+
+      - name: Build plugin with warnings as errors
+        run: |
+          meson setup build -Dwerror=true
+          meson compile -C build
+
+      - name: Run logic tests with sanitizers
+        run: |
+          meson setup build-san -Dwerror=true -Db_sanitize=address,undefined
+          meson compile -C build-san logic-tests
+          meson test -C build-san logic-tests --print-errorlogs
+
+      - name: Check formatting of changed C++ lines
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          # Only lines touched by the PR; the tree predates the format config.
+          output=$(git clang-format --diff FETCH_HEAD -- '*.cpp' '*.hpp' || true)
+          if [[ -n "$output" && "$output" != *"did not modify any files"* \
+            && "$output" != *"no modified files to format"* ]]; then
+            printf '%s\n' "$output"
+            exit 1
+          fi

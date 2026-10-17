@@ -410,7 +410,7 @@ void HTLayoutGrid::build_overview_layout(HTViewStage stage) {
     const LayoutShape shape {.block = grid_block, .rows = ROWS, .cols = COLS};
     if (shape != layout_shape) {
         overview_layout.clear();
-        overview_layout.reserve(static_cast<size_t>(ROWS * COLS));
+        overview_layout.reserve(static_cast<size_t>(ROWS) * static_cast<size_t>(COLS));
         layout_shape = shape;
     }
 
