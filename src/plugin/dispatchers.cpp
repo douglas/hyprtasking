@@ -137,40 +137,55 @@ SDispatchResult dispatchHealth(std::string arg) {
     });
 }
 
-int luaResult(lua_State* state, const SDispatchResult& result) {
-    if (result.success)
-        return 0;
-
-    lua_pushstring(state, result.error.empty() ? "hyprtasking action failed" : result.error.c_str());
-    return lua_error(state);
+// lua_error longjmps, which skips C++ destructors. Keep every non-trivial
+// object in an inner scope so nothing is alive when the error is raised.
+template<typename Fn>
+int luaAction(lua_State* state, Fn&& dispatch) {
+    bool failed = false;
+    {
+        const SDispatchResult result = dispatch();
+        if (!result.success) {
+            lua_pushstring(
+                state,
+                result.error.empty() ? "hyprtasking action failed" : result.error.c_str()
+            );
+            failed = true;
+        }
+    }
+    if (failed)
+        return lua_error(state);
+    return 0;
 }
 
 int luaToggle(lua_State* state) {
-    return luaResult(state, dispatchToggleView(luaL_checkstring(state, 1)));
+    const char* arg = luaL_checkstring(state, 1);
+    return luaAction(state, [arg] { return dispatchToggleView(arg); });
 }
 
 int luaMove(lua_State* state) {
-    return luaResult(state, dispatchMove(luaL_checkstring(state, 1)));
+    const char* arg = luaL_checkstring(state, 1);
+    return luaAction(state, [arg] { return dispatchMove(arg); });
 }
 
 int luaSelect(lua_State* state) {
-    return luaResult(state, dispatchSelect(luaL_checkstring(state, 1)));
+    const char* arg = luaL_checkstring(state, 1);
+    return luaAction(state, [arg] { return dispatchSelect(arg); });
 }
 
 int luaCommit(lua_State* state) {
-    return luaResult(state, dispatchCommit({}));
+    return luaAction(state, [] { return dispatchCommit({}); });
 }
 
 int luaHealth(lua_State* state) {
-    const auto arg = luaL_optstring(state, 1, "");
-    const auto result = dispatchHealth(arg);
-    if (!result.success)
-        return luaResult(state, result);
+    const char* arg = luaL_optstring(state, 1, "");
+    luaAction(state, [arg] { return dispatchHealth(arg); });
 
-    const auto health = ht_manager == nullptr
-        ? std::string {"{\"runtime_enabled\":false,\"error\":\"ht_manager is null\"}"}
-        : ht_manager->runtime_health_summary(std::string {arg} == "json");
-    lua_pushstring(state, health.c_str());
+    {
+        const auto health = ht_manager == nullptr
+            ? std::string {"{\"runtime_enabled\":false,\"error\":\"ht_manager is null\"}"}
+            : ht_manager->runtime_health_summary(std::string_view {arg} == "json");
+        lua_pushstring(state, health.c_str());
+    }
     return 1;
 }
 
