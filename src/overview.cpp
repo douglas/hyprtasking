@@ -91,6 +91,10 @@ void HTView::show() {
     if (active_workspace == nullptr)
         return;
 
+    // A pending move animation callback would restore the pre-move inactive
+    // state after the overview opens.
+    layout->cancel_animation_callbacks();
+
     set_keyboard_workspace(HTCompat::workspace_id(active_workspace));
     clear_hover_workspace();
     set_runtime_state(true, false, false);
