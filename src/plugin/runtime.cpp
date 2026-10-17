@@ -16,7 +16,6 @@
 #include "../globals.hpp"
 #include "../overview.hpp"
 #include "../runtime_fail.hpp"
-#include "../runtime_validation.hpp"
 #include "../trace.hpp"
 #include "guards.hpp"
 
@@ -191,8 +190,7 @@ void onSwipeEnd([[maybe_unused]] IPointer::SSwipeEndEvent e, Event::SCallbackInf
 
 void onConfigReloaded() {
     HTPlugin::guardedCallback("on_config_reloaded", [] {
-        if (!HTConfig::refresh_runtime_config_or_disable("on_config_reloaded"))
-            return;
+        HTConfig::refresh_runtime_config("on_config_reloaded");
         HTTrace::refresh();
 
         if (ht_manager == nullptr)
@@ -225,7 +223,7 @@ void initializeConfig() {
     }
 
     HyprlandAPI::reloadConfig();
-    HTConfig::refresh_runtime_config_or_disable("initialize_config");
+    HTConfig::refresh_runtime_config("initialize_config");
     HTTrace::refresh();
 }
 
@@ -245,8 +243,7 @@ bool registerCallbacks() {
     unregisterCallbacks();
     HTTrace::refresh();
     trace_log("[Hyprtasking][trace] registerCallbacks installing live input listeners");
-    if (!HTRuntimeValidation::ensure_grid_gesture_or_disable("register_callbacks"))
-        return false;
+    HTConfig::refresh_runtime_config("register_callbacks");
 
     if (!initializeMouseButtonHook())
         return false;

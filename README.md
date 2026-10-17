@@ -174,7 +174,7 @@ Supported smoke subcommands:
   `health` dispatchers are registered and still return the expected probe
   responses without changing overview state
 - `safety`: verify invalid grid dimensions, gesture distances, mouse button
-  conflicts, and gesture finger conflicts disable runtime cleanly
+  conflicts, and gesture finger conflicts are rejected while runtime stays enabled
 - `load-unload`: validate one or more live unload/load cycles for `build/libhyprtasking.so`
 - `toggle`: validate toggle and directional move dispatchers
 - `reload`: reload Hyprland and wait for the plugin to become ready again
@@ -591,14 +591,14 @@ Visual styling uses fixed built-in defaults.
 | Option | Type | Description | Default |
 | --- | --- | --- | --- |
 | `debug:trace` | `Hyprlang::INT` | Enables runtime trace output to `/tmp/hyprtasking-trace.log` for debugging. Use a config entry for persistent tracing. Runtime toggles with `hyprctl keyword plugin:hyprtasking:debug:trace 1` are applied after a config reload or plugin reload. | `0` |
-| `drag_button` | `Hyprlang::INT` | The mouse button to use to drag windows around. Must differ from `select_button`; conflicts disable runtime for safety. | `0x110` |
-| `select_button` | `Hyprlang::INT` | The mouse button to use to select a workspace. Must differ from `drag_button`; conflicts disable runtime for safety. | `0x111` |
+| `drag_button` | `Hyprlang::INT` | The mouse button to use to drag windows around. Must differ from `select_button`; conflicts are rejected and the previous value is kept. | `0x110` |
+| `select_button` | `Hyprlang::INT` | The mouse button to use to select a workspace. Must differ from `drag_button`; conflicts are rejected and the previous value is kept. | `0x111` |
 | `gestures:enabled` | `Hyprlang::INT` | Whether or not to enable gestures | `true` |
 | `gestures:move_fingers` | `Hyprlang::INT` | The number of fingers to use for the "move" gesture. Keep different from `open_fingers` to avoid gesture overlap. | `3` |
-| `gestures:move_distance` | `Hyprlang::FLOAT` | How large of a swipe on the touchpad corresponds to the width of a workspace. Must be `> 0`; invalid values disable runtime for safety. | `300.f` |
+| `gestures:move_distance` | `Hyprlang::FLOAT` | How large of a swipe on the touchpad corresponds to the width of a workspace. Must be `> 0`; invalid values are rejected and the previous value is kept. | `300.f` |
 | `gestures:open_fingers` | `Hyprlang::INT` | The number of fingers to use for the open/close gesture. Keep different from `move_fingers` to avoid gesture overlap. | `4` |
-| `gestures:open_distance` | `Hyprlang::FLOAT` | How large of a swipe on the touchpad is needed for the "open" gesture. Must be `> 0`; invalid values disable runtime for safety. | `300.f` |
+| `gestures:open_distance` | `Hyprlang::FLOAT` | How large of a swipe on the touchpad is needed for the "open" gesture. Must be `> 0`; invalid values are rejected and the previous value is kept. | `300.f` |
 | `gestures:open_positive` | `Hyprlang::INT` | `true` if swiping up should open the overlay, `false` otherwise | `true` |
-| `grid:rows` | `Hyprlang::INT` | The number of rows to display on the grid overlay. Must be `>= 1`; invalid values disable runtime for safety. | `3` |
-| `grid:cols` | `Hyprlang::INT` | The number of columns to display on the grid overlay. Must be `>= 1`; invalid values disable runtime for safety. | `3` |
+| `grid:rows` | `Hyprlang::INT` | The number of rows to display on the grid overlay. Must be `>= 1`; invalid values are rejected and the previous value is kept. | `3` |
+| `grid:cols` | `Hyprlang::INT` | The number of columns to display on the grid overlay. Must be `>= 1`; invalid values are rejected and the previous value is kept. | `3` |
 | `grid:loop` | `Hyprlang::INT` | When enabled, moving right at the far right of the grid will wrap around to the leftmost workspace, etc. | `false` |

@@ -16,11 +16,11 @@
     #include <hyprland/src/config/values/types/IntValue.hpp>
 #endif
 
-#include "runtime_fail.hpp"
 
 namespace {
 
 HTConfig::RuntimeConfig g_runtime_config;
+std::string g_config_error;
 
 void log_missing_config_once(const std::string& config) {
     static std::unordered_set<std::string> warned_configs;
@@ -226,7 +226,7 @@ bool register_values() {
     return success;
 }
 
-bool refresh_runtime_config_or_disable(std::string_view source) {
+bool refresh_runtime_config(std::string_view source) {
     RuntimeConfig config;
     config.debug_trace = int_config_or("debug:trace", config.debug_trace);
     config.drag_button = int_config_or("drag_button", config.drag_button);
@@ -244,10 +244,20 @@ bool refresh_runtime_config_or_disable(std::string_view source) {
     config.grid_loop = int_config_or("grid:loop", config.grid_loop ? 1 : 0) != 0;
 
     if (const auto error = validate_runtime_config(config); error.has_value()) {
-        HTRuntimeFail::disable(source, *error);
+        if (*error != g_config_error) {
+            g_config_error = *error;
+            Log::logger->log(Log::ERR, "[Hyprtasking] {}: {}", source, *error);
+            HyprlandAPI::addNotification(
+                PHANDLE,
+                "[Hyprtasking] Invalid config, keeping previous values: " + *error,
+                CHyprColor {1.0, 0.2, 0.2, 1.0},
+                7000
+            );
+        }
         return false;
     }
 
+    g_config_error.clear();
     g_runtime_config = config;
     return true;
 }
@@ -256,8 +266,13 @@ const RuntimeConfig& runtime_config() {
     return g_runtime_config;
 }
 
+const std::string& config_error() {
+    return g_config_error;
+}
+
 void reset_runtime_config() {
     g_runtime_config = RuntimeConfig {};
+    g_config_error.clear();
 #if HT_HYPRLAND_GE_0_55
     g_int_config_values.clear();
     g_float_config_values.clear();

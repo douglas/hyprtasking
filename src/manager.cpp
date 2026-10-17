@@ -7,6 +7,7 @@
 #include "compat/profile.hpp"
 #include "compat/renderer_compat.hpp"
 #include "compat/runtime_compat.hpp"
+#include "config.hpp"
 #include "globals.hpp"
 #include "logic/view_sync_model.hpp"
 #include "overview.hpp"
@@ -299,10 +300,11 @@ std::string HTManager::runtime_health_summary(bool json) const {
 
     if (json) {
         return std::format(
-            "{{\"runtime_enabled\":{},\"disable_reason\":\"{}\",\"failure_source\":\"{}\",\"views\":{},\"active_views\":{},\"closing_views\":{},\"navigating_views\":{},\"hooks\":{{\"mouse_button\":{},\"render_workspace\":{},\"should_render_window\":{},\"is_solitary_blocked\":{}}},\"listeners\":{{\"mouse_move\":{},\"swipe_begin\":{},\"swipe_update\":{},\"swipe_end\":{},\"config_reloaded\":{},\"monitor_added\":{},\"monitor_removed\":{}}},\"hook_details\":{{\"mouse_button\":{},\"render_workspace\":{},\"should_render_window\":{},\"render_window\":{},\"is_solitary_blocked\":{}}}}}",
+            "{{\"runtime_enabled\":{},\"disable_reason\":\"{}\",\"failure_source\":\"{}\",\"config_error\":\"{}\",\"views\":{},\"active_views\":{},\"closing_views\":{},\"navigating_views\":{},\"hooks\":{{\"mouse_button\":{},\"render_workspace\":{},\"should_render_window\":{},\"is_solitary_blocked\":{}}},\"listeners\":{{\"mouse_move\":{},\"swipe_begin\":{},\"swipe_update\":{},\"swipe_end\":{},\"config_reloaded\":{},\"monitor_added\":{},\"monitor_removed\":{}}},\"hook_details\":{{\"mouse_button\":{},\"render_workspace\":{},\"should_render_window\":{},\"render_window\":{},\"is_solitary_blocked\":{}}}}}",
             runtime_enabled() ? "true" : "false",
             json_escape(disabled_reason),
             json_escape(disabled_source),
+            json_escape(HTConfig::config_error()),
             views.size(),
             active_views,
             closing_views,
@@ -347,10 +349,11 @@ std::string HTManager::runtime_health_summary(bool json) const {
     }
 
     return std::format(
-        "runtime_enabled={} disable_reason=\"{}\" failure_source=\"{}\" views={} active_views={} closing_views={} navigating_views={} hooks(mouse_button={}, render_workspace={}, should_render_window={}, is_solitary_blocked={}) listeners(mouse_move={}, swipe_begin={}, swipe_update={}, swipe_end={}, config_reloaded={}, monitor_added={}, monitor_removed={}) hook_methods(mouse_button={}, render_workspace={}, should_render_window={}, render_window={}, is_solitary_blocked={})",
+        "runtime_enabled={} disable_reason=\"{}\" failure_source=\"{}\" config_error=\"{}\" views={} active_views={} closing_views={} navigating_views={} hooks(mouse_button={}, render_workspace={}, should_render_window={}, is_solitary_blocked={}) listeners(mouse_move={}, swipe_begin={}, swipe_update={}, swipe_end={}, config_reloaded={}, monitor_added={}, monitor_removed={}) hook_methods(mouse_button={}, render_workspace={}, should_render_window={}, render_window={}, is_solitary_blocked={})",
         runtime_enabled(),
         disabled_reason,
         disabled_source,
+        HTConfig::config_error(),
         views.size(),
         active_views,
         closing_views,

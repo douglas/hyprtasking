@@ -225,11 +225,13 @@ Common causes:
 
 - Hyprland version mismatch (check with `bash scripts/check-version-contract.sh`)
 - Plugin loaded multiple times (check with `hyprctl plugin list`)
-- Invalid safety-sensitive config values (for example `grid:rows = 0`,
-  `grid:cols = 0`, or `gestures:move_distance = 0`)
 
-If the disable reason reports invalid config values, fix the options and reload
-the plugin binary:
+Invalid config values (for example `grid:rows = 0`, `grid:cols = 0`, or
+`gestures:move_distance = 0`) do not disable the runtime. They are rejected,
+the previous values are kept, and the error is shown in a notification and in
+the `config_error` health field. Fix the options and reload the config.
+
+For other disable reasons, reload the plugin binary:
 
 ```bash
 hyprctl plugin unload /path/to/libhyprtasking.so

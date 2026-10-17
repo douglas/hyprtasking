@@ -153,10 +153,17 @@ smoke_dispatchers() {
   assert_extended_dispatchers_ready
 }
 
-assert_runtime_disabled() {
+assert_config_rejected() {
   run_capture_hyprtasking hyprtasking:toggle __smoke_probe__
-  if [[ "$CAPTURED_OUTPUT" != *"runtime disabled"* ]]; then
-    printf 'Expected runtime to be disabled, got: %s\n' "$CAPTURED_OUTPUT" >&2
+  if [[ "$CAPTURED_OUTPUT" == *"runtime disabled"* ]]; then
+    printf 'Invalid config should keep runtime enabled, got: %s\n' "$CAPTURED_OUTPUT" >&2
+    exit 1
+  fi
+
+  run_capture_hyprctl eval 'hl.plugin.hyprtasking.health("json")'
+  if [[ "$CAPTURED_OUTPUT" != *'"runtime_enabled":true'* ]] \
+    || [[ "$CAPTURED_OUTPUT" == *'"config_error":""'* ]]; then
+    printf 'Expected a reported config error with runtime enabled, got: %s\n' "$CAPTURED_OUTPUT" >&2
     exit 1
   fi
 }
@@ -187,34 +194,34 @@ smoke_runtime_safety() {
   restore_safe_options
 
   set_safety_option "grid:rows" 0
-  assert_runtime_disabled
+  assert_config_rejected
 
   restore_safe_options
 
   set_safety_option "grid:cols" 0
-  assert_runtime_disabled
+  assert_config_rejected
 
   restore_safe_options
 
   set_safety_option "gestures:move_distance" 0
-  assert_runtime_disabled
+  assert_config_rejected
 
   restore_safe_options
 
   set_safety_option "gestures:open_distance" 0
-  assert_runtime_disabled
+  assert_config_rejected
 
   restore_safe_options
 
   set_safety_option "drag_button" 272
   set_safety_option "select_button" 272
-  assert_runtime_disabled
+  assert_config_rejected
 
   restore_safe_options
 
   set_safety_option "gestures:move_fingers" 3
   set_safety_option "gestures:open_fingers" 3
-  assert_runtime_disabled
+  assert_config_rejected
 
   restore_safe_options
 }

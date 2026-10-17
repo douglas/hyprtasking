@@ -14,12 +14,31 @@
 #include "../overview.hpp"
 #include "../render.hpp"
 #include "../render_snapshot.hpp"
-#include "../runtime_fail.hpp"
-#include "../runtime_validation.hpp"
 #include "../state_guards.hpp"
 #include "../types.hpp"
 
 using Hyprutils::Utils::CScopeGuard;
+
+namespace {
+
+// Geometry can be briefly invalid (e.g. mid-modeset). Skip the work and log
+// each distinct problem once instead of disabling the runtime.
+void warn_invalid_geometry(std::string_view source, const std::string& reason) {
+    static std::string last_reason;
+    if (reason == last_reason)
+        return;
+
+    last_reason = reason;
+    Log::logger->log(Log::WARN, "[Hyprtasking] {}: {}", source, reason);
+}
+
+template<typename T>
+T skip_invalid_geometry(std::string_view source, const std::string& reason, T fallback) {
+    warn_invalid_geometry(source, reason);
+    return fallback;
+}
+
+} // namespace
 
 HTLayoutGrid::HTLayoutGrid(VIEWID new_view_id) : HTLayoutBase(new_view_id) {
     HTCompat::create_vector_animation({0, 0}, offset, "workspaces", AVARDAMAGE_NONE);
@@ -29,8 +48,7 @@ HTLayoutGrid::HTLayoutGrid(VIEWID new_view_id) : HTLayoutBase(new_view_id) {
 }
 
 WORKSPACEID HTLayoutGrid::get_ws_id_in_direction(int x, int y, std::string& direction) {
-    if (!HTRuntimeValidation::ensure_grid_gesture_or_disable("grid_config_validation"))
-        return WORKSPACE_INVALID;
+    HTConfig::refresh_runtime_config("grid_config_validation");
     const auto& config = HTConfig::runtime_config();
 
     if (direction == "up") {
@@ -57,8 +75,7 @@ void HTLayoutGrid::on_move_swipe(Vector2D delta) {
     if (monitor == nullptr)
         return;
 
-    if (!HTRuntimeValidation::ensure_grid_gesture_or_disable("gesture_config_validation"))
-        return;
+    HTConfig::refresh_runtime_config("gesture_config_validation");
     const auto& config = HTConfig::runtime_config();
 
     const CBox min_ws = calculate_ws_box(0, 0, HT_VIEW_CLOSED);
@@ -258,7 +275,7 @@ CBox HTLayoutGrid::calculate_ws_box(int x, int y, HTViewStage stage) {
     const Vector2D gaps = {gap_width, gap_width};
 
     if (ROWS <= 0 || COLS <= 0) {
-        return HTRuntimeFail::disable_and_return(
+        return skip_invalid_geometry(
             "grid_config_validation",
             std::format("Invalid grid dimensions rows={} cols={}", ROWS, COLS),
             CBox {}
@@ -266,7 +283,7 @@ CBox HTLayoutGrid::calculate_ws_box(int x, int y, HTViewStage stage) {
     }
     if (!HTLogic::gridCellCount(ROWS, COLS, HTConfig::MAX_GRID_ROWS, HTConfig::MAX_GRID_COLS)
              .has_value()) {
-        return HTRuntimeFail::disable_and_return(
+        return skip_invalid_geometry(
             "grid_config_validation",
             std::format(
                 "Grid dimensions exceed supported maximum rows={} cols={} max_rows={} max_cols={}",
@@ -280,7 +297,7 @@ CBox HTLayoutGrid::calculate_ws_box(int x, int y, HTViewStage stage) {
     }
     if (!HTLogic::isPositiveFinite(monitor_scale) || !HTLogic::isPositiveFinite(transformed_size.x)
         || !HTLogic::isPositiveFinite(transformed_size.y)) {
-        return HTRuntimeFail::disable_and_return(
+        return skip_invalid_geometry(
             "grid_geometry_validation",
             std::format(
                 "Invalid monitor geometry scale={} size={}x{}",
@@ -293,7 +310,7 @@ CBox HTLayoutGrid::calculate_ws_box(int x, int y, HTViewStage stage) {
     }
 
     if (gap_width > std::min(transformed_size.x, transformed_size.y) || gap_width < 0) {
-        return HTRuntimeFail::disable_and_return(
+        return skip_invalid_geometry(
             "grid_config_validation",
             std::format(
                 "Gap size {} induces invalid render dimensions (monitor {}x{})",
@@ -390,7 +407,7 @@ void HTLayoutGrid::render() {
 
     const auto render_scale = HTLogic::dragWindowScale(scale->value());
     if (!render_scale.has_value()) {
-        HTRuntimeFail::disable(
+        warn_invalid_geometry(
             "grid_render_validation",
             std::format("Invalid render scale {}", scale->value())
         );
@@ -412,7 +429,7 @@ void HTLayoutGrid::render() {
     const Vector2D transformed_size = HTCompat::monitor_transformed_size(monitor);
     if (!HTLogic::isPositiveFinite(transformed_size.x)
         || !HTLogic::isPositiveFinite(transformed_size.y)) {
-        HTRuntimeFail::disable(
+        warn_invalid_geometry(
             "grid_render_validation",
             std::format("Invalid monitor render size {}x{}", transformed_size.x, transformed_size.y)
         );

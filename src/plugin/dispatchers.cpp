@@ -10,7 +10,7 @@ extern "C" {
 
 #include "../globals.hpp"
 #include "../overview.hpp"
-#include "../runtime_validation.hpp"
+#include "../config.hpp"
 #include "guards.hpp"
 
 namespace {
@@ -26,8 +26,7 @@ SDispatchResult requireRuntimeReady() {
         return {.success = false, .error = "ht_manager is null"};
     if (!ht_manager->runtime_enabled())
         return {.success = false, .error = "runtime disabled"};
-    if (!HTRuntimeValidation::ensure_grid_gesture_or_disable("runtime_config_validation"))
-        return {.success = false, .error = "runtime disabled"};
+    HTConfig::refresh_runtime_config("runtime_config_validation");
     return {};
 }
 

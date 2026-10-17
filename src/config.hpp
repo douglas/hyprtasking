@@ -38,8 +38,12 @@ namespace Detail {
 } // namespace Detail
 
 bool register_values();
-bool refresh_runtime_config_or_disable(std::string_view source);
+// Invalid values keep the last good config and report the error; the
+// runtime stays enabled so a corrected reload takes effect.
+bool refresh_runtime_config(std::string_view source);
 const RuntimeConfig& runtime_config();
+// Last rejected config error, empty when the current config is valid.
+const std::string& config_error();
 void reset_runtime_config();
 
 } // namespace HTConfig
