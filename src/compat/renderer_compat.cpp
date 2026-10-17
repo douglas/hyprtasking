@@ -1,5 +1,6 @@
 #include "renderer_compat.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <format>
 #include <hyprland/src/config/ConfigValue.hpp>
@@ -375,25 +376,23 @@ bool hookShouldRenderWindow(void* thisptr, PHLWINDOW window, PHLMONITOR monitor)
 uint32_t hookIsSolitaryBlocked(void* thisptr, bool full) {
     // Fullscreen/solitary workspaces are otherwise skipped by Hyprland before
     // the overview can render their workspace cells.
-    return HTPlugin::guardedValue(
-        "hook_is_solitary_blocked",
-        solitaryBlockedOriginal(thisptr, full),
-        [&] {
-            if (ht_manager == nullptr)
-                return solitaryBlockedOriginal(thisptr, full);
-            if (!ht_manager->runtime_enabled())
-                return solitaryBlockedOriginal(thisptr, full);
+    const uint32_t original_result = solitaryBlockedOriginal(thisptr, full);
+    return HTPlugin::guardedValue("hook_is_solitary_blocked", original_result, [&] {
+        if (ht_manager == nullptr || !ht_manager->runtime_enabled())
+            return original_result;
 
-            const PHTVIEW view = ht_manager->get_view_from_cursor();
-            if (view == nullptr)
-                return solitaryBlockedOriginal(thisptr, full);
+        // thisptr is the monitor being asked about, not the cursor's monitor.
+        const auto view = std::ranges::find_if(ht_manager->views, [thisptr](const PHTVIEW& view) {
+            return view != nullptr && view->get_monitor().get() == thisptr;
+        });
+        if (view == ht_manager->views.end())
+            return original_result;
 
-            if (view->active || view->navigating)
-                return static_cast<uint32_t>(HTCompat::MonitorClass::SC_UNKNOWN);
+        if ((*view)->active || (*view)->navigating)
+            return static_cast<uint32_t>(HTCompat::MonitorClass::SC_UNKNOWN);
 
-            return solitaryBlockedOriginal(thisptr, full);
-        }
-    );
+        return original_result;
+    });
 }
 
 } // namespace
