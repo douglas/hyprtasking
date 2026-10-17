@@ -459,6 +459,9 @@ void HTLayoutGrid::render() {
     const WORKSPACEID selected_workspace_id = par_view->visual_workspace_id(
         start_workspace == nullptr ? WORKSPACE_INVALID : HTCompat::workspace_id(start_workspace)
     );
+    // Damage the whole monitor every frame while the overview is up: Hyprland
+    // does not damage windows on hidden workspaces, so their grid cells would
+    // otherwise stop updating.
     HTCompat::damage_monitor(monitor);
     const Vector2D transformed_size = HTCompat::monitor_transformed_size(monitor);
     if (!HTLogic::isPositiveFinite(transformed_size.x)
