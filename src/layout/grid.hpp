@@ -1,9 +1,8 @@
 #pragma once
 
+#include <hyprland/src/helpers/AnimatedVariable.hpp>
 #include <optional>
 #include <string>
-
-#include <hyprland/src/helpers/AnimatedVariable.hpp>
 
 #include "../types.hpp"
 #include "layout_base.hpp"
@@ -14,12 +13,13 @@ class HTLayoutGrid: public HTLayoutBase {
         Vector2D transformed_size;
         Vector2D gaps;
         Vector2D start_offset;
-        double   opened_scale = 1.;
+        double opened_scale = 1.;
     };
+
     struct LayoutShape {
-        int  block = -1;
-        int  rows = 0;
-        int  cols = 0;
+        int block = -1;
+        int rows = 0;
+        int cols = 0;
         bool operator==(const LayoutShape&) const = default;
     };
 

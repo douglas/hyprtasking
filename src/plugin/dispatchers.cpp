@@ -8,9 +8,9 @@ extern "C" {
 #include <lua.h>
 }
 
+#include "../config.hpp"
 #include "../globals.hpp"
 #include "../overview.hpp"
-#include "../config.hpp"
 #include "guards.hpp"
 
 namespace {

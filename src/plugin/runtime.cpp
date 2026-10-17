@@ -297,7 +297,10 @@ bool registerCallbacks() {
         return false;
     if (!mark_listener_ready(
             monitor_layout_changed_listener_info,
-            HTCompat::listen_monitor_layout_changed(g_monitor_layout_changed_listener, registerMonitors),
+            HTCompat::listen_monitor_layout_changed(
+                g_monitor_layout_changed_listener,
+                registerMonitors
+            ),
             "monitor.layoutChanged"
         ))
         return false;

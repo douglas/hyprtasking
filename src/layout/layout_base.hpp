@@ -27,7 +27,7 @@ class HTLayoutBase {
   protected:
     // Same as monitor_id of the parent view
     VIEWID view_id;
-    bool   rendered_workspace_cells = false;
+    bool rendered_workspace_cells = false;
 
   public:
     using CallbackFun = Hyprutils::Animation::CBaseAnimatedVariable::CallbackFun;

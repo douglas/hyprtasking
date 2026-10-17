@@ -306,7 +306,10 @@ void hookRenderBorder(
 ) {
     const auto original = HTCompat::hook_original<render_border_t>(render_border_hook);
     if (original == nullptr) {
-        disable_runtime_for_render_failure("hook_render_border", "missing renderBorder original call-through");
+        disable_runtime_for_render_failure(
+            "hook_render_border",
+            "missing renderBorder original call-through"
+        );
         return;
     }
 
@@ -333,14 +336,7 @@ void hookRenderBorderLerp(
     }
 
     render_border_for_overview(box, data, [&](const CBox& render_box, const auto& render_data) {
-        original(
-            thisptr,
-            render_box,
-            first_gradient,
-            second_gradient,
-            lerp,
-            render_data
-        );
+        original(thisptr, render_box, first_gradient, second_gradient, lerp, render_data);
     });
 }
 
@@ -384,9 +380,10 @@ uint32_t hookIsSolitaryBlocked(void* thisptr, bool full) {
             return original_result;
 
         // thisptr is the monitor being asked about, not the cursor's monitor.
-        const auto view = std::ranges::find_if(ht_manager->views, [thisptr](const PHTVIEW& candidate) {
-            return candidate != nullptr && candidate->get_monitor().get() == thisptr;
-        });
+        const auto view =
+            std::ranges::find_if(ht_manager->views, [thisptr](const PHTVIEW& candidate) {
+                return candidate != nullptr && candidate->get_monitor().get() == thisptr;
+            });
         if (view == ht_manager->views.end())
             return original_result;
 
@@ -629,9 +626,16 @@ bool render_window_original(
     if (thisptr == nullptr || render_window == nullptr || window == nullptr || monitor == nullptr)
         return false;
 
-    reinterpret_cast<render_window_t>(
-        render_window
-    )(thisptr, window, monitor, time, decorate, mode, ignore_position, standalone);
+    reinterpret_cast<render_window_t>(render_window)(
+        thisptr,
+        window,
+        monitor,
+        time,
+        decorate,
+        mode,
+        ignore_position,
+        standalone
+    );
     return true;
 }
 

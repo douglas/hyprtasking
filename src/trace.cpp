@@ -1,10 +1,11 @@
 #include "trace.hpp"
 
-#include <cstdlib>
 #include <fcntl.h>
+#include <unistd.h>
+
+#include <cstdlib>
 #include <string>
 #include <string_view>
-#include <unistd.h>
 
 #include "config.hpp"
 

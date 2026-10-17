@@ -1,8 +1,7 @@
 #include <exception>
-#include <string_view>
-
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprland/src/plugins/PluginSystem.hpp>
+#include <string_view>
 
 #include "build_contract.hpp"
 #include "compat/profile.hpp"

@@ -16,7 +16,6 @@
     #include <hyprland/src/config/values/types/IntValue.hpp>
 #endif
 
-
 namespace {
 
 HTConfig::RuntimeConfig g_runtime_config;

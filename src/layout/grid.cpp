@@ -2,10 +2,10 @@
 
 #include <cmath>
 #include <format>
-#include <optional>
-#include <stdexcept>
 #include <hyprutils/math/Vector2D.hpp>
 #include <hyprutils/utils/ScopeGuard.hpp>
+#include <optional>
+#include <stdexcept>
 #include <string_view>
 
 #include "../compat/renderer_compat.hpp"
@@ -359,7 +359,8 @@ CBox HTLayoutGrid::cell_box(const GridGeometry& geometry, int x, int y, HTViewSt
 
     const Vector2D ws_sz = geometry.transformed_size * use_scale;
     return CBox {
-        Vector2D {x, y} * (ws_sz + geometry.gaps) + geometry.gaps + use_offset + geometry.start_offset,
+        Vector2D {x, y} * (ws_sz + geometry.gaps) + geometry.gaps + use_offset
+            + geometry.start_offset,
         ws_sz
     };
 }
@@ -371,7 +372,6 @@ CBox HTLayoutGrid::calculate_ws_box(int x, int y, HTViewStage stage) {
 
     return cell_box(*geometry, x, y, stage);
 }
-
 
 void HTLayoutGrid::set_grid_block(int block) {
     grid_block = block;

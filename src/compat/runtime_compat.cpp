@@ -1,8 +1,8 @@
 #include "runtime_compat.hpp"
 
 #include <hyprland/src/Compositor.hpp>
-#include <memory>
 #include <hyprland/src/config/ConfigManager.hpp>
+#include <memory>
 
 #include "../build_contract.hpp"
 #include "../globals.hpp"

@@ -26,10 +26,9 @@ class HTView {
 
   private:
     PHLMONITORREF cached_monitor;
-    bool          warned_missing_monitor = false;
+    bool warned_missing_monitor = false;
 
   public:
-
     PHLMONITOR get_monitor();
     // Re-resolve the monitor from monitor_id; call after monitor changes.
     void refresh_monitor();
