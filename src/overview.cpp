@@ -308,7 +308,7 @@ void HTView::move_id(WORKSPACEID ws_id) {
     );
 }
 
-void HTView::move(std::string arg) {
+void HTView::move(std::string_view arg) {
     const PHLMONITOR monitor = get_monitor();
     if (monitor == nullptr)
         return;
@@ -384,9 +384,8 @@ bool HTView::navigate_selection(const std::string& arg) {
             return false;
         }
 
-        std::string direction = navigate_arg.direction;
         const WORKSPACEID target_ws_id =
-            layout->get_ws_id_in_direction(ws_layout->x, ws_layout->y, direction);
+            layout->get_ws_id_in_direction(ws_layout->x, ws_layout->y, navigate_arg.direction);
         HTTrace::log(
             "[Hyprtasking][trace] navigate_selection source=({}, {}) target_ws={}",
             ws_layout->x,

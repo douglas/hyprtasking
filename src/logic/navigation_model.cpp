@@ -40,4 +40,33 @@ NavigateArg parseNavigateArg(std::string_view arg) {
     return {.kind = NavigateArgKind::Invalid};
 }
 
+std::optional<GridPosition>
+moveGridInDirection(int x, int y, std::string_view direction, int rows, int cols, bool loop) {
+    if (rows <= 0 || cols <= 0)
+        return std::nullopt;
+
+    if (direction == "up")
+        y--;
+    else if (direction == "down")
+        y++;
+    else if (direction == "right")
+        x++;
+    else if (direction == "left")
+        x--;
+    else
+        return std::nullopt;
+
+    if (loop)
+        return GridPosition {.x = (x + cols) % cols, .y = (y + rows) % rows};
+
+    if (x < 0 || x >= cols || y < 0 || y >= rows)
+        return std::nullopt;
+
+    return GridPosition {.x = x, .y = y};
+}
+
+WorkspaceID gridWorkspaceID(int block, int rows, int cols, int x, int y) {
+    return static_cast<WorkspaceID>(block * rows + y) * cols + x + 1;
+}
+
 } // namespace HTLogic

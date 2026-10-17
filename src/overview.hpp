@@ -3,6 +3,7 @@
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/helpers/AnimatedVariable.hpp>
 #include <hyprutils/math/Vector2D.hpp>
+#include <string_view>
 
 #include "layout/grid.hpp"
 
@@ -53,7 +54,7 @@ class HTView {
 
     void move_id(WORKSPACEID ws_id);
     // arg is up, down, left, right;
-    void move(std::string arg);
+    void move(std::string_view arg);
     bool navigate_selection(const std::string& arg);
 };
 

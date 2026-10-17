@@ -13,6 +13,7 @@
 #include "../config.hpp"
 #include "../globals.hpp"
 #include "../logic/geometry_model.hpp"
+#include "../logic/navigation_model.hpp"
 #include "../overview.hpp"
 #include "../render.hpp"
 #include "../render_snapshot.hpp"
@@ -50,27 +51,21 @@ HTLayoutGrid::HTLayoutGrid(VIEWID new_view_id) : HTLayoutBase(new_view_id) {
     init_position();
 }
 
-WORKSPACEID HTLayoutGrid::get_ws_id_in_direction(int x, int y, std::string& direction) {
+WORKSPACEID HTLayoutGrid::get_ws_id_in_direction(int x, int y, std::string_view direction) {
     HTConfig::refresh_runtime_config("grid_config_validation");
     const auto& config = HTConfig::runtime_config();
 
-    if (direction == "up") {
-        y--;
-    } else if (direction == "down") {
-        y++;
-    } else if (direction == "right") {
-        x++;
-    } else if (direction == "left") {
-        x--;
-    } else {
+    const auto target = HTLogic::moveGridInDirection(
+        x,
+        y,
+        direction,
+        config.grid_rows,
+        config.grid_cols,
+        config.grid_loop
+    );
+    if (!target.has_value())
         return WORKSPACE_INVALID;
-    }
-
-    if (config.grid_loop) {
-        x = (x + config.grid_cols) % config.grid_cols;
-        y = (y + config.grid_rows) % config.grid_rows;
-    }
-    return get_ws_id_from_xy(x, y);
+    return get_ws_id_from_xy(target->x, target->y);
 }
 
 void HTLayoutGrid::on_move_swipe(Vector2D delta) {
@@ -387,7 +382,13 @@ void HTLayoutGrid::place_workspaces() {
     const auto& config = HTConfig::runtime_config();
     const int cell_count = config.grid_rows * config.grid_cols;
     for (int cell = 0; cell < cell_count; cell++) {
-        const WORKSPACEID ws_id = grid_block * cell_count + cell + 1;
+        const WORKSPACEID ws_id = HTLogic::gridWorkspaceID(
+            grid_block,
+            config.grid_rows,
+            config.grid_cols,
+            cell % config.grid_cols,
+            cell / config.grid_cols
+        );
         const PHLWORKSPACE workspace = HTCompat::workspace_by_id(ws_id);
         if (workspace != nullptr && HTCompat::workspace_monitor_id(workspace) != view_id)
             HTCompat::move_workspace_to_monitor(workspace, monitor, true);
@@ -416,7 +417,7 @@ void HTLayoutGrid::build_overview_layout(HTViewStage stage) {
 
     for (int y = 0; y < ROWS; y++) {
         for (int x = 0; x < COLS; x++) {
-            const WORKSPACEID ws_id = (grid_block * ROWS + y) * COLS + x + 1;
+            const WORKSPACEID ws_id = HTLogic::gridWorkspaceID(grid_block, ROWS, COLS, x, y);
             overview_layout[ws_id] = HTWorkspace {x, y, cell_box(*geometry, x, y, stage)};
         }
     }

@@ -24,52 +24,6 @@ void expect(bool condition, std::string_view message) {
     std::exit(1);
 }
 
-struct GridPosition {
-    int x = 0;
-    int y = 0;
-};
-
-std::optional<GridPosition> moveInDirection(int x, int y, std::string_view direction) {
-    if (direction == "up")
-        return GridPosition {.x = x, .y = y - 1};
-    if (direction == "down")
-        return GridPosition {.x = x, .y = y + 1};
-    if (direction == "right")
-        return GridPosition {.x = x + 1, .y = y};
-    if (direction == "left")
-        return GridPosition {.x = x - 1, .y = y};
-
-    return std::nullopt;
-}
-
-std::optional<GridPosition>
-moveGridInDirection(int x, int y, std::string_view direction, int rows, int cols, bool loop) {
-    if (rows <= 0 || cols <= 0)
-        return std::nullopt;
-
-    const auto moved = moveInDirection(x, y, direction);
-    if (!moved.has_value())
-        return std::nullopt;
-
-    GridPosition result = *moved;
-    if (loop) {
-        result.x = (result.x + cols) % cols;
-        result.y = (result.y + rows) % rows;
-        return result;
-    }
-
-    if (result.x < 0 || result.x >= cols || result.y < 0 || result.y >= rows)
-        return std::nullopt;
-
-    return result;
-}
-
-HTLogic::WorkspaceID
-gridWorkspaceID(long view_id, int first_ws_offset, int rows, int cols, int x, int y) {
-    const int ws_per_view = rows * cols;
-    return view_id * ws_per_view + first_ws_offset + (view_id * rows + y) * cols + x + 1;
-}
-
 } // namespace
 
 int main() {
@@ -214,11 +168,21 @@ int main() {
         expect(!result.has_value(), "grid move should reject invalid dimensions");
     }
 
-    expect(
-        gridWorkspaceID(0, 0, 2, 3, 2, 1) == 6,
-        "grid workspace ids should match the first view"
-    );
-    expect(gridWorkspaceID(1, 6, 2, 3, 2, 1) == 24, "grid workspace ids should match offset views");
+    expect(gridWorkspaceID(0, 2, 3, 0, 0) == 1, "the first block should start at workspace 1");
+    expect(gridWorkspaceID(0, 2, 3, 2, 1) == 6, "the first block should end at rows * cols");
+    expect(gridWorkspaceID(1, 2, 3, 0, 0) == 7, "the second block should follow the first");
+    expect(gridWorkspaceID(1, 2, 3, 2, 1) == 12, "the second block should end at 2 * rows * cols");
+    {
+        const auto result = moveGridInDirection(1, 1, "up", 2, 3, true);
+        expect(result.has_value() && result->x == 1 && result->y == 0, "grid move should go up");
+    }
+    {
+        const auto result = moveGridInDirection(2, 1, "down", 2, 3, true);
+        expect(
+            result.has_value() && result->x == 2 && result->y == 0,
+            "grid move should wrap down"
+        );
+    }
 
     expect(HTLogic::isPositiveFinite(1.0f), "positive finite values should be accepted");
     expect(!HTLogic::isPositiveFinite(0.0f), "zero should be rejected as invalid geometry");

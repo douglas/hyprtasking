@@ -2,7 +2,7 @@
 
 #include <hyprland/src/helpers/AnimatedVariable.hpp>
 #include <optional>
-#include <string>
+#include <string_view>
 
 #include "../types.hpp"
 #include "layout_base.hpp"
@@ -45,7 +45,7 @@ class HTLayoutGrid: public HTLayoutBase {
     void on_move_swipe(Vector2D delta);
     WORKSPACEID on_move_swipe_end();
 
-    WORKSPACEID get_ws_id_in_direction(int x, int y, std::string& direction);
+    WORKSPACEID get_ws_id_in_direction(int x, int y, std::string_view direction);
 
     bool should_render_window(PHLWINDOW window, bool original_result);
     float drag_window_scale();
