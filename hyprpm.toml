@@ -16,6 +16,6 @@ description = "A workspace management plugin."
 authors = ["douglas"]
 output = "build/libhyprtasking.so"
 build = [
-    "meson setup build --buildtype=debug",
+    "meson setup build --buildtype=debugoptimized",
     "cd build && meson compile"
 ]
