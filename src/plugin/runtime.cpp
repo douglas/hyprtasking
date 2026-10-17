@@ -30,6 +30,7 @@ CHyprSignalListener g_swipe_end_listener;
 CHyprSignalListener g_config_reloaded_listener;
 CHyprSignalListener g_monitor_added_listener;
 CHyprSignalListener g_monitor_removed_listener;
+CHyprSignalListener g_monitor_layout_changed_listener;
 
 template<class... Args>
 void trace_log(std::format_string<Args...> fmt, Args&&... args) {
@@ -52,6 +53,7 @@ void resetListenerHealth() {
     config_reloaded_listener_info = {};
     monitor_added_listener_info = {};
     monitor_removed_listener_info = {};
+    monitor_layout_changed_listener_info = {};
 }
 
 bool mark_listener_ready(HTListenerInfo& info, bool installed, std::string_view label) {
@@ -236,6 +238,7 @@ void unregisterCallbacks() {
     g_config_reloaded_listener.reset();
     g_monitor_added_listener.reset();
     g_monitor_removed_listener.reset();
+    g_monitor_layout_changed_listener.reset();
     resetListenerHealth();
 }
 
@@ -290,6 +293,12 @@ bool registerCallbacks() {
             monitor_removed_listener_info,
             HTCompat::listen_monitor_removed(g_monitor_removed_listener, registerMonitors),
             "monitor.removed"
+        ))
+        return false;
+    if (!mark_listener_ready(
+            monitor_layout_changed_listener_info,
+            HTCompat::listen_monitor_layout_changed(g_monitor_layout_changed_listener, registerMonitors),
+            "monitor.layoutChanged"
         ))
         return false;
 

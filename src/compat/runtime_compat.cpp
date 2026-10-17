@@ -435,3 +435,17 @@ bool HTCompat::listen_monitor_removed(
     listener = bus->m_events.monitor.removed.listen(callback);
     return true;
 }
+
+// Fired when mirroring or other layout changes edit the monitor list without
+// an added/removed event.
+bool HTCompat::listen_monitor_layout_changed(
+    CHyprSignalListener& listener,
+    const std::function<void()>& callback
+) {
+    auto& bus = Event::bus();
+    if (!bus || !callback)
+        return false;
+
+    listener = bus->m_events.monitor.layoutChanged.listen(callback);
+    return true;
+}

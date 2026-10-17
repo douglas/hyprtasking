@@ -81,5 +81,9 @@ bool listen_swipe_end(
 bool listen_config_reloaded(CHyprSignalListener& listener, const std::function<void()>& callback);
 bool listen_monitor_added(CHyprSignalListener& listener, const std::function<void()>& callback);
 bool listen_monitor_removed(CHyprSignalListener& listener, const std::function<void()>& callback);
+bool listen_monitor_layout_changed(
+    CHyprSignalListener& listener,
+    const std::function<void()>& callback
+);
 
 } // namespace HTCompat

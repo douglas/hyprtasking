@@ -300,7 +300,7 @@ std::string HTManager::runtime_health_summary(bool json) const {
 
     if (json) {
         return std::format(
-            "{{\"runtime_enabled\":{},\"disable_reason\":\"{}\",\"failure_source\":\"{}\",\"config_error\":\"{}\",\"views\":{},\"active_views\":{},\"closing_views\":{},\"navigating_views\":{},\"hooks\":{{\"mouse_button\":{},\"render_workspace\":{},\"should_render_window\":{},\"is_solitary_blocked\":{}}},\"listeners\":{{\"mouse_move\":{},\"swipe_begin\":{},\"swipe_update\":{},\"swipe_end\":{},\"config_reloaded\":{},\"monitor_added\":{},\"monitor_removed\":{}}},\"hook_details\":{{\"mouse_button\":{},\"render_workspace\":{},\"should_render_window\":{},\"render_window\":{},\"is_solitary_blocked\":{}}}}}",
+            "{{\"runtime_enabled\":{},\"disable_reason\":\"{}\",\"failure_source\":\"{}\",\"config_error\":\"{}\",\"views\":{},\"active_views\":{},\"closing_views\":{},\"navigating_views\":{},\"hooks\":{{\"mouse_button\":{},\"render_workspace\":{},\"should_render_window\":{},\"is_solitary_blocked\":{}}},\"listeners\":{{\"mouse_move\":{},\"swipe_begin\":{},\"swipe_update\":{},\"swipe_end\":{},\"config_reloaded\":{},\"monitor_added\":{},\"monitor_removed\":{},\"monitor_layout_changed\":{}}},\"hook_details\":{{\"mouse_button\":{},\"render_workspace\":{},\"should_render_window\":{},\"render_window\":{},\"is_solitary_blocked\":{}}}}}",
             runtime_enabled() ? "true" : "false",
             json_escape(disabled_reason),
             json_escape(disabled_source),
@@ -320,6 +320,7 @@ std::string HTManager::runtime_health_summary(bool json) const {
             listener_json(config_reloaded_listener_info),
             listener_json(monitor_added_listener_info),
             listener_json(monitor_removed_listener_info),
+            listener_json(monitor_layout_changed_listener_info),
             hook_json(
                 input_mouse_button_hook != nullptr,
                 HTCompat::function_hook_original_ready(input_mouse_button_hook),
@@ -349,7 +350,7 @@ std::string HTManager::runtime_health_summary(bool json) const {
     }
 
     return std::format(
-        "runtime_enabled={} disable_reason=\"{}\" failure_source=\"{}\" config_error=\"{}\" views={} active_views={} closing_views={} navigating_views={} hooks(mouse_button={}, render_workspace={}, should_render_window={}, is_solitary_blocked={}) listeners(mouse_move={}, swipe_begin={}, swipe_update={}, swipe_end={}, config_reloaded={}, monitor_added={}, monitor_removed={}) hook_methods(mouse_button={}, render_workspace={}, should_render_window={}, render_window={}, is_solitary_blocked={})",
+        "runtime_enabled={} disable_reason=\"{}\" failure_source=\"{}\" config_error=\"{}\" views={} active_views={} closing_views={} navigating_views={} hooks(mouse_button={}, render_workspace={}, should_render_window={}, is_solitary_blocked={}) listeners(mouse_move={}, swipe_begin={}, swipe_update={}, swipe_end={}, config_reloaded={}, monitor_added={}, monitor_removed={}, monitor_layout_changed={}) hook_methods(mouse_button={}, render_workspace={}, should_render_window={}, render_window={}, is_solitary_blocked={})",
         runtime_enabled(),
         disabled_reason,
         disabled_source,
@@ -369,6 +370,7 @@ std::string HTManager::runtime_health_summary(bool json) const {
         config_reloaded_listener_info.installed,
         monitor_added_listener_info.installed,
         monitor_removed_listener_info.installed,
+        monitor_layout_changed_listener_info.installed,
         input_mouse_button_hook_info.method,
         render_workspace_hook_info.method,
         should_render_window_hook_info.method,

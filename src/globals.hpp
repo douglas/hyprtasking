@@ -48,5 +48,6 @@ inline HTListenerInfo swipe_end_listener_info;
 inline HTListenerInfo config_reloaded_listener_info;
 inline HTListenerInfo monitor_added_listener_info;
 inline HTListenerInfo monitor_removed_listener_info;
+inline HTListenerInfo monitor_layout_changed_listener_info;
 
 inline std::unique_ptr<HTManager> ht_manager;
