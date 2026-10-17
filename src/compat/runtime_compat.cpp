@@ -263,9 +263,9 @@ bool HTCompat::do_later(const std::function<void()>& callback) {
 
 #if HT_HYPRLAND_GE_0_55
     const auto seq = std::make_shared<uint64_t>(0);
-    *seq = g_pEventLoopManager->doLater([callback, seq] {
+    *seq = g_pEventLoopManager->doLater([deferred = callback, seq] {
         std::erase(pending_do_later(), *seq);
-        callback();
+        deferred();
     });
     pending_do_later().push_back(*seq);
 #else

@@ -63,7 +63,7 @@ fi
 ORIGINAL_DEREF_MATCHES=$(rg -n --glob '!build/**' -- '->m_original' "$REPO_DIR/src" || true)
 if [[ -n "$ORIGINAL_DEREF_MATCHES" ]]; then
   DISALLOWED_ORIGINAL_DEREFS=$(printf '%s\n' "$ORIGINAL_DEREF_MATCHES" |
-    rg -v 'src/compat/profile\.cpp|src/compat/renderer_compat\.cpp|src/compat/runtime_compat\.cpp' || true)
+    rg -v 'src/compat/profile\.(cpp|hpp)|src/compat/renderer_compat\.cpp|src/compat/runtime_compat\.cpp' || true)
   if [[ -n "$DISALLOWED_ORIGINAL_DEREFS" ]]; then
     printf 'error: hook original access outside approved wrappers:\n%s\n' "$DISALLOWED_ORIGINAL_DEREFS" >&2
     EXIT_CODE=1
