@@ -83,7 +83,10 @@ plugin_src = [
   'src/plugin/runtime.cpp',
 ]
 
-src = core_src + layout_src + logic_src + plugin_src + pass_src
+src = core_src + layout_src + plugin_src + pass_src
+
+# Pure logic, shared by the plugin and the tests; no Hyprland dependency.
+logic_lib = static_library('htlogic', logic_src, pic: true)
 
 incdir = []
 dependencies = [
@@ -98,21 +101,14 @@ dependencies = [
 
 shared_module(meson.project_name(), src,
   dependencies: dependencies,
+  link_with: logic_lib,
   install: true,
   include_directories: incdir
 )
 
 logic_tests = executable('logic-tests',
-  [
-    'tests/logic_tests.cpp',
-    'src/logic/compat_model.cpp',
-    'src/logic/controller_state.cpp',
-    'src/logic/gesture_model.cpp',
-    'src/logic/geometry_model.cpp',
-    'src/logic/interaction_model.cpp',
-    'src/logic/navigation_model.cpp',
-    'src/logic/view_sync_model.cpp',
-  ],
+  'tests/logic_tests.cpp',
+  link_with: logic_lib,
   include_directories: include_directories('.'),
 )
 
