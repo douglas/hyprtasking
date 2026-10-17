@@ -4,8 +4,12 @@
 
 #include "compat/renderer_compat.hpp"
 
-class HTScopedMonitorWorkspace {
+class [[nodiscard]] HTScopedMonitorWorkspace {
   public:
+    // Copying or moving would restore the saved state twice.
+    HTScopedMonitorWorkspace(const HTScopedMonitorWorkspace&) = delete;
+    HTScopedMonitorWorkspace& operator=(const HTScopedMonitorWorkspace&) = delete;
+
     HTScopedMonitorWorkspace(PHLMONITOR monitor, bool use_change_workspace)
         : monitor(monitor),
           previous_workspace(
@@ -27,7 +31,7 @@ class HTScopedMonitorWorkspace {
         HTCompat::restore_monitor_workspace(monitor, workspace, use_change_workspace);
     }
 
-    void dismiss() {
+    void dismiss() noexcept {
         restore_on_destroy = false;
     }
 
@@ -38,8 +42,12 @@ class HTScopedMonitorWorkspace {
     bool            restore_on_destroy = true;
 };
 
-class HTScopedActiveWorkspace {
+class [[nodiscard]] HTScopedActiveWorkspace {
   public:
+    // Copying or moving would restore the saved state twice.
+    HTScopedActiveWorkspace(const HTScopedActiveWorkspace&) = delete;
+    HTScopedActiveWorkspace& operator=(const HTScopedActiveWorkspace&) = delete;
+
     HTScopedActiveWorkspace(PHLMONITOR monitor, PHLWORKSPACE workspace)
         : monitor(monitor),
           previous_workspace(
@@ -62,7 +70,7 @@ class HTScopedActiveWorkspace {
         HTCompat::restore_monitor_workspace(monitor, workspace, false);
     }
 
-    void dismiss() {
+    void dismiss() noexcept {
         restore_on_destroy = false;
     }
 
@@ -72,8 +80,12 @@ class HTScopedActiveWorkspace {
     bool            restore_on_destroy = true;
 };
 
-class HTScopedWorkspaceVisibility {
+class [[nodiscard]] HTScopedWorkspaceVisibility {
   public:
+    // Copying or moving would restore the saved state twice.
+    HTScopedWorkspaceVisibility(const HTScopedWorkspaceVisibility&) = delete;
+    HTScopedWorkspaceVisibility& operator=(const HTScopedWorkspaceVisibility&) = delete;
+
     HTScopedWorkspaceVisibility(PHLWORKSPACE workspace, bool visible)
         : workspace(workspace),
           previous_visible(HTCompat::workspace_render_visible(workspace)) {
@@ -87,7 +99,7 @@ class HTScopedWorkspaceVisibility {
         HTCompat::set_workspace_render_visibility(workspace, previous_visible);
     }
 
-    void dismiss() {
+    void dismiss() noexcept {
         restore_on_destroy = false;
     }
 
@@ -97,13 +109,17 @@ class HTScopedWorkspaceVisibility {
     bool         restore_on_destroy = true;
 };
 
-class HTScopedWorkspaceRender {
+class [[nodiscard]] HTScopedWorkspaceRender {
   public:
+    // Copying or moving would restore the saved state twice.
+    HTScopedWorkspaceRender(const HTScopedWorkspaceRender&) = delete;
+    HTScopedWorkspaceRender& operator=(const HTScopedWorkspaceRender&) = delete;
+
     HTScopedWorkspaceRender(PHLMONITOR monitor, PHLWORKSPACE workspace)
         : active_workspace(monitor, workspace),
           visible_workspace(workspace, true) {}
 
-    void dismiss() {
+    void dismiss() noexcept {
         active_workspace.dismiss();
         visible_workspace.dismiss();
     }
