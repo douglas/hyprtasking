@@ -397,13 +397,15 @@ void HTLayoutGrid::place_workspaces() {
     }
 }
 
-// Runs every frame while the overview renders: geometry is computed once and
-// the map is only rebuilt when the set of workspace ids changes.
+// Runs every frame while the overview renders: geometry is computed once, the
+// map is only rebuilt when the set of workspace ids changes, and boxes are only
+// recomputed when one of their inputs changed.
 void HTLayoutGrid::build_overview_layout(HTViewStage stage) {
     const auto geometry = grid_block < 0 ? std::nullopt : grid_geometry();
     if (!geometry.has_value()) {
         overview_layout.clear();
         layout_shape = {};
+        layout_inputs.reset();
         return;
     }
 
@@ -411,6 +413,18 @@ void HTLayoutGrid::build_overview_layout(HTViewStage stage) {
     const int ROWS = config.grid_rows;
     const int COLS = config.grid_cols;
     const LayoutShape shape {.block = grid_block, .rows = ROWS, .cols = COLS};
+    const LayoutInputs inputs {
+        .shape = shape,
+        .stage = stage,
+        .scale = scale->value(),
+        .offset = offset->value(),
+        .transformed_size = geometry->transformed_size,
+        .gaps = geometry->gaps,
+    };
+    if (layout_inputs == inputs)
+        return;
+    layout_inputs = inputs;
+
     if (shape != layout_shape) {
         overview_layout.clear();
         overview_layout.reserve(static_cast<size_t>(ROWS) * static_cast<size_t>(COLS));

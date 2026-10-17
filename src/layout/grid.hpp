@@ -23,10 +23,22 @@ class HTLayoutGrid: public HTLayoutBase {
         bool operator==(const LayoutShape&) const = default;
     };
 
+    // Everything the cell boxes depend on; unchanged inputs skip the rebuild.
+    struct LayoutInputs {
+        LayoutShape shape;
+        HTViewStage stage = HT_VIEW_CLOSED;
+        float scale = 0.F;
+        Vector2D offset;
+        Vector2D transformed_size;
+        Vector2D gaps;
+        bool operator==(const LayoutInputs&) const = default;
+    };
+
     std::optional<GridGeometry> grid_geometry();
     CBox cell_box(const GridGeometry& geometry, int x, int y, HTViewStage stage) const;
 
     LayoutShape layout_shape;
+    std::optional<LayoutInputs> layout_inputs;
     bool redraw_requested = true;
     PHLANIMVAR<float> scale;
     PHLANIMVAR<Vector2D> offset;
