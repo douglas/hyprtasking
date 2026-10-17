@@ -27,6 +27,7 @@ class HTLayoutGrid: public HTLayoutBase {
     CBox cell_box(const GridGeometry& geometry, int x, int y, HTViewStage stage) const;
 
     LayoutShape layout_shape;
+    bool redraw_requested = true;
     PHLANIMVAR<float> scale;
     PHLANIMVAR<Vector2D> offset;
     WORKSPACEID close_render_workspace_id = WORKSPACE_INVALID;
@@ -54,5 +55,8 @@ class HTLayoutGrid: public HTLayoutBase {
     void place_workspaces();
     void build_overview_layout(HTViewStage stage);
     void render();
+    // Draw at least one more overview frame on this monitor.
+    void request_redraw();
+    bool has_pending_motion() const;
     void cancel_animation_callbacks();
 };

@@ -159,7 +159,7 @@ void HTView::set_runtime_state(bool new_active, bool new_closing, bool new_navig
     }
 
     if (ht_manager != nullptr)
-        ht_manager->refresh_cursor_override();
+        ht_manager->refresh_runtime_activity();
 }
 
 void HTView::reset_interaction_state() {
@@ -306,6 +306,7 @@ void HTView::move_id(WORKSPACEID ws_id) {
         HTCompat::workspace_id(other_workspace),
         [this, was_active, was_closing](auto) { set_runtime_state(was_active, was_closing, false); }
     );
+    layout->request_redraw();
 }
 
 void HTView::move(std::string_view arg) {

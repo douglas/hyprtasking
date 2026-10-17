@@ -97,6 +97,11 @@ compat_surface_builtin_contracts_stream() {
     "src/compat/renderer_compat.cpp" \
     "PHLWORKSPACE                m_activeWorkspace        = nullptr;|||std::string                 m_name             = \"\";|||std::string                 m_description      = \"\";|||void        changeWorkspace(const PHLWORKSPACE& pWorkspace, bool internal = false, bool noMouseMove = false, bool noFocus = false);|||Vector2D                    m_position         = Vector2D(-1, -1);|||MONITORID                   m_id                     = MONITOR_INVALID;|||float                       m_scale                  = 1;|||Vector2D                    m_transformedSize  = Vector2D(0, 0);|||wl_output_transform         m_transform       = WL_OUTPUT_TRANSFORM_NORMAL;|||uint32_t    isSolitaryBlocked(bool full = false);|||CBox        logicalBox();@@@virtual CBox                        logicalBox() const override;"
   printf '%s\t%s\t%s\t%s\n' \
+    "overview redraw sources" \
+    "src/Compositor.hpp@@@src/desktop/state/ViewState.hpp@@@src/protocols/core/Compositor.hpp@@@src/event/EventBus.hpp@@@src/managers/eventLoop/EventLoopTimer.hpp@@@src/managers/eventLoop/EventLoopManager.hpp" \
+    "src/compat/runtime_compat.cpp" \
+    "std::vector<PHLWINDOW>                       m_windows;@@@virtual const std::vector<PHLWINDOW>&  windows() const override;|||CSignalT<>                          commit;|||Event<PHLWINDOW>                        open;|||Event<PHLWINDOW>                        close;|||Event<PHLWINDOW, PHLWORKSPACE>          moveToWorkspace;|||void  updateTimeout(std::optional<Time::steady_dur> timeout);|||void addTimer(SP<CEventLoopTimer> timer);|||void removeTimer(SP<CEventLoopTimer> timer);"
+  printf '%s\t%s\t%s\t%s\n' \
     "workspace render state fields" \
     "src/desktop/Workspace.hpp" \
     "src/compat/renderer_compat.cpp" \

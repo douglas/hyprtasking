@@ -1,11 +1,12 @@
 #pragma once
 
+#include <chrono>
+#include <hyprland/src/desktop/DesktopTypes.hpp>
+#include <hyprland/src/helpers/AnimatedVariable.hpp>
 #include <string>
 #include <string_view>
 
-#include <hyprland/src/desktop/DesktopTypes.hpp>
-#include <hyprland/src/helpers/AnimatedVariable.hpp>
-
+#include "compat/runtime_compat.hpp"
 #include "logic/interaction_model.hpp"
 #include "logic/view_sync_model.hpp"
 #include "overview.hpp"
@@ -29,6 +30,9 @@ class HTManager {
     using enum mouse_interaction_t;
 
     HTManager();
+    ~HTManager();
+    HTManager(const HTManager&) = delete;
+    HTManager& operator=(const HTManager&) = delete;
 
     std::vector<PHTVIEW> views;
 
@@ -49,7 +53,9 @@ class HTManager {
     void hide_all_views();
     void show_cursor_view();
     bool has_runtime_view();
-    void refresh_cursor_override();
+    void on_window_set_changed();
+    void request_redraw(PHLMONITOR monitor);
+    void refresh_runtime_activity();
     PHLWINDOW get_dragged_window();
     bool is_dragged_window(PHLWINDOW window);
     void set_dragged_window(PHLWINDOW window);
@@ -93,6 +99,10 @@ class HTManager {
     bool selection_pending = false;
     bool runtime_disabled = false;
     bool compat_blocked = false;
+    static constexpr std::chrono::milliseconds IDLE_REDRAW_INTERVAL {100};
+    std::vector<CHyprSignalListener> surface_commit_listeners;
+    SP<CEventLoopTimer> idle_redraw_timer;
+    bool redraw_sources_active = false;
     // Workspace block slots by monitor name; kept across hotplug.
     std::vector<std::string> monitor_blocks;
     std::string disabled_reason;
@@ -100,6 +110,7 @@ class HTManager {
 
     void reset_runtime_controls();
     void abort_drag_controller();
+    void sync_redraw_sources(bool rebuild);
     void claim_mouse_button(
         unsigned int button,
         mouse_interaction_t interaction,

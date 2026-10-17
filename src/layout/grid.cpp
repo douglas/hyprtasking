@@ -7,6 +7,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string_view>
+#include <utility>
 
 #include "../compat/renderer_compat.hpp"
 #include "../compat/runtime_compat.hpp"
@@ -85,6 +86,7 @@ void HTLayoutGrid::on_move_swipe(Vector2D delta) {
 
     offset->resetAllCallbacks();
     offset->setValueAndWarp(new_offset);
+    request_redraw();
 }
 
 WORKSPACEID HTLayoutGrid::on_move_swipe_end() {
@@ -459,10 +461,14 @@ void HTLayoutGrid::render() {
     const WORKSPACEID selected_workspace_id = par_view->visual_workspace_id(
         start_workspace == nullptr ? WORKSPACE_INVALID : HTCompat::workspace_id(start_workspace)
     );
-    // Damage the whole monitor every frame while the overview is up: Hyprland
-    // does not damage windows on hidden workspaces, so their grid cells would
-    // otherwise stop updating.
-    HTCompat::damage_monitor(monitor);
+    // Hyprland does not damage windows on hidden workspaces, and visible damage
+    // lands at real screen positions, not grid cells. So every overview frame
+    // redraws the whole monitor, and the next frame is only requested while
+    // something moves; surface commits and an idle timer in HTManager request
+    // the rest.
+    if (std::exchange(redraw_requested, false) || has_pending_motion()
+        || (render_snapshot.has_value() && render_snapshot->dragged_window.has_value()))
+        HTCompat::damage_monitor(monitor);
     const Vector2D transformed_size = HTCompat::monitor_transformed_size(monitor);
     if (!HTLogic::isPositiveFinite(transformed_size.x)
         || !HTLogic::isPositiveFinite(transformed_size.y)) {
@@ -556,6 +562,29 @@ void HTLayoutGrid::render() {
 
     if (render_snapshot.has_value())
         render_dragged_window_snapshot(*render_snapshot);
+}
+
+void HTLayoutGrid::request_redraw() {
+    redraw_requested = true;
+    const PHLMONITOR monitor = get_monitor();
+    if (monitor == nullptr)
+        return;
+
+    HTCompat::damage_monitor(monitor);
+    HTCompat::schedule_frame_for_monitor(monitor);
+}
+
+// Overview or window geometry still animating, so the next frame differs.
+bool HTLayoutGrid::has_pending_motion() const {
+    if (scale->isBeingAnimated() || offset->isBeingAnimated())
+        return true;
+
+    for (const PHLWINDOW& window : HTCompat::compositor_windows()) {
+        if (find_layout_workspace(HTCompat::window_workspace_id(window)) != nullptr
+            && HTCompat::window_geometry_animating(window))
+            return true;
+    }
+    return false;
 }
 
 void HTLayoutGrid::cancel_animation_callbacks() {

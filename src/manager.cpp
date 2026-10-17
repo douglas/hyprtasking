@@ -11,10 +11,17 @@
 #include "globals.hpp"
 #include "logic/view_sync_model.hpp"
 #include "overview.hpp"
+#include "plugin/guards.hpp"
 #include "state_guards.hpp"
 
 HTManager::HTManager() {
     reset_swipe_state();
+}
+
+// The timer callback and listeners run code from this plugin's .so.
+HTManager::~HTManager() {
+    surface_commit_listeners.clear();
+    HTCompat::stop_timer(idle_redraw_timer);
 }
 
 namespace {
@@ -186,11 +193,68 @@ bool HTManager::has_runtime_view() {
     });
 }
 
-void HTManager::refresh_cursor_override() {
+// Called whenever a view's active/closing/navigating state changes.
+void HTManager::refresh_runtime_activity() {
     if (compat_blocked)
         return;
 
     HTCompat::set_cursor_override_enabled(has_runtime_view());
+    sync_redraw_sources(false);
+}
+
+// While any overview is up, redraw it when a window surface commits, and on
+// an idle timer that catches what commits miss (subsurfaces, layer surfaces).
+void HTManager::sync_redraw_sources(bool rebuild) {
+    if (!has_runtime_view()) {
+        surface_commit_listeners.clear();
+        HTCompat::stop_timer(idle_redraw_timer);
+        redraw_sources_active = false;
+        return;
+    }
+
+    if (redraw_sources_active && !rebuild)
+        return;
+    redraw_sources_active = true;
+
+    surface_commit_listeners.clear();
+    for (const PHLWINDOW& window : HTCompat::compositor_windows()) {
+        auto listener = HTCompat::listen_window_surface_commit(
+            window,
+            [this, window_ref = PHLWINDOWREF {window}] {
+                HTPlugin::guardedCallback("surface_commit_redraw", [this, &window_ref] {
+                    if (const PHLWINDOW committed = window_ref.lock(); committed != nullptr)
+                        request_redraw(HTCompat::window_monitor(committed));
+                });
+            }
+        );
+        if (listener)
+            surface_commit_listeners.push_back(std::move(listener));
+    }
+
+    if (idle_redraw_timer == nullptr) {
+        idle_redraw_timer = HTCompat::start_repeating_timer(IDLE_REDRAW_INTERVAL, [this] {
+            HTPlugin::guardedCallback("idle_redraw", [this] { request_redraw(nullptr); });
+        });
+    }
+}
+
+void HTManager::on_window_set_changed() {
+    if (!redraw_sources_active)
+        return;
+
+    sync_redraw_sources(true);
+    request_redraw(nullptr);
+}
+
+// Redraws overviews with runtime activity, on one monitor or all of them.
+void HTManager::request_redraw(PHLMONITOR monitor) {
+    for (const PHTVIEW& view : views) {
+        if (view == nullptr || !view->has_runtime_activity())
+            continue;
+        if (monitor != nullptr && view->get_monitor() != monitor)
+            continue;
+        view->layout->request_redraw();
+    }
 }
 
 PHLWINDOW HTManager::get_dragged_window() {
@@ -218,7 +282,7 @@ void HTManager::reset() {
     disabled_reason.clear();
     disabled_source.clear();
     views.clear();
-    refresh_cursor_override();
+    refresh_runtime_activity();
 }
 
 void HTManager::prepare_for_unload() {
@@ -228,7 +292,7 @@ void HTManager::prepare_for_unload() {
     disabled_source = "plugin_exit";
     disabled_reason = "plugin unloading";
     views.clear();
-    refresh_cursor_override();
+    refresh_runtime_activity();
 }
 
 bool HTManager::runtime_enabled() const {
@@ -300,7 +364,7 @@ std::string HTManager::runtime_health_summary(bool json) const {
 
     if (json) {
         return std::format(
-            "{{\"runtime_enabled\":{},\"disable_reason\":\"{}\",\"failure_source\":\"{}\",\"config_error\":\"{}\",\"views\":{},\"active_views\":{},\"closing_views\":{},\"navigating_views\":{},\"hooks\":{{\"mouse_button\":{},\"render_workspace\":{},\"should_render_window\":{},\"is_solitary_blocked\":{}}},\"listeners\":{{\"mouse_move\":{},\"swipe_begin\":{},\"swipe_update\":{},\"swipe_end\":{},\"config_reloaded\":{},\"monitor_added\":{},\"monitor_removed\":{},\"monitor_layout_changed\":{}}},\"hook_details\":{{\"mouse_button\":{},\"render_workspace\":{},\"should_render_window\":{},\"render_window\":{},\"is_solitary_blocked\":{}}}}}",
+            "{{\"runtime_enabled\":{},\"disable_reason\":\"{}\",\"failure_source\":\"{}\",\"config_error\":\"{}\",\"views\":{},\"active_views\":{},\"closing_views\":{},\"navigating_views\":{},\"hooks\":{{\"mouse_button\":{},\"render_workspace\":{},\"should_render_window\":{},\"is_solitary_blocked\":{}}},\"listeners\":{{\"mouse_move\":{},\"swipe_begin\":{},\"swipe_update\":{},\"swipe_end\":{},\"config_reloaded\":{},\"monitor_added\":{},\"monitor_removed\":{},\"monitor_layout_changed\":{},\"window_set_changed\":{}}},\"hook_details\":{{\"mouse_button\":{},\"render_workspace\":{},\"should_render_window\":{},\"render_window\":{},\"is_solitary_blocked\":{}}}}}",
             runtime_enabled() ? "true" : "false",
             json_escape(disabled_reason),
             json_escape(disabled_source),
@@ -321,6 +385,7 @@ std::string HTManager::runtime_health_summary(bool json) const {
             listener_json(g_listeners.monitor_added),
             listener_json(g_listeners.monitor_removed),
             listener_json(g_listeners.monitor_layout_changed),
+            listener_json(g_listeners.window_set_changed),
             hook_json(
                 g_hooks.input_mouse_button.hook != nullptr,
                 HTCompat::function_hook_original_ready(g_hooks.input_mouse_button.hook),
@@ -350,7 +415,7 @@ std::string HTManager::runtime_health_summary(bool json) const {
     }
 
     return std::format(
-        "runtime_enabled={} disable_reason=\"{}\" failure_source=\"{}\" config_error=\"{}\" views={} active_views={} closing_views={} navigating_views={} hooks(mouse_button={}, render_workspace={}, should_render_window={}, is_solitary_blocked={}) listeners(mouse_move={}, swipe_begin={}, swipe_update={}, swipe_end={}, config_reloaded={}, monitor_added={}, monitor_removed={}, monitor_layout_changed={}) hook_methods(mouse_button={}, render_workspace={}, should_render_window={}, render_window={}, is_solitary_blocked={})",
+        "runtime_enabled={} disable_reason=\"{}\" failure_source=\"{}\" config_error=\"{}\" views={} active_views={} closing_views={} navigating_views={} hooks(mouse_button={}, render_workspace={}, should_render_window={}, is_solitary_blocked={}) listeners(mouse_move={}, swipe_begin={}, swipe_update={}, swipe_end={}, config_reloaded={}, monitor_added={}, monitor_removed={}, monitor_layout_changed={}, window_set_changed={}) hook_methods(mouse_button={}, render_workspace={}, should_render_window={}, render_window={}, is_solitary_blocked={})",
         runtime_enabled(),
         disabled_reason,
         disabled_source,
@@ -371,6 +436,7 @@ std::string HTManager::runtime_health_summary(bool json) const {
         g_listeners.monitor_added.installed,
         g_listeners.monitor_removed.installed,
         g_listeners.monitor_layout_changed.installed,
+        g_listeners.window_set_changed.installed,
         g_hooks.input_mouse_button.info.method,
         g_hooks.render_workspace.info.method,
         g_hooks.should_render_window.info.method,
@@ -420,7 +486,7 @@ void HTManager::reset_swipe_state() {
     swipe_state = HT_SWIPE_NONE;
     swipe_amt = 0.0f;
     swipe_view_id = INVALID_VIEW_ID;
-    refresh_cursor_override();
+    refresh_runtime_activity();
 }
 
 void HTManager::abort_drag_controller() {

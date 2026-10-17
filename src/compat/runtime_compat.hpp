@@ -1,11 +1,13 @@
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/event/EventBus.hpp>
 #include <hyprland/src/helpers/AnimatedVariable.hpp>
 #include <hyprland/src/layout/LayoutManager.hpp>
+#include <hyprland/src/managers/eventLoop/EventLoopTimer.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprutils/math/Vector2D.hpp>
@@ -87,5 +89,20 @@ bool listen_monitor_layout_changed(
     CHyprSignalListener& listener,
     const std::function<void()>& callback
 );
+// Window open, close and move-to-workspace events.
+bool listen_window_set_changed(
+    std::vector<CHyprSignalListener>& listeners,
+    const std::function<void()>& callback
+);
+
+std::vector<PHLWINDOW> compositor_windows();
+// Fires after each commit of the window's main surface; empty if it has none.
+CHyprSignalListener
+listen_window_surface_commit(PHLWINDOW window, const std::function<void()>& callback);
+
+// Repeating timer on Hyprland's event loop; stop it before the plugin unloads.
+SP<CEventLoopTimer>
+start_repeating_timer(std::chrono::milliseconds interval, const std::function<void()>& callback);
+void stop_timer(SP<CEventLoopTimer>& timer);
 
 } // namespace HTCompat

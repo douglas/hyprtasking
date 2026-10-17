@@ -771,6 +771,18 @@ CBox window_main_surface_box(PHLWINDOW window) {
     return window->getWindowMainSurfaceBox();
 }
 
+bool window_geometry_animating(PHLWINDOW window) {
+    if (window == nullptr)
+        return false;
+
+#if HT_HYPRLAND_GE_0_56
+    return window->positionAnimation()->isBeingAnimated()
+        || window->sizeAnimation()->isBeingAnimated();
+#else
+    return window->m_realPosition->isBeingAnimated() || window->m_realSize->isBeingAnimated();
+#endif
+}
+
 Vector2D window_real_position(PHLWINDOW window) {
     if (window == nullptr)
         return {};

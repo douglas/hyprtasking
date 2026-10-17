@@ -66,6 +66,7 @@ PHLWORKSPACE workspace_by_id(WORKSPACEID workspace_id);
 PHLWORKSPACE window_workspace(PHLWINDOW window);
 WORKSPACEID window_workspace_id(PHLWINDOW window);
 PHLMONITOR window_monitor(PHLWINDOW window);
+bool window_geometry_animating(PHLWINDOW window);
 CBox window_main_surface_box(PHLWINDOW window);
 Vector2D window_real_position(PHLWINDOW window);
 Vector2D window_real_position_goal(PHLWINDOW window);

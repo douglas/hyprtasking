@@ -31,6 +31,7 @@ CHyprSignalListener g_config_reloaded_listener;
 CHyprSignalListener g_monitor_added_listener;
 CHyprSignalListener g_monitor_removed_listener;
 CHyprSignalListener g_monitor_layout_changed_listener;
+std::vector<CHyprSignalListener> g_window_set_listeners;
 
 template<class... Args>
 void trace_log(std::format_string<Args...> fmt, Args&&... args) {
@@ -183,6 +184,13 @@ void onSwipeEnd([[maybe_unused]] IPointer::SSwipeEndEvent e, Event::SCallbackInf
     });
 }
 
+void onWindowSetChanged() {
+    HTPlugin::guardedCallback("on_window_set_changed", [] {
+        if (ht_manager != nullptr && ht_manager->runtime_enabled())
+            ht_manager->on_window_set_changed();
+    });
+}
+
 void onConfigReloaded() {
     HTPlugin::guardedCallback("on_config_reloaded", [] {
         HTConfig::refresh_runtime_config("on_config_reloaded");
@@ -232,6 +240,7 @@ void unregisterCallbacks() {
     g_monitor_added_listener.reset();
     g_monitor_removed_listener.reset();
     g_monitor_layout_changed_listener.reset();
+    g_window_set_listeners.clear();
     resetListenerHealth();
 }
 
@@ -295,6 +304,12 @@ bool registerCallbacks() {
                 registerMonitors
             ),
             "monitor.layoutChanged"
+        ))
+        return false;
+    if (!mark_listener_ready(
+            g_listeners.window_set_changed,
+            HTCompat::listen_window_set_changed(g_window_set_listeners, onWindowSetChanged),
+            "window.open/close/moveToWorkspace"
         ))
         return false;
 

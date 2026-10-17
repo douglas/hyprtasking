@@ -21,6 +21,7 @@
 #include <hyprland/src/managers/KeybindManager.hpp>
 #include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
+#include <hyprland/src/protocols/core/Compositor.hpp>
 #include <hyprland/src/render/Renderer.hpp>
 
 #include "animation_compat.hpp"
@@ -480,4 +481,74 @@ bool HTCompat::listen_monitor_layout_changed(
 
     listener = bus->m_events.monitor.layoutChanged.listen(callback);
     return true;
+}
+
+bool HTCompat::listen_window_set_changed(
+    std::vector<CHyprSignalListener>& listeners,
+    const std::function<void()>& callback
+) {
+    auto& bus = Event::bus();
+    if (!bus || !callback)
+        return false;
+
+    listeners.clear();
+    listeners.push_back(bus->m_events.window.open.listen(callback));
+    listeners.push_back(bus->m_events.window.close.listen(callback));
+    listeners.push_back(bus->m_events.window.moveToWorkspace.listen(callback));
+    return true;
+}
+
+std::vector<PHLWINDOW> HTCompat::compositor_windows() {
+#if HT_HYPRLAND_GE_0_56
+    if (!Desktop::viewState())
+        return {};
+
+    return Desktop::viewState()->windows();
+#else
+    if (!g_pCompositor)
+        return {};
+
+    return g_pCompositor->m_windows;
+#endif
+}
+
+CHyprSignalListener
+HTCompat::listen_window_surface_commit(PHLWINDOW window, const std::function<void()>& callback) {
+    if (window == nullptr || !callback)
+        return {};
+
+    const auto surface = window->resource();
+    if (surface == nullptr)
+        return {};
+
+    return surface->m_events.commit.listen(callback);
+}
+
+SP<CEventLoopTimer> HTCompat::start_repeating_timer(
+    std::chrono::milliseconds interval,
+    const std::function<void()>& callback
+) {
+    if (!g_pEventLoopManager || !callback)
+        return nullptr;
+
+    auto timer = makeShared<CEventLoopTimer>(
+        interval,
+        [interval, on_fire = callback](SP<CEventLoopTimer> self, void*) {
+            on_fire();
+            self->updateTimeout(interval);
+        },
+        nullptr
+    );
+    g_pEventLoopManager->addTimer(timer);
+    return timer;
+}
+
+void HTCompat::stop_timer(SP<CEventLoopTimer>& timer) {
+    if (timer == nullptr)
+        return;
+
+    timer->cancel();
+    if (g_pEventLoopManager)
+        g_pEventLoopManager->removeTimer(timer);
+    timer.reset();
 }

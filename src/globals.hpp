@@ -51,6 +51,7 @@ struct HTListenerRegistry {
     HTListenerInfo monitor_added;
     HTListenerInfo monitor_removed;
     HTListenerInfo monitor_layout_changed;
+    HTListenerInfo window_set_changed;
 };
 
 inline HTHookRegistry g_hooks;
