@@ -429,6 +429,23 @@ int main() {
         "successful drag releases should allow passthrough"
     );
 
+    expect(
+        monitorGridIndex(1, {1}) == 0,
+        "a reconnected sole monitor should retain the first workspace block"
+    );
+    expect(
+        monitorGridIndex(3, {3, 1}) == 1,
+        "sparse monitor ids should use contiguous workspace blocks in id order"
+    );
+    expect(
+        monitorGridIndex(0, {0, 1}) == 0 && monitorGridIndex(1, {0, 1}) == 1,
+        "contiguous monitor ids should retain their workspace blocks"
+    );
+    expect(
+        !monitorGridIndex(2, {1, 3}).has_value(),
+        "a detached monitor should not own a workspace block"
+    );
+
     {
         const auto result = missingMonitorViewIDs({1, 3}, {1, 2, 3, 4});
         expect(

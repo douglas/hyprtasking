@@ -11,6 +11,7 @@
 #include "../config.hpp"
 #include "../globals.hpp"
 #include "../logic/geometry_model.hpp"
+#include "../logic/view_sync_model.hpp"
 #include "../overview.hpp"
 #include "../render.hpp"
 #include "../render_snapshot.hpp"
@@ -343,9 +344,17 @@ void HTLayoutGrid::build_overview_layout(HTViewStage stage) {
 
     overview_layout.clear();
 
+    // Monitor IDs can have gaps after hotplug; workspace blocks use connected monitor order.
+    std::vector<HTLogic::MonitorID> monitor_ids;
+    for (const auto& connected_monitor : HTCompat::compositor_monitors())
+        monitor_ids.push_back(HTCompat::monitor_id(connected_monitor));
+    const auto grid_index = HTLogic::monitorGridIndex(view_id, monitor_ids);
+    if (!grid_index.has_value())
+        return;
+
     for (int y = 0; y < ROWS; y++) {
         for (int x = 0; x < COLS; x++) {
-            const WORKSPACEID ws_id = (view_id * ROWS + y) * COLS + x + 1;
+            const WORKSPACEID ws_id = (*grid_index * ROWS + y) * COLS + x + 1;
             const PHLWORKSPACE workspace = HTCompat::workspace_by_id(ws_id);
             if (workspace != nullptr && HTCompat::workspace_monitor_id(workspace) != view_id) {
                 HTCompat::move_workspace_to_monitor(workspace, monitor);

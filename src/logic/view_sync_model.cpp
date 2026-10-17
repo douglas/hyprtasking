@@ -4,6 +4,16 @@
 
 namespace HTLogic {
 
+std::optional<int>
+monitorGridIndex(MonitorID monitor_id, const std::vector<MonitorID>& monitor_ids) {
+    if (std::ranges::find(monitor_ids, monitor_id) == monitor_ids.end())
+        return std::nullopt;
+
+    return std::ranges::count_if(monitor_ids, [monitor_id](MonitorID id) {
+        return id < monitor_id;
+    });
+}
+
 std::vector<MonitorID>
 missingMonitorViewIDs(const std::vector<MonitorID>& view_ids, const std::vector<MonitorID>& monitor_ids) {
     std::vector<MonitorID> missing_ids;
