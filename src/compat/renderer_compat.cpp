@@ -707,8 +707,7 @@ MONITORID workspace_monitor_id(PHLWORKSPACE workspace) {
 }
 
 bool workspace_render_at_rest(PHLWORKSPACE workspace) {
-    if (workspace == nullptr || workspace->m_alpha == nullptr
-        || workspace->m_renderOffset == nullptr)
+    if (workspace == nullptr || !workspace->m_alpha || !workspace->m_renderOffset)
         return false;
 
     return !workspace->m_alpha->isBeingAnimated() && !workspace->m_renderOffset->isBeingAnimated()

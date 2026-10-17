@@ -95,7 +95,7 @@ bool HTCompat::create_float_animation(
 #endif
 
     manager->createAnimation(initial_value, animation, config, policy);
-    return animation != nullptr;
+    return static_cast<bool>(animation);
 }
 
 bool HTCompat::create_vector_animation(
@@ -121,7 +121,7 @@ bool HTCompat::create_vector_animation(
 #endif
 
     manager->createAnimation(initial_value, animation, config, policy);
-    return animation != nullptr;
+    return static_cast<bool>(animation);
 }
 
 std::vector<PHLMONITOR> HTCompat::compositor_monitors() {

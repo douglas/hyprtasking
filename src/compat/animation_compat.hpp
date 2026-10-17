@@ -1,8 +1,12 @@
 #pragma once
 
-#if __has_include(<hyprland/src/animation/AnimationManager.hpp>)
-#include <hyprland/src/animation/AnimationManager.hpp>
-#include <hyprland/src/animation/WorkspaceAnimationController.hpp>
+#include "../build_contract.hpp"
+
+// Gate on the Hyprland version being built against, not on which headers
+// happen to be on the include path.
+#if HT_HYPRLAND_GE_0_56
+    #include <hyprland/src/animation/AnimationManager.hpp>
+    #include <hyprland/src/animation/WorkspaceAnimationController.hpp>
 namespace HTCompat {
 using AnimationManager = Animation::CHyprAnimationManager;
 
