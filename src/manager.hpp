@@ -21,11 +21,12 @@ struct HTCursorWorkspaceContext {
 class HTManager {
   public:
     static constexpr VIEWID INVALID_VIEW_ID = -1;
-    enum mouse_interaction_t {
+    enum class mouse_interaction_t {
         HT_MOUSE_NONE,
         HT_MOUSE_DRAG,
         HT_MOUSE_SELECT,
     };
+    using enum mouse_interaction_t;
 
     HTManager();
 
@@ -67,23 +68,13 @@ class HTManager {
     void reset_selection_state();
     bool on_mouse_move();
 
-    enum swipe_state_t {
+    enum class swipe_state_t {
         HT_SWIPE_OPEN,
         HT_SWIPE_MOVE,
         HT_SWIPE_NONE,
     };
+    using enum swipe_state_t;
 
-    swipe_state_t swipe_state = HT_SWIPE_NONE;
-    float swipe_amt = 0.F;
-    VIEWID swipe_view_id = INVALID_VIEW_ID;
-    PHLWINDOWREF dragged_window;
-    bool selection_pending = false;
-    bool runtime_disabled = false;
-    bool compat_blocked = false;
-    // Workspace block slots by monitor name; kept across hotplug.
-    std::vector<std::string> monitor_blocks;
-    std::string disabled_reason;
-    std::string disabled_source;
     PHTVIEW get_swipe_view();
     void reset_swipe_state();
     void swipe_start();
@@ -95,6 +86,18 @@ class HTManager {
     bool cursor_view_active();
 
   private:
+    swipe_state_t swipe_state = HT_SWIPE_NONE;
+    float swipe_amt = 0.F;
+    VIEWID swipe_view_id = INVALID_VIEW_ID;
+    PHLWINDOWREF dragged_window;
+    bool selection_pending = false;
+    bool runtime_disabled = false;
+    bool compat_blocked = false;
+    // Workspace block slots by monitor name; kept across hotplug.
+    std::vector<std::string> monitor_blocks;
+    std::string disabled_reason;
+    std::string disabled_source;
+
     void reset_runtime_controls();
     void abort_drag_controller();
     void claim_mouse_button(

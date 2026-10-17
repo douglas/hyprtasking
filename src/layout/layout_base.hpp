@@ -10,11 +10,12 @@
 
 #include "../types.hpp"
 
-enum HTViewStage {
+enum class HTViewStage {
     HT_VIEW_ANIMATING,
     HT_VIEW_OPENED,
     HT_VIEW_CLOSED,
 };
+using enum HTViewStage;
 
 class HTLayoutBase {
   public:
@@ -32,7 +33,7 @@ class HTLayoutBase {
   public:
     using CallbackFun = Hyprutils::Animation::CBaseAnimatedVariable::CallbackFun;
 
-    HTLayoutBase(VIEWID new_view_id);
+    explicit HTLayoutBase(VIEWID new_view_id);
     ~HTLayoutBase() = default;
 
     std::unordered_map<WORKSPACEID, HTWorkspace> overview_layout;

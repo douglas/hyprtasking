@@ -19,7 +19,7 @@ class HTView {
     WORKSPACEID keyboard_workspace_id = WORKSPACE_INVALID;
     WORKSPACEID selected_workspace_id = WORKSPACE_INVALID;
 
-    HTView(MONITORID in_monitor_id);
+    explicit HTView(MONITORID in_monitor_id);
 
     MONITORID monitor_id;
 

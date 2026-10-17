@@ -33,7 +33,7 @@ class HTLayoutGrid: public HTLayoutBase {
     int grid_block = -1;
 
   public:
-    HTLayoutGrid(VIEWID view_id);
+    explicit HTLayoutGrid(VIEWID view_id);
     ~HTLayoutGrid() = default;
 
     CBox calculate_ws_box(int x, int y, HTViewStage stage);
