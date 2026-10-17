@@ -401,7 +401,7 @@ bool HTView::navigate_selection(const std::string& arg) {
 
     if (navigate_arg.kind == HTLogic::NavigateArgKind::Workspace) {
         if (layout->find_layout_workspace(navigate_arg.workspace_id) == nullptr)
-            return true;
+            return false;
 
         select_workspace(navigate_arg.workspace_id);
         return true;

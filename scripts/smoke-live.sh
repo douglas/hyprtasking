@@ -119,7 +119,7 @@ assert_extended_dispatchers_ready() {
       "Hyprtasking move dispatcher is not registered even though the plugin is listed."
   fi
 
-  if [[ "$CAPTURED_OUTPUT" != "ok" ]]; then
+  if [[ "$CAPTURED_OUTPUT" != *"invalid arg"* ]]; then
     printf 'Unexpected hyprtasking:move probe response: %s\n' "$CAPTURED_OUTPUT" >&2
     exit 1
   fi

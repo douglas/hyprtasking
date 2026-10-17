@@ -10,12 +10,14 @@ extern "C" {
 
 #include "../config.hpp"
 #include "../globals.hpp"
+#include "../logic/navigation_model.hpp"
 #include "../overview.hpp"
 #include "guards.hpp"
 
 namespace {
 
 using HTPlugin::guardedDispatch;
+using HTPlugin::guardedValue;
 
 bool isViewInteractivelyActive(const PHTVIEW& view) {
     return view != nullptr && view->active && !view->closing;
@@ -82,6 +84,8 @@ SDispatchResult dispatchMove(std::string arg) {
         const auto view_guard = requireCursorView(cursor_view);
         if (!view_guard.success)
             return view_guard;
+        if (!HTLogic::isGridDirection(arg))
+            return {.success = false, .error = "invalid arg"};
 
         cursor_view->move(arg);
         return {};
@@ -175,14 +179,17 @@ int luaCommit(lua_State* state) {
     return luaAction(state, [] { return dispatchCommit({}); });
 }
 
+// Returns the health summary without the notification dispatchHealth shows,
+// so scripts can poll it.
 int luaHealth(lua_State* state) {
     const char* arg = luaL_optstring(state, 1, "");
-    luaAction(state, [arg] { return dispatchHealth(arg); });
-
     {
-        const auto health = ht_manager == nullptr
-            ? std::string {"{\"runtime_enabled\":false,\"error\":\"ht_manager is null\"}"}
-            : ht_manager->runtime_health_summary(std::string_view {arg} == "json");
+        const std::string fallback = "{\"runtime_enabled\":false,\"error\":\"health unavailable\"}";
+        const auto health = guardedValue("lua_health", fallback, [arg, &fallback] {
+            return ht_manager == nullptr
+                ? fallback
+                : ht_manager->runtime_health_summary(std::string_view {arg} == "json");
+        });
         lua_pushstring(state, health.c_str());
     }
     return 1;

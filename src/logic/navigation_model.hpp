@@ -27,6 +27,8 @@ struct GridPosition {
     int y = 0;
 };
 
+bool isGridDirection(std::string_view direction);
+
 // Moves one cell up/down/left/right; wraps when loop is set, otherwise
 // returns nullopt when leaving the grid or for an unknown direction.
 std::optional<GridPosition>

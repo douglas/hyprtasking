@@ -168,6 +168,10 @@ int main() {
         expect(!result.has_value(), "grid move should reject invalid dimensions");
     }
 
+    expect(
+        isGridDirection("left") && !isGridDirection("spin"),
+        "only grid directions should be valid"
+    );
     expect(gridWorkspaceID(0, 2, 3, 0, 0) == 1, "the first block should start at workspace 1");
     expect(gridWorkspaceID(0, 2, 3, 2, 1) == 6, "the first block should end at rows * cols");
     expect(gridWorkspaceID(1, 2, 3, 0, 0) == 7, "the second block should follow the first");

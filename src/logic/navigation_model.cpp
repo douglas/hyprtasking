@@ -40,6 +40,10 @@ NavigateArg parseNavigateArg(std::string_view arg) {
     return {.kind = NavigateArgKind::Invalid};
 }
 
+bool isGridDirection(std::string_view direction) {
+    return direction == "up" || direction == "down" || direction == "left" || direction == "right";
+}
+
 std::optional<GridPosition>
 moveGridInDirection(int x, int y, std::string_view direction, int rows, int cols, bool loop) {
     if (rows <= 0 || cols <= 0)
