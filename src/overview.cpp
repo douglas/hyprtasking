@@ -411,9 +411,26 @@ bool HTView::navigate_selection(const std::string& arg) {
     return false;
 }
 
+// Called per window per frame from render hooks, so avoid a monitor query
+// unless the cached monitor is gone.
 PHLMONITOR HTView::get_monitor() {
+    if (const PHLMONITOR monitor = cached_monitor.lock(); monitor != nullptr)
+        return monitor;
+
+    refresh_monitor();
+    return cached_monitor.lock();
+}
+
+void HTView::refresh_monitor() {
     const PHLMONITOR monitor = HTCompat::monitor_from_id(monitor_id);
-    if (monitor == nullptr)
-        Log::logger->log(Log::WARN, "[Hyprtasking] Returning null monitor from get_monitor!");
-    return monitor;
+    cached_monitor = monitor;
+    if (monitor != nullptr) {
+        warned_missing_monitor = false;
+        return;
+    }
+
+    if (!warned_missing_monitor) {
+        warned_missing_monitor = true;
+        Log::logger->log(Log::WARN, "[Hyprtasking] No monitor for view {}", monitor_id);
+    }
 }

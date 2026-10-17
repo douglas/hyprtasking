@@ -79,7 +79,7 @@ std::string listener_json(const HTListenerInfo& info) {
 PHTVIEW HTManager::get_view_from_monitor(PHLMONITOR monitor) {
     if (monitor == nullptr)
         return nullptr;
-    for (PHTVIEW view : views) {
+    for (const PHTVIEW& view : views) {
         if (view == nullptr)
             continue;
         if (view->get_monitor() != monitor)
@@ -94,7 +94,7 @@ PHTVIEW HTManager::get_view_from_cursor() {
 }
 
 PHTVIEW HTManager::get_view_from_id(VIEWID view_id) {
-    for (PHTVIEW view : views) {
+    for (const PHTVIEW& view : views) {
         if (view == nullptr)
             continue;
         if (view->monitor_id != view_id)
@@ -159,7 +159,7 @@ PHLWINDOW HTManager::get_window_from_cursor() {
 }
 
 void HTManager::show_all_views() {
-    for (PHTVIEW view : views) {
+    for (const PHTVIEW& view : views) {
         if (view == nullptr)
             continue;
         view->show();
@@ -167,7 +167,7 @@ void HTManager::show_all_views() {
 }
 
 void HTManager::hide_all_views() {
-    for (PHTVIEW view : views) {
+    for (const PHTVIEW& view : views) {
         if (view == nullptr)
             continue;
         view->hide();
@@ -457,6 +457,7 @@ void HTManager::sync_monitor_views() {
     for (const PHTVIEW& view : views) {
         if (view == nullptr)
             continue;
+        view->refresh_monitor();
         view_ids.push_back(view->monitor_id);
     }
 
