@@ -7,7 +7,6 @@
 #include <optional>
 #include <stdexcept>
 #include <string_view>
-#include <utility>
 
 #include "../compat/renderer_compat.hpp"
 #include "../compat/runtime_compat.hpp"
@@ -480,7 +479,7 @@ void HTLayoutGrid::render() {
     // redraws the whole monitor, and the next frame is only requested while
     // something moves; surface commits and an idle timer in HTManager request
     // the rest.
-    if (std::exchange(redraw_requested, false) || has_pending_motion()
+    if (has_pending_motion()
         || (render_snapshot.has_value() && render_snapshot->dragged_window.has_value()))
         HTCompat::damage_monitor(monitor);
     const Vector2D transformed_size = HTCompat::monitor_transformed_size(monitor);
@@ -579,7 +578,6 @@ void HTLayoutGrid::render() {
 }
 
 void HTLayoutGrid::request_redraw() {
-    redraw_requested = true;
     const PHLMONITOR monitor = get_monitor();
     if (monitor == nullptr)
         return;

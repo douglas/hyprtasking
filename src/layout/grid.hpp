@@ -39,7 +39,6 @@ class HTLayoutGrid: public HTLayoutBase {
 
     LayoutShape layout_shape;
     std::optional<LayoutInputs> layout_inputs;
-    bool redraw_requested = true;
     PHLANIMVAR<float> scale;
     PHLANIMVAR<Vector2D> offset;
     WORKSPACEID close_render_workspace_id = WORKSPACE_INVALID;
