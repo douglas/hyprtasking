@@ -153,36 +153,52 @@ smoke_dispatchers() {
   assert_extended_dispatchers_ready
 }
 
+# Invalid values are rejected and the previous config kept; the runtime must
+# stay enabled. The error itself goes to the log and a notification.
 assert_config_rejected() {
   run_capture_hyprtasking hyprtasking:toggle __smoke_probe__
-  if [[ "$CAPTURED_OUTPUT" == *"runtime disabled"* ]]; then
+  if [[ "$CAPTURED_OUTPUT" != *"invalid arg"* ]]; then
     printf 'Invalid config should keep runtime enabled, got: %s\n' "$CAPTURED_OUTPUT" >&2
     exit 1
   fi
+}
 
-  run_capture_hyprctl eval 'hl.plugin.hyprtasking.health("json")'
-  if [[ "$CAPTURED_OUTPUT" != *'"runtime_enabled":true'* ]] \
-    || [[ "$CAPTURED_OUTPUT" == *'"config_error":""'* ]]; then
-    printf 'Expected a reported config error with runtime enabled, got: %s\n' "$CAPTURED_OUTPUT" >&2
-    exit 1
+# Sets plugin:hyprtasking:<key>. Lua config managers reject `keyword`, so
+# build the nested hl.config table instead (grid:rows -> grid = { rows = v }).
+set_plugin_option() {
+  local key=$1
+  local value=$2
+
+  if ! hyprland_uses_lua_plugin_calls; then
+    run_hyprctl keyword "plugin:hyprtasking:${key}" "$value"
+    return
   fi
+
+  local table="$value"
+  local part
+  local -a parts
+  local i
+  IFS=: read -r -a parts <<< "$key"
+  for ((i = ${#parts[@]} - 1; i >= 0; i--)); do
+    part=${parts[i]}
+    table="{ ${part} = ${table} }"
+  done
+  run_hyprctl eval "hl.config({ plugin = { hyprtasking = ${table} } })"
 }
 
 set_safety_option() {
-  local key=$1
-  local value=$2
-  run_hyprctl keyword "plugin:hyprtasking:${key}" "$value"
+  set_plugin_option "$1" "$2"
 }
 
 restore_safe_options() {
-  run_hyprctl keyword plugin:hyprtasking:drag_button 272
-  run_hyprctl keyword plugin:hyprtasking:select_button 273
-  run_hyprctl keyword plugin:hyprtasking:gestures:move_fingers 3
-  run_hyprctl keyword plugin:hyprtasking:gestures:open_fingers 4
-  run_hyprctl keyword plugin:hyprtasking:grid:rows 3
-  run_hyprctl keyword plugin:hyprtasking:grid:cols 3
-  run_hyprctl keyword plugin:hyprtasking:gestures:move_distance 300
-  run_hyprctl keyword plugin:hyprtasking:gestures:open_distance 300
+  set_plugin_option drag_button 272
+  set_plugin_option select_button 273
+  set_plugin_option gestures:move_fingers 3
+  set_plugin_option gestures:open_fingers 4
+  set_plugin_option grid:rows 3
+  set_plugin_option grid:cols 3
+  set_plugin_option gestures:move_distance 300
+  set_plugin_option gestures:open_distance 300
   run_capture_hyprctl plugin unload "$PLUGIN_PATH"
   run_capture_hyprctl plugin load "$PLUGIN_PATH"
   wait_for_plugin_ready
