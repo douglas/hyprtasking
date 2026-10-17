@@ -28,6 +28,7 @@ Vector2D mouse_coords();
 std::vector<PHLMONITOR> compositor_monitors();
 PHLMONITOR monitor_from_id(MONITORID monitor_id);
 std::string monitor_description(PHLMONITOR monitor);
+std::string monitor_name(PHLMONITOR monitor);
 void create_float_animation(
     float initial_value,
     PHLANIMVAR<float>& animation,

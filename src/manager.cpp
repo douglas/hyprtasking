@@ -494,11 +494,21 @@ void HTManager::sync_monitor_views() {
         );
     }
 
+    std::vector<std::string> monitor_names;
+    monitor_names.reserve(monitors.size());
+    for (const PHLMONITOR& monitor : monitors)
+        monitor_names.push_back(HTCompat::monitor_name(monitor));
+    monitor_blocks = HTLogic::assignMonitorBlocks(std::move(monitor_blocks), monitor_names);
+
     for (const PHLMONITOR& monitor : monitors) {
         const PHTVIEW view = get_view_from_monitor(monitor);
-        if (view == nullptr || view->active)
+        if (view == nullptr)
             continue;
-        view->layout->init_position();
+        const auto block = HTLogic::monitorBlockIndex(monitor_blocks, HTCompat::monitor_name(monitor));
+        view->layout->set_grid_block(block.value_or(-1));
+        view->layout->place_workspaces();
+        if (!view->active)
+            view->layout->init_position();
     }
 }
 

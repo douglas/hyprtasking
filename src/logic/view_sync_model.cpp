@@ -1,17 +1,41 @@
 #include "view_sync_model.hpp"
 
 #include <algorithm>
+#include <iterator>
 
 namespace HTLogic {
 
+std::vector<std::string> assignMonitorBlocks(
+    std::vector<std::string> blocks,
+    const std::vector<std::string>& connected_names
+) {
+    const auto is_connected = [&](const std::string& name) {
+        return std::ranges::find(connected_names, name) != connected_names.end();
+    };
+
+    for (const auto& name : connected_names) {
+        if (std::ranges::find(blocks, name) != blocks.end())
+            continue;
+
+        const auto free_slot = std::ranges::find_if(blocks, [&](const std::string& owner) {
+            return !is_connected(owner);
+        });
+        if (free_slot != blocks.end())
+            *free_slot = name;
+        else
+            blocks.push_back(name);
+    }
+
+    return blocks;
+}
+
 std::optional<int>
-monitorGridIndex(MonitorID monitor_id, const std::vector<MonitorID>& monitor_ids) {
-    if (std::ranges::find(monitor_ids, monitor_id) == monitor_ids.end())
+monitorBlockIndex(const std::vector<std::string>& blocks, const std::string& monitor_name) {
+    const auto it = std::ranges::find(blocks, monitor_name);
+    if (it == blocks.end())
         return std::nullopt;
 
-    return std::ranges::count_if(monitor_ids, [monitor_id](MonitorID id) {
-        return id < monitor_id;
-    });
+    return static_cast<int>(std::distance(blocks.begin(), it));
 }
 
 std::vector<MonitorID>

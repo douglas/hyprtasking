@@ -168,6 +168,13 @@ std::string HTCompat::monitor_description(PHLMONITOR monitor) {
     return monitor->m_description;
 }
 
+std::string HTCompat::monitor_name(PHLMONITOR monitor) {
+    if (monitor == nullptr)
+        return {};
+
+    return monitor->m_name;
+}
+
 PHLWINDOW
 HTCompat::window_at(const Vector2D& position, uint16_t properties, PHLWINDOW ignore_window) {
 #if HT_HYPRLAND_GE_0_56

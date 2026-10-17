@@ -11,7 +11,6 @@
 #include "../config.hpp"
 #include "../globals.hpp"
 #include "../logic/geometry_model.hpp"
-#include "../logic/view_sync_model.hpp"
 #include "../overview.hpp"
 #include "../render.hpp"
 #include "../render_snapshot.hpp"
@@ -134,6 +133,7 @@ void HTLayoutGrid::on_show(CallbackFun on_complete) {
 
     // Recalculate from active workspace so show animation starts from
     // the current workspace rather than stale state.
+    place_workspaces();
     init_position();
     close_render_workspace_id = WORKSPACE_INVALID;
 
@@ -333,32 +333,39 @@ CBox HTLayoutGrid::calculate_ws_box(int x, int y, HTViewStage stage) {
     return CBox {Vector2D {x, y} * (ws_sz + gaps) + gaps + use_offset + start_offset, ws_sz};
 };
 
-void HTLayoutGrid::build_overview_layout(HTViewStage stage) {
+void HTLayoutGrid::set_grid_block(int block) {
+    grid_block = block;
+}
+
+// Pull this monitor's block of workspaces onto it. Must not run from render:
+// moving workspaces changes other monitors' state mid-frame.
+void HTLayoutGrid::place_workspaces() {
     const PHLMONITOR monitor = get_monitor();
-    if (monitor == nullptr)
+    if (monitor == nullptr || grid_block < 0)
+        return;
+
+    const auto& config = HTConfig::runtime_config();
+    const int cell_count = config.grid_rows * config.grid_cols;
+    for (int cell = 0; cell < cell_count; cell++) {
+        const WORKSPACEID ws_id = grid_block * cell_count + cell + 1;
+        const PHLWORKSPACE workspace = HTCompat::workspace_by_id(ws_id);
+        if (workspace != nullptr && HTCompat::workspace_monitor_id(workspace) != view_id)
+            HTCompat::move_workspace_to_monitor(workspace, monitor, true);
+    }
+}
+
+void HTLayoutGrid::build_overview_layout(HTViewStage stage) {
+    overview_layout.clear();
+    if (grid_block < 0 || get_monitor() == nullptr)
         return;
 
     const auto& config = HTConfig::runtime_config();
     const int ROWS = config.grid_rows;
     const int COLS = config.grid_cols;
 
-    overview_layout.clear();
-
-    // Monitor IDs can have gaps after hotplug; workspace blocks use connected monitor order.
-    std::vector<HTLogic::MonitorID> monitor_ids;
-    for (const auto& connected_monitor : HTCompat::compositor_monitors())
-        monitor_ids.push_back(HTCompat::monitor_id(connected_monitor));
-    const auto grid_index = HTLogic::monitorGridIndex(view_id, monitor_ids);
-    if (!grid_index.has_value())
-        return;
-
     for (int y = 0; y < ROWS; y++) {
         for (int x = 0; x < COLS; x++) {
-            const WORKSPACEID ws_id = (*grid_index * ROWS + y) * COLS + x + 1;
-            const PHLWORKSPACE workspace = HTCompat::workspace_by_id(ws_id);
-            if (workspace != nullptr && HTCompat::workspace_monitor_id(workspace) != view_id) {
-                HTCompat::move_workspace_to_monitor(workspace, monitor);
-            }
+            const WORKSPACEID ws_id = (grid_block * ROWS + y) * COLS + x + 1;
             const CBox ws_box = calculate_ws_box(x, y, stage);
             overview_layout[ws_id] = HTWorkspace {x, y, ws_box};
         }

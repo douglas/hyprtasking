@@ -79,6 +79,8 @@ class HTManager {
     bool selection_pending = false;
     bool runtime_disabled = false;
     bool compat_blocked = false;
+    // Workspace block slots by monitor name; kept across hotplug.
+    std::vector<std::string> monitor_blocks;
     std::string disabled_reason;
     std::string disabled_source;
     PHTVIEW get_swipe_view();

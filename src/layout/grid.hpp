@@ -12,6 +12,7 @@ class HTLayoutGrid: public HTLayoutBase {
     PHLANIMVAR<float> scale;
     PHLANIMVAR<Vector2D> offset;
     WORKSPACEID close_render_workspace_id = WORKSPACE_INVALID;
+    int grid_block = -1;
 
   public:
     HTLayoutGrid(VIEWID view_id);
@@ -31,6 +32,8 @@ class HTLayoutGrid: public HTLayoutBase {
     bool should_render_window(PHLWINDOW window);
     float drag_window_scale();
     void init_position();
+    void set_grid_block(int block);
+    void place_workspaces();
     void build_overview_layout(HTViewStage stage);
     void render();
     void cancel_animation_callbacks();
