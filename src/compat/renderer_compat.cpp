@@ -384,8 +384,8 @@ uint32_t hookIsSolitaryBlocked(void* thisptr, bool full) {
             return original_result;
 
         // thisptr is the monitor being asked about, not the cursor's monitor.
-        const auto view = std::ranges::find_if(ht_manager->views, [thisptr](const PHTVIEW& view) {
-            return view != nullptr && view->get_monitor().get() == thisptr;
+        const auto view = std::ranges::find_if(ht_manager->views, [thisptr](const PHTVIEW& candidate) {
+            return candidate != nullptr && candidate->get_monitor().get() == thisptr;
         });
         if (view == ht_manager->views.end())
             return original_result;
@@ -629,9 +629,9 @@ bool render_window_original(
     if (thisptr == nullptr || render_window == nullptr || window == nullptr || monitor == nullptr)
         return false;
 
-    ((
-        render_window_t
-    )render_window)(thisptr, window, monitor, time, decorate, mode, ignore_position, standalone);
+    reinterpret_cast<render_window_t>(
+        render_window
+    )(thisptr, window, monitor, time, decorate, mode, ignore_position, standalone);
     return true;
 }
 

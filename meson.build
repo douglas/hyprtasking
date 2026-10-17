@@ -1,6 +1,6 @@
 project('hyprtasking', 'cpp',
   version: '0.5.3',
-  default_options: ['buildtype=debugoptimized', 'b_ndebug=if-release'],
+  default_options: ['buildtype=debugoptimized', 'b_ndebug=if-release', 'warning_level=3'],
   meson_version: '>= 1.1'
 )
 
@@ -17,13 +17,19 @@ else
   error('Could not configure current C++ compiler (' + cpp_compiler.get_id() + ' ' + cpp_compiler.version() + ') with required C++ standard (C++23)')
 endif
 
+# Plugins must not use STB_GNU_UNIQUE symbols or they cannot be unloaded (GCC only).
+# Designated initializers intentionally rely on default member initializers.
 add_project_arguments(
-  [
-    '-Wno-narrowing', '-shared', '-fPIC', '--no-gnu-unique'
-  ],
+  cpp_compiler.get_supported_arguments(
+    '--no-gnu-unique',
+    '-Wno-missing-field-initializers',
+    '-Wold-style-cast',
+    '-Wnon-virtual-dtor',
+  ),
   language: 'cpp')
 
-hyprland_dep = dependency('hyprland')
+# System include type keeps warnings from Hyprland headers out of our build.
+hyprland_dep = dependency('hyprland', include_type: 'system')
 
 build_contract = configuration_data()
 build_contract.set('HT_BUILT_HYPRLAND_PKG_VERSION', hyprland_dep.version())

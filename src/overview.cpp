@@ -40,7 +40,7 @@ bool commit_selection_target(HTView& view, WORKSPACEID target_workspace_id, bool
     view.layout->on_hide(
         target_workspace_id,
         [&view, monitor_id, workspace_ref = PHLWORKSPACEREF {workspace}, defer_activation](
-            auto self
+            auto
         ) {
             if (defer_activation) {
                 const bool scheduled = HTCompat::do_later([monitor_id, workspace_ref] {
@@ -118,7 +118,7 @@ void HTView::hide() {
 
     set_runtime_state(true, true, false);
 
-    layout->on_hide(WORKSPACE_INVALID, [this](auto self) {
+    layout->on_hide(WORKSPACE_INVALID, [this](auto) {
         set_runtime_state(false, false, false);
         reset_interaction_state();
     });
@@ -306,7 +306,7 @@ void HTView::move_id(WORKSPACEID ws_id) {
     layout->on_move(
         current_workspace_id,
         HTCompat::workspace_id(other_workspace),
-        [this, was_active, was_closing](auto self) {
+        [this, was_active, was_closing](auto) {
             set_runtime_state(was_active, was_closing, false);
         }
     );
