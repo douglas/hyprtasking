@@ -24,6 +24,9 @@ bool commit_selection_target(HTView& view, WORKSPACEID target_workspace_id, bool
     if (workspace == nullptr)
         return false;
 
+    if (ht_manager != nullptr)
+        ht_manager->cancel_window_drag();
+
     // Freeze visual selection to the committed target during close animation.
     view.clear_hover_workspace();
     view.clear_hover_suppression();
@@ -105,6 +108,9 @@ void HTView::hide() {
     const PHLWORKSPACE active_workspace = HTCompat::active_monitor_workspace(monitor);
     if (active_workspace == nullptr)
         return;
+
+    if (ht_manager != nullptr)
+        ht_manager->cancel_window_drag();
 
     set_runtime_state(true, true, false);
 
@@ -227,6 +233,9 @@ bool HTView::has_runtime_activity() const {
 }
 
 void HTView::reload_config() {
+    if (ht_manager != nullptr)
+        ht_manager->cancel_window_drag();
+
     if (has_runtime_activity())
         cancel_runtime_state();
 

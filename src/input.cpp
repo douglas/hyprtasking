@@ -208,8 +208,15 @@ bool HTManager::start_window_drag() {
             HTCompat::set_mouse_bind_mode(MBIND_INVALID);
     });
 
+    bool end_drag_on_failure = false;
+    CScopeGuard end_failed_drag([this, &end_drag_on_failure] {
+        if (end_drag_on_failure)
+            abort_drag_controller();
+    });
+
     HTCompat::set_mouse_bind_mode(MBIND_MOVE);
     reset_mouse_bind_mode = true;
+    end_drag_on_failure = true;
     if (HTCompat::drag_controller_target() == nullptr && hovered_window != nullptr)
         HTCompat::begin_drag_window(hovered_window, MBIND_MOVE);
 
@@ -280,6 +287,7 @@ bool HTManager::start_window_drag() {
 
     set_dragged_window(dragged_window);
     reset_mouse_bind_mode = false;
+    end_drag_on_failure = false;
     restore_workspace.dismiss();
     trace_log(
         "[Hyprtasking][trace] start_window_drag succeeded: dragged_window={} tiled={} workspace_id={}",
@@ -297,6 +305,11 @@ bool HTManager::end_window_drag() {
     const PHTVIEW cursor_view = cursor_context.view;
     CScopeGuard reset_drag_mode([] { HTCompat::set_mouse_bind_mode(MBIND_INVALID); });
     CScopeGuard clear_dragged_window_guard([this] { clear_dragged_window(); });
+    bool drop_completed = false;
+    CScopeGuard end_unfinished_drag([this, &drop_completed] {
+        if (!drop_completed)
+            abort_drag_controller();
+    });
     const bool has_view = cursor_view != nullptr;
     const SP<Layout::ITarget> target = HTCompat::drag_controller_target();
     const PHLWINDOW dragged_window = target == nullptr ? nullptr : target->window();
@@ -455,6 +468,7 @@ bool HTManager::end_window_drag() {
     // workspaces
     HTCompat::reset_window_workspace_move_alpha(dragged_window);
     restore_workspace.dismiss();
+    drop_completed = true;
     trace_log(
         "[Hyprtasking][trace] end_window_drag completed for workspace {}",
         HTCompat::workspace_id(cursor_workspace)

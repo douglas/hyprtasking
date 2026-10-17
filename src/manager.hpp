@@ -42,6 +42,7 @@ class HTManager {
     void prepare_for_unload();
     void sync_monitor_views();
     void reset_drag_state();
+    void cancel_window_drag();
 
     void show_all_views();
     void hide_all_views();
@@ -95,6 +96,7 @@ class HTManager {
 
   private:
     void reset_runtime_controls();
+    void abort_drag_controller();
     void claim_mouse_button(
         unsigned int button,
         mouse_interaction_t interaction,

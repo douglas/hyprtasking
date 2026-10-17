@@ -418,10 +418,7 @@ void HTManager::reset_swipe_state() {
     refresh_cursor_override();
 }
 
-void HTManager::reset_drag_state() {
-    drag_interaction_started = false;
-    clear_dragged_window();
-
+void HTManager::abort_drag_controller() {
     const auto target = HTCompat::drag_controller_target();
     if (const PHLWINDOW dragged_window = target == nullptr ? nullptr : target->window();
         dragged_window != nullptr) {
@@ -430,10 +427,25 @@ void HTManager::reset_drag_state() {
 
     if (HTCompat::drag_controller_mode() != MBIND_INVALID)
         HTCompat::end_drag_controller();
+}
+
+void HTManager::reset_drag_state() {
+    drag_interaction_started = false;
+    clear_dragged_window();
+    abort_drag_controller();
 
     HTCompat::set_mouse_bind_mode(MBIND_INVALID);
     if (claimed_mouse_interaction == HT_MOUSE_DRAG)
         reset_mouse_button_state();
+}
+
+// Closing the overview or reloading config mid-drag must hand the window back
+// to Hyprland; the release that would normally end the drag gets ignored.
+void HTManager::cancel_window_drag() {
+    if (!drag_interaction_started && get_dragged_window() == nullptr)
+        return;
+
+    reset_drag_state();
 }
 
 void HTManager::sync_monitor_views() {
