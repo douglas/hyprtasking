@@ -17,6 +17,8 @@ jobs:
             ref: v0.54.3
           - track: v0.55.0
             ref: v0.55.0
+          - track: v0.56.2
+            ref: v0.56.2
     steps:
       - name: Checkout Hyprtasking
         uses: actions/checkout@v5
@@ -46,7 +48,8 @@ jobs:
 
       - name: Compat audits
         run: |
-          if [[ "${{ matrix.track }}" == "v0.55.0" ]]; then
+          # The committed contract is generated against the newest supported release.
+          if [[ "${{ matrix.track }}" == "v0.56.2" ]]; then
             bash scripts/generate-compat-contract.sh "$GITHUB_WORKSPACE/hyprland"
             git diff --exit-code -- scripts/contracts
           fi

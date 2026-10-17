@@ -136,11 +136,13 @@ compat_surface_builtin_contracts_stream() {
     "src/plugins/PluginAPI.hpp" \
     "src/compat/renderer_compat.cpp, src/plugin/runtime.cpp" \
     "APICALL bool removeFunctionHook(HANDLE handle, CFunctionHook* hook);"
+  # m_renderData is only read by the 0.56+ render hooks; the 0.54 renderer
+  # (CHyprRenderer singleton) satisfies that item without it.
   printf '%s\t%s\t%s\t%s\n' \
     "renderer singleton and pass handles" \
     "src/render/Renderer.hpp" \
     "src/compat/runtime_compat.cpp, src/compat/renderer_compat.cpp" \
-    "inline UP<CHyprRenderer> g_pHyprRenderer;@@@inline UP<Render::IHyprRenderer> g_pHyprRenderer;|||CRenderPass m_renderPass = {};@@@CRenderPass  m_renderPass;|||SRenderData                  m_renderData;"
+    "inline UP<CHyprRenderer> g_pHyprRenderer;@@@inline UP<Render::IHyprRenderer> g_pHyprRenderer;|||CRenderPass m_renderPass = {};@@@CRenderPass  m_renderPass;|||SRenderData                  m_renderData;@@@inline UP<CHyprRenderer> g_pHyprRenderer;"
   printf '%s\t%s\t%s\t%s\n' \
     "compositor singleton handle" \
     "src/Compositor.hpp" \
