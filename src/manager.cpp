@@ -186,6 +186,9 @@ bool HTManager::has_runtime_view() {
 }
 
 void HTManager::refresh_cursor_override() {
+    if (compat_blocked)
+        return;
+
     HTCompat::set_cursor_override_enabled(has_runtime_view());
 }
 
@@ -263,6 +266,16 @@ void HTManager::disable_runtime(std::string_view source, std::string_view reason
         CHyprColor {1.0, 0.2, 0.2, 1.0},
         5000
     );
+}
+
+// Used when the compatibility gate fails: Hyprland internals cannot be trusted,
+// so only record the reason and never touch compositor state afterwards.
+void HTManager::block_runtime(std::string_view source, std::string_view reason) {
+    compat_blocked = true;
+    runtime_disabled = true;
+    disabled_reason = std::string(reason);
+    disabled_source = std::string(source);
+    views.clear();
 }
 
 std::string HTManager::runtime_disable_reason() const {
@@ -362,6 +375,9 @@ std::string HTManager::runtime_health_summary(bool json) const {
 }
 
 void HTManager::reset_runtime_controls() {
+    if (compat_blocked)
+        return;
+
     HTCompat::reset_overview_render_guard();
     reset_selection_state();
     reset_mouse_button_state();

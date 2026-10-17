@@ -24,9 +24,9 @@ bool isViewInteractivelyActive(const PHTVIEW& view) {
 SDispatchResult requireRuntimeReady() {
     if (ht_manager == nullptr)
         return {.success = false, .error = "ht_manager is null"};
-    if (!HTRuntimeValidation::ensure_grid_gesture_or_disable("runtime_config_validation"))
-        return {.success = false, .error = "runtime disabled"};
     if (!ht_manager->runtime_enabled())
+        return {.success = false, .error = "runtime disabled"};
+    if (!HTRuntimeValidation::ensure_grid_gesture_or_disable("runtime_config_validation"))
         return {.success = false, .error = "runtime disabled"};
     return {};
 }

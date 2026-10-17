@@ -49,12 +49,13 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     else
         ht_manager->reset();
 
-    HTPlugin::initializeConfig();
-    HTPlugin::registerDispatchers();
-
     const auto compatibility = HTCompat::verify_compatibility();
     if (!compatibility.supported) {
-        ht_manager->disable_runtime("compatibility_gate", compatibility.error);
+        ht_manager->block_runtime("compatibility_gate", compatibility.error);
+        // Plugin API registration stays available so health reports the reason
+        // and config keys do not error, but no HTCompat state is touched.
+        HTPlugin::initializeConfig();
+        HTPlugin::registerDispatchers();
         Log::logger->log(
             Log::ERR,
             "[Hyprtasking] Compatibility gate blocked runtime activation: {}",
@@ -68,6 +69,9 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         );
         return {"Hyprtasking", "A workspace management plugin", "douglas", HT_PROJECT_VERSION};
     }
+
+    HTPlugin::initializeConfig();
+    HTPlugin::registerDispatchers();
 
     try {
         const bool callbacks_ready = HTPlugin::registerCallbacks();

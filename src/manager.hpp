@@ -54,6 +54,7 @@ class HTManager {
     void clear_dragged_window();
     bool runtime_enabled() const;
     void disable_runtime(std::string_view source, std::string_view reason);
+    void block_runtime(std::string_view source, std::string_view reason);
     std::string runtime_disable_reason() const;
     std::string runtime_health_summary(bool json = false) const;
 
@@ -77,6 +78,7 @@ class HTManager {
     PHLWINDOWREF dragged_window;
     bool selection_pending = false;
     bool runtime_disabled = false;
+    bool compat_blocked = false;
     std::string disabled_reason;
     std::string disabled_source;
     PHTVIEW get_swipe_view();
