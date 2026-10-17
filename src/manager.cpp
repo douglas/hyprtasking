@@ -309,42 +309,42 @@ std::string HTManager::runtime_health_summary(bool json) const {
             active_views,
             closing_views,
             navigating_views,
-            input_mouse_button_hook != nullptr ? "true" : "false",
-            render_workspace_hook != nullptr ? "true" : "false",
-            should_render_window_hook != nullptr ? "true" : "false",
-            is_solitary_blocked_hook != nullptr ? "true" : "false",
-            listener_json(mouse_move_listener_info),
-            listener_json(swipe_begin_listener_info),
-            listener_json(swipe_update_listener_info),
-            listener_json(swipe_end_listener_info),
-            listener_json(config_reloaded_listener_info),
-            listener_json(monitor_added_listener_info),
-            listener_json(monitor_removed_listener_info),
-            listener_json(monitor_layout_changed_listener_info),
+            g_hooks.input_mouse_button.hook != nullptr ? "true" : "false",
+            g_hooks.render_workspace.hook != nullptr ? "true" : "false",
+            g_hooks.should_render_window.hook != nullptr ? "true" : "false",
+            g_hooks.is_solitary_blocked.hook != nullptr ? "true" : "false",
+            listener_json(g_listeners.mouse_move),
+            listener_json(g_listeners.swipe_begin),
+            listener_json(g_listeners.swipe_update),
+            listener_json(g_listeners.swipe_end),
+            listener_json(g_listeners.config_reloaded),
+            listener_json(g_listeners.monitor_added),
+            listener_json(g_listeners.monitor_removed),
+            listener_json(g_listeners.monitor_layout_changed),
             hook_json(
-                input_mouse_button_hook != nullptr,
-                HTCompat::function_hook_original_ready(input_mouse_button_hook),
-                input_mouse_button_hook_info
+                g_hooks.input_mouse_button.hook != nullptr,
+                HTCompat::function_hook_original_ready(g_hooks.input_mouse_button.hook),
+                g_hooks.input_mouse_button.info
             ),
             hook_json(
-                render_workspace_hook != nullptr,
-                HTCompat::function_hook_original_ready(render_workspace_hook),
-                render_workspace_hook_info
+                g_hooks.render_workspace.hook != nullptr,
+                HTCompat::function_hook_original_ready(g_hooks.render_workspace.hook),
+                g_hooks.render_workspace.info
             ),
             hook_json(
-                should_render_window_hook != nullptr,
-                HTCompat::function_hook_original_ready(should_render_window_hook),
-                should_render_window_hook_info
+                g_hooks.should_render_window.hook != nullptr,
+                HTCompat::function_hook_original_ready(g_hooks.should_render_window.hook),
+                g_hooks.should_render_window.info
             ),
             hook_json(
-                render_window != nullptr,
-                render_window != nullptr,
-                render_window_symbol_info
+                g_hooks.render_window != nullptr,
+                g_hooks.render_window != nullptr,
+                g_hooks.render_window_info
             ),
             hook_json(
-                is_solitary_blocked_hook != nullptr,
-                HTCompat::function_hook_original_ready(is_solitary_blocked_hook),
-                is_solitary_blocked_hook_info
+                g_hooks.is_solitary_blocked.hook != nullptr,
+                HTCompat::function_hook_original_ready(g_hooks.is_solitary_blocked.hook),
+                g_hooks.is_solitary_blocked.info
             )
         );
     }
@@ -359,23 +359,23 @@ std::string HTManager::runtime_health_summary(bool json) const {
         active_views,
         closing_views,
         navigating_views,
-        input_mouse_button_hook != nullptr,
-        render_workspace_hook != nullptr,
-        should_render_window_hook != nullptr,
-        is_solitary_blocked_hook != nullptr,
-        mouse_move_listener_info.installed,
-        swipe_begin_listener_info.installed,
-        swipe_update_listener_info.installed,
-        swipe_end_listener_info.installed,
-        config_reloaded_listener_info.installed,
-        monitor_added_listener_info.installed,
-        monitor_removed_listener_info.installed,
-        monitor_layout_changed_listener_info.installed,
-        input_mouse_button_hook_info.method,
-        render_workspace_hook_info.method,
-        should_render_window_hook_info.method,
-        render_window_symbol_info.method,
-        is_solitary_blocked_hook_info.method
+        g_hooks.input_mouse_button.hook != nullptr,
+        g_hooks.render_workspace.hook != nullptr,
+        g_hooks.should_render_window.hook != nullptr,
+        g_hooks.is_solitary_blocked.hook != nullptr,
+        g_listeners.mouse_move.installed,
+        g_listeners.swipe_begin.installed,
+        g_listeners.swipe_update.installed,
+        g_listeners.swipe_end.installed,
+        g_listeners.config_reloaded.installed,
+        g_listeners.monitor_added.installed,
+        g_listeners.monitor_removed.installed,
+        g_listeners.monitor_layout_changed.installed,
+        g_hooks.input_mouse_button.info.method,
+        g_hooks.render_workspace.info.method,
+        g_hooks.should_render_window.info.method,
+        g_hooks.render_window_info.method,
+        g_hooks.is_solitary_blocked.info.method
     );
 }
 

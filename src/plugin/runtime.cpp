@@ -46,14 +46,7 @@ bool disable_runtime_on_setup_failure(std::string_view source, std::string_view 
 }
 
 void resetListenerHealth() {
-    mouse_move_listener_info = {};
-    swipe_begin_listener_info = {};
-    swipe_update_listener_info = {};
-    swipe_end_listener_info = {};
-    config_reloaded_listener_info = {};
-    monitor_added_listener_info = {};
-    monitor_removed_listener_info = {};
-    monitor_layout_changed_listener_info = {};
+    g_listeners = {};
 }
 
 bool mark_listener_ready(HTListenerInfo& info, bool installed, std::string_view label) {
@@ -131,14 +124,14 @@ void hookMouseButton(void* thisptr, IPointer::SButtonEvent e) {
 
 bool initializeMouseButtonHook() {
     const auto mouse_button = HTCompat::install_function_hook(
-        input_mouse_button_hook,
+        g_hooks.input_mouse_button.hook,
         HTCompat::input_mouse_button_spec(),
         HTCompat::hook_destination(hookMouseButton)
     );
     if (!mouse_button.installed) {
         return disable_runtime_on_setup_failure("initialize_mouse_button_hook", mouse_button.error);
     }
-    input_mouse_button_hook_info = {
+    g_hooks.input_mouse_button.info = {
         .signature = mouse_button.signature,
         .method = mouse_button.method,
     };
@@ -147,8 +140,8 @@ bool initializeMouseButtonHook() {
 }
 
 void shutdownMouseButtonHook() {
-    HTCompat::remove_function_hook(input_mouse_button_hook, "onMouseButton");
-    input_mouse_button_hook_info = {};
+    HTCompat::remove_function_hook(g_hooks.input_mouse_button.hook, "onMouseButton");
+    g_hooks.input_mouse_button.info = {};
 }
 
 void onMouseMove([[maybe_unused]] Vector2D cursor, Event::SCallbackInfo& info) {
@@ -252,51 +245,51 @@ bool registerCallbacks() {
         return false;
 
     if (!mark_listener_ready(
-            mouse_move_listener_info,
+            g_listeners.mouse_move,
             HTCompat::listen_mouse_move(g_mouse_move_listener, onMouseMove),
             "mouse.move"
         ))
         return false;
 
     if (!mark_listener_ready(
-            swipe_begin_listener_info,
+            g_listeners.swipe_begin,
             HTCompat::listen_swipe_begin(g_swipe_begin_listener, onSwipeBegin),
             "gesture.swipe.begin"
         ))
         return false;
     if (!mark_listener_ready(
-            swipe_update_listener_info,
+            g_listeners.swipe_update,
             HTCompat::listen_swipe_update(g_swipe_update_listener, onSwipeUpdate),
             "gesture.swipe.update"
         ))
         return false;
     if (!mark_listener_ready(
-            swipe_end_listener_info,
+            g_listeners.swipe_end,
             HTCompat::listen_swipe_end(g_swipe_end_listener, onSwipeEnd),
             "gesture.swipe.end"
         ))
         return false;
 
     if (!mark_listener_ready(
-            config_reloaded_listener_info,
+            g_listeners.config_reloaded,
             HTCompat::listen_config_reloaded(g_config_reloaded_listener, onConfigReloaded),
             "config.reloaded"
         ))
         return false;
     if (!mark_listener_ready(
-            monitor_added_listener_info,
+            g_listeners.monitor_added,
             HTCompat::listen_monitor_added(g_monitor_added_listener, registerMonitors),
             "monitor.added"
         ))
         return false;
     if (!mark_listener_ready(
-            monitor_removed_listener_info,
+            g_listeners.monitor_removed,
             HTCompat::listen_monitor_removed(g_monitor_removed_listener, registerMonitors),
             "monitor.removed"
         ))
         return false;
     if (!mark_listener_ready(
-            monitor_layout_changed_listener_info,
+            g_listeners.monitor_layout_changed,
             HTCompat::listen_monitor_layout_changed(
                 g_monitor_layout_changed_listener,
                 registerMonitors
