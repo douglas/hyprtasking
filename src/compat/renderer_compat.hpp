@@ -17,7 +17,6 @@ namespace HTCompat {
 bool initializeRendererHooks();
 void shutdownRendererHooks();
 
-bool should_render_window_original(PHLWINDOW window, PHLMONITOR monitor);
 bool should_render_window_original(void* renderer, PHLWINDOW window, PHLMONITOR monitor);
 bool render_workspace_original(
     PHLMONITOR monitor,

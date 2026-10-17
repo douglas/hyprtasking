@@ -36,8 +36,6 @@ class HTLayoutBase {
 
     std::unordered_map<WORKSPACEID, HTWorkspace> overview_layout;
 
-    // Called assuming that at least one overview is active (not nec on this monitor)
-    bool should_render_window(PHLWINDOW window);
     void begin_render();
     void render_workspace_with_optional_state(
         PHLMONITOR monitor,
@@ -53,7 +51,7 @@ class HTLayoutBase {
     const HTWorkspace* find_layout_workspace(WORKSPACEID workspace_id) const;
     WORKSPACEID get_ws_id_from_global(Vector2D pos);
     WORKSPACEID get_ws_id_from_xy(int x, int y);
-    CBox get_global_window_box(PHLWINDOW window, WORKSPACEID workspace_id);
+    CBox get_global_window_box(PHLWINDOW window, PHLWORKSPACE workspace);
     CBox get_global_ws_box(WORKSPACEID workspace_id);
 
     Vector2D global_to_local_ws_unscaled(Vector2D pos, WORKSPACEID workspace_id);

@@ -369,7 +369,7 @@ bool hookShouldRenderWindow(void* thisptr, PHLWINDOW window, PHLMONITOR monitor)
         if (view == nullptr || view->get_monitor() != monitor)
             return original_result;
 
-        return view->layout->should_render_window(window);
+        return view->layout->should_render_window(window, original_result);
     });
 }
 
@@ -551,10 +551,6 @@ void shutdownRendererHooks() {
     should_render_window_hook_info = {};
     render_window_symbol_info = {};
     is_solitary_blocked_hook_info = {};
-}
-
-bool should_render_window_original(PHLWINDOW window, PHLMONITOR monitor) {
-    return should_render_window_original(g_pHyprRenderer.get(), window, monitor);
 }
 
 bool should_render_window_original(void* renderer, PHLWINDOW window, PHLMONITOR monitor) {

@@ -11,14 +11,6 @@ HTLayoutBase::HTLayoutBase(VIEWID new_view_id) : view_id(new_view_id) {
     ;
 }
 
-bool HTLayoutBase::should_render_window(PHLWINDOW window) {
-    const PHLMONITOR monitor = get_monitor();
-    if (monitor == nullptr || window == nullptr)
-        return false;
-
-    return HTCompat::should_render_window_original(window, monitor);
-}
-
 void HTLayoutBase::begin_render() {
     HTCompat::begin_overview_render_pass();
 }
@@ -82,7 +74,7 @@ WORKSPACEID HTLayoutBase::get_ws_id_from_xy(int x, int y) {
     return WORKSPACE_INVALID;
 }
 
-CBox HTLayoutBase::get_global_window_box(PHLWINDOW window, WORKSPACEID workspace_id) {
+CBox HTLayoutBase::get_global_window_box(PHLWINDOW window, PHLWORKSPACE workspace) {
     if (window == nullptr)
         return {};
 
@@ -90,7 +82,6 @@ CBox HTLayoutBase::get_global_window_box(PHLWINDOW window, WORKSPACEID workspace
     if (monitor == nullptr)
         return {};
 
-    const PHLWORKSPACE workspace = HTCompat::workspace_by_id(workspace_id);
     if (workspace == nullptr || HTCompat::workspace_monitor(workspace) != monitor)
         return {};
     const Vector2D monitor_pos = HTCompat::monitor_position(monitor);

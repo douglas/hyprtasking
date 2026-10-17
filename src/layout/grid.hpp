@@ -29,7 +29,7 @@ class HTLayoutGrid: public HTLayoutBase {
 
     WORKSPACEID get_ws_id_in_direction(int x, int y, std::string& direction);
 
-    bool should_render_window(PHLWINDOW window);
+    bool should_render_window(PHLWINDOW window, bool original_result);
     float drag_window_scale();
     void init_position();
     void set_grid_block(int block);

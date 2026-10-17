@@ -216,12 +216,11 @@ void HTLayoutGrid::on_move(WORKSPACEID old_id, WORKSPACEID new_id, CallbackFun o
     *offset = -target_layout->box.pos();
 }
 
-bool HTLayoutGrid::should_render_window(PHLWINDOW window) {
-    bool ori_result = HTLayoutBase::should_render_window(window);
-
+// original_result is Hyprland's own answer for this window on this view's monitor.
+bool HTLayoutGrid::should_render_window(PHLWINDOW window, bool original_result) {
     const PHLMONITOR monitor = get_monitor();
     if (window == nullptr || monitor == nullptr)
-        return ori_result;
+        return original_result;
 
     if (ht_manager != nullptr && ht_manager->is_dragged_window(window))
         return false;
@@ -230,13 +229,13 @@ bool HTLayoutGrid::should_render_window(PHLWINDOW window) {
     if (workspace == nullptr)
         return false;
 
-    CBox window_box = get_global_window_box(window, HTCompat::window_workspace_id(window));
+    CBox window_box = get_global_window_box(window, workspace);
     if (window_box.empty())
         return false;
     if (window_box.intersection(HTCompat::monitor_logical_box(monitor)).empty())
         return false;
 
-    return ori_result;
+    return original_result;
 }
 
 float HTLayoutGrid::drag_window_scale() {
