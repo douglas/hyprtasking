@@ -29,13 +29,13 @@ std::vector<PHLMONITOR> compositor_monitors();
 PHLMONITOR monitor_from_id(MONITORID monitor_id);
 std::string monitor_description(PHLMONITOR monitor);
 std::string monitor_name(PHLMONITOR monitor);
-void create_float_animation(
+bool create_float_animation(
     float initial_value,
     PHLANIMVAR<float>& animation,
     const std::string& config_name,
     eAVarDamagePolicy policy
 );
-void create_vector_animation(
+bool create_vector_animation(
     const Vector2D& initial_value,
     PHLANIMVAR<Vector2D>& animation,
     const std::string& config_name,
@@ -49,6 +49,8 @@ void damage_monitor(PHLMONITOR monitor);
 void schedule_frame_for_monitor(PHLMONITOR monitor);
 void simulate_mouse_movement();
 bool do_later(const std::function<void()>& callback);
+// Drops queued do_later callbacks; their code lives in this plugin's .so.
+void cancel_pending_do_later();
 void move_window_to_workspace(PHLWINDOW window, PHLWORKSPACE workspace);
 void set_mouse_bind_mode(eMouseBindMode mode);
 bool begin_drag_window(PHLWINDOW window, eMouseBindMode mode);

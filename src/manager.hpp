@@ -73,9 +73,9 @@ class HTManager {
         HT_SWIPE_NONE,
     };
 
-    swipe_state_t swipe_state;
-    float swipe_amt;
-    VIEWID swipe_view_id;
+    swipe_state_t swipe_state = HT_SWIPE_NONE;
+    float swipe_amt = 0.F;
+    VIEWID swipe_view_id = INVALID_VIEW_ID;
     PHLWINDOWREF dragged_window;
     bool selection_pending = false;
     bool runtime_disabled = false;

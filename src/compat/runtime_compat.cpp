@@ -1,6 +1,7 @@
 #include "runtime_compat.hpp"
 
 #include <hyprland/src/Compositor.hpp>
+#include <memory>
 #include <hyprland/src/config/ConfigManager.hpp>
 
 #include "../build_contract.hpp"
@@ -70,7 +71,7 @@ Vector2D HTCompat::mouse_coords() {
     return g_pInputManager->getMouseCoordsInternal();
 }
 
-void HTCompat::create_float_animation(
+bool HTCompat::create_float_animation(
     float initial_value,
     PHLANIMVAR<float>& animation,
     const std::string& config_name,
@@ -78,24 +79,25 @@ void HTCompat::create_float_animation(
 ) {
     const auto manager = animation_manager();
     if (manager == nullptr)
-        return;
+        return false;
 
 #if HT_HYPRLAND_GE_0_55
     if (!Config::animationTree())
-        return;
+        return false;
 
     const auto config = Config::animationTree()->getAnimationPropertyConfig(config_name);
 #else
     if (!g_pConfigManager)
-        return;
+        return false;
 
     const auto config = g_pConfigManager->getAnimationPropertyConfig(config_name);
 #endif
 
     manager->createAnimation(initial_value, animation, config, policy);
+    return animation != nullptr;
 }
 
-void HTCompat::create_vector_animation(
+bool HTCompat::create_vector_animation(
     const Vector2D& initial_value,
     PHLANIMVAR<Vector2D>& animation,
     const std::string& config_name,
@@ -103,21 +105,22 @@ void HTCompat::create_vector_animation(
 ) {
     const auto manager = animation_manager();
     if (manager == nullptr)
-        return;
+        return false;
 
 #if HT_HYPRLAND_GE_0_55
     if (!Config::animationTree())
-        return;
+        return false;
 
     const auto config = Config::animationTree()->getAnimationPropertyConfig(config_name);
 #else
     if (!g_pConfigManager)
-        return;
+        return false;
 
     const auto config = g_pConfigManager->getAnimationPropertyConfig(config_name);
 #endif
 
     manager->createAnimation(initial_value, animation, config, policy);
+    return animation != nullptr;
 }
 
 std::vector<PHLMONITOR> HTCompat::compositor_monitors() {
@@ -242,6 +245,15 @@ void HTCompat::simulate_mouse_movement() {
     g_pInputManager->simulateMouseMovement();
 }
 
+namespace {
+
+std::vector<uint64_t>& pending_do_later() {
+    static std::vector<uint64_t> pending;
+    return pending;
+}
+
+} // namespace
+
 bool HTCompat::do_later(const std::function<void()>& callback) {
     if (!callback)
         return false;
@@ -249,8 +261,28 @@ bool HTCompat::do_later(const std::function<void()>& callback) {
     if (!g_pEventLoopManager)
         return false;
 
+#if HT_HYPRLAND_GE_0_55
+    const auto seq = std::make_shared<uint64_t>(0);
+    *seq = g_pEventLoopManager->doLater([callback, seq] {
+        std::erase(pending_do_later(), *seq);
+        callback();
+    });
+    pending_do_later().push_back(*seq);
+#else
+    // 0.54 has no removeDoLater, so queued callbacks cannot be cancelled.
     g_pEventLoopManager->doLater(callback);
+#endif
     return true;
+}
+
+void HTCompat::cancel_pending_do_later() {
+#if HT_HYPRLAND_GE_0_55
+    if (g_pEventLoopManager) {
+        for (const uint64_t seq : pending_do_later())
+            g_pEventLoopManager->removeDoLater(seq);
+    }
+#endif
+    pending_do_later().clear();
 }
 
 void HTCompat::move_window_to_workspace(PHLWINDOW window, PHLWORKSPACE workspace) {

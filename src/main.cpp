@@ -7,10 +7,12 @@
 #include "build_contract.hpp"
 #include "compat/profile.hpp"
 #include "compat/renderer_compat.hpp"
+#include "compat/runtime_compat.hpp"
 #include "globals.hpp"
 #include "manager.hpp"
 #include "plugin/dispatchers.hpp"
 #include "plugin/runtime.hpp"
+#include "trace.hpp"
 
 namespace {
 
@@ -113,6 +115,8 @@ APICALL EXPORT void PLUGIN_EXIT() {
             ht_manager->prepare_for_unload();
     });
     cleanup_step("callbacks", [] { HTPlugin::unregisterCallbacks(); });
+    cleanup_step("deferred_callbacks", [] { HTCompat::cancel_pending_do_later(); });
     cleanup_step("renderer_hooks", [] { HTCompat::shutdownRendererHooks(); });
     cleanup_step("manager_destroy", [] { ht_manager.reset(); });
+    cleanup_step("trace", [] { HTTrace::shutdown(); });
 }

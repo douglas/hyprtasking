@@ -163,7 +163,7 @@ The trace work paid for itself. It should stay in the repo, but behind a flag:
 
 ```bash
 hyprctl keyword plugin:hyprtasking:debug:trace 1
-tail -f /tmp/hyprtasking-trace.log
+tail -f "$XDG_RUNTIME_DIR/hyprtasking-trace.log"
 ```
 
 That gives maintainers a cheap, repeatable way to inspect live runtime state
@@ -199,7 +199,7 @@ lsof -p "$(pgrep -o Hyprland)" | rg 'hyprtasking|libhyprtasking'
 
 ```bash
 hyprctl keyword plugin:hyprtasking:debug:trace 1
-tail -f /tmp/hyprtasking-trace.log
+tail -f "$XDG_RUNTIME_DIR/hyprtasking-trace.log"
 ```
 
 4. If button values in the trace are wrong or missing, verify with `wev`.

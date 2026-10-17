@@ -230,7 +230,7 @@ The current maintenance work has added:
 - structured JSON output for release, compat, boundary, and manual-check flows
 - explicit maintainer docs for debugging, incident learnings, and compat
   ownership
-- a built-in trace path at `/tmp/hyprtasking-trace.log`, gated by
+- a built-in trace path at `$XDG_RUNTIME_DIR/hyprtasking-trace.log`, gated by
   `plugin:hyprtasking:debug:trace`
 - the direct input-manager mouse-button hook that restored stable drag and
   right-click workspace selection on the supported Hyprland line
@@ -590,7 +590,7 @@ Visual styling uses fixed built-in defaults.
 
 | Option | Type | Description | Default |
 | --- | --- | --- | --- |
-| `debug:trace` | `Hyprlang::INT` | Enables runtime trace output to `/tmp/hyprtasking-trace.log` for debugging. Use a config entry for persistent tracing. Runtime toggles with `hyprctl keyword plugin:hyprtasking:debug:trace 1` are applied after a config reload or plugin reload. | `0` |
+| `debug:trace` | `Hyprlang::INT` | Enables runtime trace output to `$XDG_RUNTIME_DIR/hyprtasking-trace.log` (or `/tmp/hyprtasking-trace-<uid>.log` when unset) for debugging. Use a config entry for persistent tracing. Runtime toggles with `hyprctl keyword plugin:hyprtasking:debug:trace 1` are applied after a config reload or plugin reload. | `0` |
 | `drag_button` | `Hyprlang::INT` | The mouse button to use to drag windows around. Must differ from `select_button`; conflicts are rejected and the previous value is kept. | `0x110` |
 | `select_button` | `Hyprlang::INT` | The mouse button to use to select a workspace. Must differ from `drag_button`; conflicts are rejected and the previous value is kept. | `0x111` |
 | `gestures:enabled` | `Hyprlang::INT` | Whether or not to enable gestures | `true` |

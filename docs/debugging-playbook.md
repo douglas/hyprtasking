@@ -201,7 +201,7 @@ default playbook for similar bugs.
 
 ```bash
 hyprctl keyword plugin:hyprtasking:debug:trace 1
-tail -f /tmp/hyprtasking-trace.log
+tail -f "$XDG_RUNTIME_DIR/hyprtasking-trace.log"
 ```
 
 Notes:

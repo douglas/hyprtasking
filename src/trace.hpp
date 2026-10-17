@@ -9,6 +9,7 @@ namespace HTTrace {
 bool enabled();
 void refresh();
 void write(std::string_view message);
+void shutdown();
 
 template <class... Args>
 void log(std::format_string<Args...> fmt, Args&&... args) {

@@ -3,6 +3,7 @@
 #include <cmath>
 #include <format>
 #include <optional>
+#include <stdexcept>
 #include <hyprutils/math/Vector2D.hpp>
 #include <hyprutils/utils/ScopeGuard.hpp>
 #include <string_view>
@@ -42,8 +43,9 @@ T skip_invalid_geometry(std::string_view source, const std::string& reason, T fa
 } // namespace
 
 HTLayoutGrid::HTLayoutGrid(VIEWID new_view_id) : HTLayoutBase(new_view_id) {
-    HTCompat::create_vector_animation({0, 0}, offset, "workspaces", AVARDAMAGE_NONE);
-    HTCompat::create_float_animation(1.f, scale, "workspaces", AVARDAMAGE_NONE);
+    if (!HTCompat::create_vector_animation({0, 0}, offset, "workspaces", AVARDAMAGE_NONE)
+        || !HTCompat::create_float_animation(1.f, scale, "workspaces", AVARDAMAGE_NONE))
+        throw std::runtime_error("failed creating overview animation variables");
 
     init_position();
 }
