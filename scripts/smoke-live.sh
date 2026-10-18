@@ -1,4 +1,13 @@
 #!/usr/bin/env bash
+# Live smoke checks against a running Hyprland. Modes:
+#   all          load/unload, dispatcher probes, config safety, toggle/move, reloads
+#   stress       repeated load/unload, toggle/move, reload, and reload-open cycles
+#   dispatchers  check toggle/move/select/commit/health are registered
+#   safety       invalid config values are rejected while the runtime stays enabled
+#   load-unload | toggle | move | reload | reload-open   run one stage
+#   manual       confirm the plugin is loaded, then point at the manual checks
+# Environment: HYPRLAND_INSTANCE_SIGNATURE, PLUGIN_PATH, LOAD_UNLOAD_CYCLES,
+# TOGGLE_CYCLES, RELOAD_CYCLES (stress raises cycles left at 1 to 3/3/2).
 set -euo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
