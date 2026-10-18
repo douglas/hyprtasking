@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Snap a window dropped outside every cell to the nearest point of its
+  workspace's cell instead of a shrunken box near the cell's top-left.
+- Abort a drop when its target cell cannot be found instead of warping the
+  pointer and window to the monitor's corner.
+- Keep the slide animation after a touchpad move-swipe instead of snapping.
+- Let the mouse hover and select cells of workspaces that do not exist yet;
+  selecting one creates and switches to it.
+- Stop a lost mouse release from freezing hover until the next selection.
+- Update the Nix flake: pin Hyprland to `v0.56.2` (it tracked a pre-0.55
+  commit), refresh the lock from that release, use the default stdenv and
+  report version 0.6.0.
+
+### Changed
+
+- Re-read the config once per gesture and per dispatch instead of on every
+  swipe event; runtime config changes do not fire Hyprland's reload event.
+- Remove about 1,200 more lines of unreachable checks, duplicate state and
+  single-use helpers, merge the logic library into one file and the layout
+  base class into the grid, and run every smoke stage in `stress` mode.
+
 ## 0.6.0 - 2026-10-18
 
 ### Removed
