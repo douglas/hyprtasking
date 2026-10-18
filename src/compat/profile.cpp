@@ -301,12 +301,16 @@ bool remove_function_hook(CFunctionHook*& hook, std::string_view label) {
     if (hook == nullptr)
         return true;
 
-    const bool removed = HyprlandAPI::removeFunctionHook(PHANDLE, hook);
-    if (!removed)
+    // Keep the pointer if removal failed: the trampoline is still live and its
+    // destination still needs the original, or Hyprland loses that call.
+    // Hyprland removes leftover plugin hooks on unload.
+    if (!HyprlandAPI::removeFunctionHook(PHANDLE, hook)) {
         Log::logger->log(Log::WARN, "[Hyprtasking] Failed to remove hook {}", label);
+        return false;
+    }
 
     hook = nullptr;
-    return removed;
+    return true;
 }
 
 bool function_hook_original_ready(CFunctionHook* hook) {
