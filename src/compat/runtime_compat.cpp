@@ -166,8 +166,12 @@ std::string HTCompat::monitor_name(PHLMONITOR monitor) {
 }
 
 PHLWINDOW HTCompat::hover_target_window_at(const Vector2D& position) {
-    constexpr uint16_t properties = Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS
-        | Desktop::View::ALLOW_FLOATING;
+    // Hyprland's flag enum is signed; combine the bits unsigned.
+    constexpr auto properties = static_cast<uint16_t>(
+        static_cast<unsigned>(Desktop::View::RESERVED_EXTENTS)
+        | static_cast<unsigned>(Desktop::View::INPUT_EXTENTS)
+        | static_cast<unsigned>(Desktop::View::ALLOW_FLOATING)
+    );
 #if HT_HYPRLAND_GE_0_56
     if (!Desktop::viewState())
         return nullptr;

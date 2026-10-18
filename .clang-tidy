@@ -18,6 +18,8 @@ Checks: >
   readability-const-return-type,
   readability-redundant-smartptr-get
 HeaderFilterRegex: '.*/hyprtasking/src/.*'
+# Hyprland's APICALL plugin entry points return C++ types from extern "C".
+ExtraArgs: ['-Wno-return-type-c-linkage']
 SystemHeaders: false
 CheckOptions:
   cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: true
