@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Sourced by the other scripts.
+# shellcheck disable=SC2034
 
 SUPPORTED_TARGETS="0.55.x, 0.56.0, and 0.56.2"
 SUPPORTED_VERSIONS=("0.55" "0.56.0" "0.56.2")

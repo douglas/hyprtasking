@@ -98,6 +98,7 @@ hypr_set_prefix() {
     hypr_signature_pid_alive "$signature" || continue
 
     if env HYPRLAND_INSTANCE_SIGNATURE="$signature" hyprctl "${probe_args[@]}" >/dev/null 2>&1; then
+      # shellcheck disable=SC2034 # read by the sourcing script
       HYPRCTL_PREFIX=(env "HYPRLAND_INSTANCE_SIGNATURE=$signature" hyprctl)
       return 0
     fi

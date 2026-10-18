@@ -58,8 +58,8 @@ hyprland_uses_lua_plugin_calls() {
   version="$("${HYPRCTL_PREFIX[@]}" version 2>/dev/null)"
   version="$(hypr_extract_semver "$version")" || return 1
 
-  local major minor patch
-  IFS=. read -r major minor patch <<< "$version"
+  local major minor
+  IFS=. read -r major minor _ <<< "$version"
   ((major > 0 || minor >= 56))
 }
 
