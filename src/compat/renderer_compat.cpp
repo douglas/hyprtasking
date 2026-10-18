@@ -30,8 +30,9 @@
 namespace {
 
 const std::string CLEAR_PASS_ELEMENT_NAME = "CClearPassElement";
-thread_local int g_overview_render_scope_depth = 0;
-thread_local int g_overview_render_pass_depth = 0;
+// Balanced by RAII in the render hooks; Hyprland renders on one thread.
+int g_overview_render_scope_depth = 0;
+int g_overview_render_pass_depth = 0;
 
 void render_workspace_original_or_disable(
     void* thisptr,
@@ -857,11 +858,6 @@ void add_renderer_hints_pass(const HTRenderModifData& data) {
     );
 }
 
-void reset_overview_render_guard() {
-    g_overview_render_scope_depth = 0;
-    g_overview_render_pass_depth = 0;
-}
-
 void begin_overview_render_pass() {
     if (!g_pHyprRenderer.get())
         return;
@@ -899,7 +895,8 @@ void remove_overview_render_passes() {
 
     g_pHyprRenderer->m_renderPass.removeAllOfType(HT_PASS_ELEMENT_NAME);
     g_pHyprRenderer->m_renderPass.removeAllOfType(CLEAR_PASS_ELEMENT_NAME);
-    reset_overview_render_guard();
+    g_overview_render_scope_depth = 0;
+    g_overview_render_pass_depth = 0;
 }
 
 void finalize_overview_render_pass() {

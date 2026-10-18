@@ -282,7 +282,6 @@ void HTManager::reset_runtime_controls() {
     HTCompat::exit_submap();
     HTCompat::set_cursor_override_enabled(false);
 
-    HTCompat::reset_overview_render_guard();
     reset_selection_state();
     reset_mouse_button_state();
 
