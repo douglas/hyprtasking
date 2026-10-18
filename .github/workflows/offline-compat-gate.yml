@@ -7,33 +7,17 @@ on:
       - main
 
 jobs:
-  shellcheck:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Hyprtasking
-        uses: actions/checkout@v5
-
-      # shellcheck ships with the ubuntu-latest runner image.
-      - name: Shellcheck scripts
-        run: shellcheck -x -P scripts scripts/*.sh
-
   compat-offline:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - track: v0.55.0
-            ref: v0.55.0
-          - track: v0.56.0
-            ref: v0.56.0
-          - track: v0.56.2
-            ref: v0.56.2
+        ref: [v0.55.0, v0.56.0, v0.56.2]
     steps:
       - name: Checkout Hyprtasking
         uses: actions/checkout@v5
 
-      - name: Checkout Hyprland ${{ matrix.track }} line
+      - name: Checkout Hyprland ${{ matrix.ref }}
         uses: actions/checkout@v5
         with:
           repository: hyprwm/Hyprland

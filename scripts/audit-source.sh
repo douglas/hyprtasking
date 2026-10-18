@@ -73,7 +73,7 @@ while IFS= read -r ref; do
   else
     matrix_issues+="unsupported matrix ref: v$ref"$'\n'
   fi
-done < <(rg -o --no-filename -N 'ref:[[:space:]]*v([0-9]+\.[0-9]+\.[0-9]+)' -r '$1' \
+done < <(rg -o --no-filename -N '\bv([0-9]+\.[0-9]+\.[0-9]+)\b' -r '$1' \
   "$REPO_DIR/.github/workflows/offline-compat-gate.yml" || true)
 for target in "${SUPPORTED_VERSIONS[@]}"; do
   printf '%s' "$matrix_targets" | rg -qxF -- "$target" ||
