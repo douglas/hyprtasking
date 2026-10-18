@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Sourced by the other scripts. hypr_set_prefix fills HYPRCTL_PREFIX with the
+# hyprctl command for the first live Hyprland instance.
+
+# shellcheck disable=SC2034 # read by the sourcing script
+HYPRCTL_PREFIX=()
 
 hypr_extract_semver() {
   local value=$1
@@ -35,12 +40,6 @@ hypr_signature_socket_path() {
   printf '%s/hypr/%s/.socket.sock' "$runtime_dir" "$1"
 }
 
-hypr_signature_lock_path() {
-  local runtime_dir
-  runtime_dir="$(hypr_runtime_dir)"
-  printf '%s/hypr/%s/hyprland.lock' "$runtime_dir" "$1"
-}
-
 hyprtasking_configured_plugin_path() {
   local config_dir="${HOME}/.config/hypr"
   [[ -d "$config_dir" ]] || return 1
@@ -58,47 +57,15 @@ hyprtasking_configured_plugin_path() {
   printf '%s' "$first"
 }
 
-hypr_signature_pid() {
-  local lock_path
-  lock_path="$(hypr_signature_lock_path "$1")"
-  [[ -f "$lock_path" ]] || return 1
-
-  local pid
-  pid="$(sed -n '1p' "$lock_path")"
-  [[ "$pid" =~ ^[0-9]+$ ]] || return 1
-  printf '%s' "$pid"
-}
-
-hypr_signature_pid_alive() {
-  local pid
-  pid="$(hypr_signature_pid "$1")" || return 0
-  if [[ ! -d "/proc/$pid" && -S "$(hypr_signature_socket_path "$1")" ]]; then
-    return 0
-  fi
-  [[ -d "/proc/$pid" ]]
-}
-
+# hypr_set_prefix PROBE_ARGS...: the hyprctl probe is the liveness check, so
+# stale sockets left by a dead compositor are skipped.
 hypr_set_prefix() {
-  local probe_args=("$@")
-  local -A seen=()
   local signature
-
-  HYPRCTL_PREFIX=()
-
   while IFS= read -r signature; do
     [[ -n "$signature" ]] || continue
-    if [[ -n "${seen[$signature]+x}" ]]; then
-      continue
-    fi
-    seen[$signature]=1
+    [[ -S "$(hypr_signature_socket_path "$signature")" ]] || continue
 
-    local socket_path
-    socket_path="$(hypr_signature_socket_path "$signature")"
-    [[ -S "$socket_path" ]] || continue
-    hypr_signature_pid_alive "$signature" || continue
-
-    if env HYPRLAND_INSTANCE_SIGNATURE="$signature" hyprctl "${probe_args[@]}" >/dev/null 2>&1; then
-      # shellcheck disable=SC2034 # read by the sourcing script
+    if env HYPRLAND_INSTANCE_SIGNATURE="$signature" hyprctl "$@" >/dev/null 2>&1; then
       HYPRCTL_PREFIX=(env "HYPRLAND_INSTANCE_SIGNATURE=$signature" hyprctl)
       return 0
     fi

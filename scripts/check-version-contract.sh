@@ -9,7 +9,6 @@ source "$SCRIPT_DIR/common-hyprctl.sh"
 source "$SCRIPT_DIR/support-matrix.sh"
 
 HYPRLAND_SOURCE=${1:-${HYPRLAND_SOURCE:-}}
-HYPRCTL_PREFIX=()
 
 die() {
   printf '%s\n' "$2" >&2
