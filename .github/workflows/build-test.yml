@@ -28,6 +28,13 @@ jobs:
           meson setup build -Dwerror=true
           meson compile -C build
 
+      - name: clang-tidy
+        run: |
+          # --no-gnu-unique is GCC-only and clang-tidy rejects it.
+          mkdir -p build-tidy
+          sed 's/ --no-gnu-unique//g' build/compile_commands.json > build-tidy/compile_commands.json
+          run-clang-tidy -quiet -p build-tidy -warnings-as-errors='*' "$PWD/src/.*"
+
       - name: Run logic tests with sanitizers
         run: |
           meson setup build-san -Dwerror=true -Db_sanitize=address,undefined
