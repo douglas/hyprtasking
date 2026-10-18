@@ -48,11 +48,13 @@ HTLogic::MouseButtonResult HTManager::handle_mouse_button(unsigned int button, b
         claimed_mouse_button = button;
         claimed_mouse_view_id = cursor_view->monitor_id;
 
-        if (cursor_context.workspace == nullptr)
+        // Empty cells have an id but no workspace yet: they can be selected
+        // (the commit creates the workspace) but hold no window to drag.
+        if (cursor_context.workspace_id == WORKSPACE_INVALID)
             return HTLogic::MouseButtonResult::Consume;
 
         if (is_drag_button) {
-            if (start_window_drag(cursor_context))
+            if (cursor_context.workspace != nullptr && start_window_drag(cursor_context))
                 claimed_mouse_interaction = HT_MOUSE_DRAG;
         } else {
             claimed_mouse_interaction = HT_MOUSE_SELECT;
@@ -278,7 +280,7 @@ void HTManager::on_mouse_move() {
     if (cursor_view == nullptr || !cursor_view->active || cursor_view->closing)
         return;
 
-    if (cursor_context.workspace == nullptr) {
+    if (cursor_context.workspace_id == WORKSPACE_INVALID) {
         if (cursor_view->hovered_workspace_id != WORKSPACE_INVALID) {
             cursor_view->clear_hover_workspace();
             HTCompat::redraw_monitor(cursor_context.monitor);

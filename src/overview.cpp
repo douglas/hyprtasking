@@ -33,9 +33,9 @@ bool commit_selection_target(HTView& view, WORKSPACEID target_workspace_id, bool
     view.set_runtime_state(true, true, false);
     view.layout->on_hide(
         target_workspace_id,
-        [&view, monitor_id, workspace_ref = PHLWORKSPACEREF {workspace}, defer_activation](auto) {
+        [&view, monitor_id, target_workspace_id, defer_activation](auto) {
             if (defer_activation) {
-                const bool scheduled = HTCompat::do_later([monitor_id, workspace_ref] {
+                const bool scheduled = HTCompat::do_later([monitor_id, target_workspace_id] {
                     if (ht_manager == nullptr || !ht_manager->runtime_enabled())
                         return;
 
@@ -43,7 +43,13 @@ bool commit_selection_target(HTView& view, WORKSPACEID target_workspace_id, bool
                     if (target_monitor == nullptr)
                         return;
 
-                    const PHLWORKSPACE target_workspace = workspace_ref.lock();
+                    // Resolve by id: Hyprland drops an empty workspace that
+                    // is not active, such as one created for an empty cell.
+                    const PHLWORKSPACE target_workspace = HTCompat::resolve_workspace_target(
+                        target_monitor,
+                        target_workspace_id,
+                        true
+                    );
                     if (target_workspace != nullptr)
                         HTCompat::activate_monitor_workspace_user(target_monitor, target_workspace);
                 });
