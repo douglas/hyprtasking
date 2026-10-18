@@ -8,9 +8,6 @@
 #include "render.hpp"
 
 std::optional<HTRenderSnapshot> capture_render_snapshot(VIEWID view_id, float drag_window_scale) {
-    if (ht_manager == nullptr)
-        return std::nullopt;
-
     const PHTVIEW view = ht_manager->get_view_from_id(view_id);
     if (view == nullptr)
         return std::nullopt;

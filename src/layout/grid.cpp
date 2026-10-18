@@ -230,7 +230,7 @@ bool HTLayoutGrid::should_render_window(PHLWINDOW window, bool original_result) 
     if (window == nullptr || monitor == nullptr)
         return original_result;
 
-    if (ht_manager != nullptr && ht_manager->is_dragged_window(window))
+    if (ht_manager->is_dragged_window(window))
         return false;
 
     PHLWORKSPACE workspace = HTCompat::window_workspace(window);

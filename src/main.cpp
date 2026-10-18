@@ -10,22 +10,7 @@
 #include "plugin/dispatchers.hpp"
 #include "plugin/guards.hpp"
 #include "plugin/runtime.hpp"
-
-namespace {
-
-template<typename Fn>
-void cleanup_step(std::string_view name, Fn&& fn) noexcept {
-    try {
-        fn();
-    } catch (...) {
-        const char* reason = HTPlugin::current_exception_what();
-        try {
-            Log::logger->log(Log::ERR, "[Hyprtasking] {} cleanup failed: {}", name, reason);
-        } catch (...) {} // NOLINT(bugprone-empty-catch): logging failed; nothing left to do
-    }
-}
-
-} // namespace
+#include "scope_guard.hpp"
 
 APICALL EXPORT std::string PLUGIN_API_VERSION() {
     return HYPRLAND_API_VERSION;
@@ -62,19 +47,13 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     try {
         HTPlugin::initializeConfig();
         HTPlugin::registerDispatchers();
-        const bool callbacks_ready = HTPlugin::registerCallbacks();
-        const bool renderer_hooks_ready = HTCompat::initializeRendererHooks();
-        if (callbacks_ready && renderer_hooks_ready && ht_manager->runtime_enabled()) {
+        // Each step disables the runtime with its own reason when it fails.
+        if (HTPlugin::registerCallbacks() && HTCompat::initializeRendererHooks()
+            && ht_manager->runtime_enabled()) {
             HTPlugin::registerMonitors();
         } else {
             HTPlugin::unregisterCallbacks();
             HTCompat::shutdownRendererHooks();
-            if (ht_manager != nullptr && ht_manager->runtime_enabled()) {
-                ht_manager->disable_runtime(
-                    "plugin_init",
-                    "runtime startup did not complete"
-                );
-            }
         }
     } catch (...) {
         HTPlugin::unregisterCallbacks();
@@ -90,12 +69,9 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
 APICALL EXPORT void PLUGIN_EXIT() {
     Log::logger->log(LOG, "[Hyprtasking] Plugin exiting");
 
-    cleanup_step("manager_unload", [] {
-        if (ht_manager != nullptr)
-            ht_manager->prepare_for_unload();
-    });
-    cleanup_step("callbacks", [] { HTPlugin::unregisterCallbacks(); });
-    cleanup_step("deferred_callbacks", [] { HTCompat::cancel_pending_do_later(); });
-    cleanup_step("renderer_hooks", [] { HTCompat::shutdownRendererHooks(); });
-    cleanup_step("manager_destroy", [] { ht_manager.reset(); });
+    run_cleanup("manager_unload", [] { ht_manager->prepare_for_unload(); });
+    run_cleanup("callbacks", [] { HTPlugin::unregisterCallbacks(); });
+    run_cleanup("deferred_callbacks", [] { HTCompat::cancel_pending_do_later(); });
+    run_cleanup("renderer_hooks", [] { HTCompat::shutdownRendererHooks(); });
+    run_cleanup("manager_destroy", [] { ht_manager.reset(); });
 }

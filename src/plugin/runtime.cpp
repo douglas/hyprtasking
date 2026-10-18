@@ -72,7 +72,7 @@ void shutdownMouseButtonHook() {
 
 void onMouseMove([[maybe_unused]] Vector2D cursor, Event::SCallbackInfo& info) {
     HTPlugin::guardedCallback("on_mouse_move", [&] {
-        if (ht_manager == nullptr || !ht_manager->runtime_enabled())
+        if (!ht_manager->runtime_enabled())
             return;
 
         info.cancelled = ht_manager->on_mouse_move();
@@ -84,7 +84,7 @@ void onSwipeBegin(
     [[maybe_unused]] Event::SCallbackInfo& info
 ) {
     HTPlugin::guardedCallback("on_swipe_begin", [&] {
-        if (ht_manager == nullptr || !ht_manager->runtime_enabled())
+        if (!ht_manager->runtime_enabled())
             return;
 
         ht_manager->reset_swipe_state();
@@ -93,7 +93,7 @@ void onSwipeBegin(
 
 void onSwipeUpdate(IPointer::SSwipeUpdateEvent e, Event::SCallbackInfo& info) {
     HTPlugin::guardedCallback("on_swipe_update", [&] {
-        if (ht_manager == nullptr || !ht_manager->runtime_enabled())
+        if (!ht_manager->runtime_enabled())
             return;
 
         info.cancelled = ht_manager->swipe_update(e);
@@ -102,7 +102,7 @@ void onSwipeUpdate(IPointer::SSwipeUpdateEvent e, Event::SCallbackInfo& info) {
 
 void onSwipeEnd(IPointer::SSwipeEndEvent e, Event::SCallbackInfo& info) {
     HTPlugin::guardedCallback("on_swipe_end", [&] {
-        if (ht_manager == nullptr || !ht_manager->runtime_enabled())
+        if (!ht_manager->runtime_enabled())
             return;
 
         info.cancelled = ht_manager->swipe_end(e.cancelled);
@@ -111,7 +111,7 @@ void onSwipeEnd(IPointer::SSwipeEndEvent e, Event::SCallbackInfo& info) {
 
 void onWindowSetChanged() {
     HTPlugin::guardedCallback("on_window_set_changed", [] {
-        if (ht_manager != nullptr && ht_manager->runtime_enabled())
+        if (ht_manager->runtime_enabled())
             ht_manager->on_window_set_changed();
     });
 }
@@ -120,8 +120,6 @@ void onConfigReloaded() {
     HTPlugin::guardedCallback("on_config_reloaded", [] {
         HTConfig::refresh_runtime_config("on_config_reloaded");
 
-        if (ht_manager == nullptr)
-            return;
         if (!ht_manager->runtime_enabled())
             return;
 
@@ -167,9 +165,6 @@ void unregisterCallbacks() {
 }
 
 bool registerCallbacks() {
-    unregisterCallbacks();
-    HTConfig::refresh_runtime_config("register_callbacks");
-
     if (!initializeMouseButtonHook())
         return false;
 
@@ -232,8 +227,6 @@ bool registerCallbacks() {
 
 void registerMonitors(MONITORID removed_monitor_id) {
     HTPlugin::guardedCallback("register_monitors", [removed_monitor_id] {
-        if (ht_manager == nullptr)
-            return;
         if (!ht_manager->runtime_enabled())
             return;
 

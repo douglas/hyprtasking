@@ -206,13 +206,8 @@ HookLookupResult resolve_hook_address(const HookSpec& hook) {
     try {
         const auto functions = HyprlandAPI::findFunctionsByName(PHANDLE, std::string(hook.query));
         for (const auto& function : functions) {
-            if (function.address != nullptr && function.signature == hook.signature) {
-                return {
-                    .address = function.address,
-                    .signature = function.signature,
-                    .method = "findFunctionsByName",
-                };
-            }
+            if (function.address != nullptr && function.signature == hook.signature)
+                return {.address = function.address};
         }
         if (!functions.empty())
             lookup_error = std::format(
@@ -238,8 +233,6 @@ HookInstallResult
 install_function_hook(CFunctionHook*& hook, const HookSpec& spec, void* destination) {
     if (hook != nullptr)
         return {.error = std::format("{} hook is already installed", spec.label)};
-    if (destination == nullptr)
-        return {.error = std::format("{} hook destination is null", spec.label)};
 
     const auto lookup = resolve_hook_address(spec);
     if (lookup.address == nullptr)
@@ -249,8 +242,7 @@ install_function_hook(CFunctionHook*& hook, const HookSpec& spec, void* destinat
     if (hook == nullptr)
         return {.error = std::format("failed creating {} hook", spec.label)};
 
-    Log::logger
-        ->log(LOG, "[Hyprtasking] Attempting hook {} via {}", lookup.signature, lookup.method);
+    Log::logger->log(LOG, "[Hyprtasking] Attempting hook {}", spec.signature);
 
     if (!hook->hook()) {
         remove_function_hook(hook, spec.label);
@@ -267,20 +259,19 @@ install_function_hook(CFunctionHook*& hook, const HookSpec& spec, void* destinat
     return {.installed = true};
 }
 
-bool remove_function_hook(CFunctionHook*& hook, std::string_view label) {
+void remove_function_hook(CFunctionHook*& hook, std::string_view label) {
     if (hook == nullptr)
-        return true;
+        return;
 
     // Keep the pointer if removal failed: the trampoline is still live and its
     // destination still needs the original, or Hyprland loses that call.
     // Hyprland removes leftover plugin hooks on unload.
     if (!HyprlandAPI::removeFunctionHook(PHANDLE, hook)) {
         Log::logger->log(Log::WARN, "[Hyprtasking] Failed to remove hook {}", label);
-        return false;
+        return;
     }
 
     hook = nullptr;
-    return true;
 }
 
 CompatibilityResult verify_compatibility() {

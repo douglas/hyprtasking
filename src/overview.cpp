@@ -20,8 +20,7 @@ bool commit_selection_target(HTView& view, WORKSPACEID target_workspace_id, bool
     if (workspace == nullptr)
         return false;
 
-    if (ht_manager != nullptr)
-        ht_manager->cancel_window_drag();
+    ht_manager->cancel_window_drag();
 
     // Freeze visual selection to the committed target during close animation.
     view.clear_hover_workspace();
@@ -109,8 +108,7 @@ void HTView::hide() {
     if (active_workspace == nullptr)
         return;
 
-    if (ht_manager != nullptr)
-        ht_manager->cancel_window_drag();
+    ht_manager->cancel_window_drag();
 
     set_runtime_state(true, true, false);
 
@@ -149,14 +147,13 @@ void HTView::set_runtime_state(bool new_active, bool new_closing, bool new_navig
             HTRuntimeFail::disable("set_runtime_state", "failed entering hyprtasking submap");
         }
     } else if (was_interactively_active && !is_interactively_active) {
-        if (ht_manager != nullptr && !ht_manager->has_interactively_active_view()) {
+        if (!ht_manager->has_interactively_active_view()) {
             if (!HTCompat::exit_submap())
                 HTRuntimeFail::disable("set_runtime_state", "failed resetting hyprtasking submap");
         }
     }
 
-    if (ht_manager != nullptr)
-        ht_manager->refresh_runtime_activity();
+    ht_manager->refresh_runtime_activity();
 }
 
 void HTView::reset_interaction_state() {
@@ -232,8 +229,7 @@ bool HTView::has_runtime_activity() const {
 }
 
 void HTView::reload_config() {
-    if (ht_manager != nullptr)
-        ht_manager->cancel_window_drag();
+    ht_manager->cancel_window_drag();
 
     if (has_runtime_activity())
         cancel_runtime_state();
@@ -355,9 +351,7 @@ bool HTView::navigate_selection(const std::string& arg) {
     layout->build_overview_layout(HT_VIEW_ANIMATING);
     auto select_workspace = [&](WORKSPACEID target_ws_id) {
         set_keyboard_workspace(target_ws_id);
-        const HTCursorWorkspaceContext cursor_context = ht_manager == nullptr
-            ? HTCursorWorkspaceContext {}
-            : ht_manager->resolve_cursor_workspace(false);
+        const HTCursorWorkspaceContext cursor_context = ht_manager->resolve_cursor_workspace(false);
         const WORKSPACEID cursor_workspace_id =
             cursor_context.monitor == monitor ? cursor_context.workspace_id : WORKSPACE_INVALID;
         suppress_hover_workspace(cursor_workspace_id);

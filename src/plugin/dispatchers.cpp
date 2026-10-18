@@ -27,8 +27,6 @@ bool isViewInteractivelyActive(const PHTVIEW& view) {
 }
 
 SDispatchResult requireRuntimeReady() {
-    if (ht_manager == nullptr)
-        return {.success = false, .error = "ht_manager is null"};
     if (!ht_manager->runtime_enabled())
         return {.success = false, .error = "runtime disabled"};
     HTConfig::refresh_runtime_config("runtime_config_validation");
@@ -123,9 +121,7 @@ SDispatchResult dispatchCommit([[maybe_unused]] std::string arg) {
 
 SDispatchResult dispatchHealth([[maybe_unused]] std::string arg) {
     return guardedDispatch("dispatch_health", [&]() -> SDispatchResult {
-        const std::string health = ht_manager == nullptr
-            ? "runtime_enabled=false disable_reason=\"ht_manager is null\""
-            : ht_manager->runtime_health_summary();
+        const std::string health = ht_manager->runtime_health_summary();
 
         Log::logger->log(LOG, "[Hyprtasking] health {}", health);
         HyprlandAPI::addNotification(
@@ -183,7 +179,7 @@ int luaHealth(lua_State* state) {
     {
         const std::string fallback = "runtime_enabled=false disable_reason=\"health unavailable\"";
         const auto health = guardedValue("lua_health", fallback, [&fallback] {
-            return ht_manager == nullptr ? fallback : ht_manager->runtime_health_summary();
+            return ht_manager->runtime_health_summary();
         });
         lua_pushstring(state, health.c_str());
     }

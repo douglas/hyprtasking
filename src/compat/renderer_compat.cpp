@@ -135,7 +135,7 @@ using render_texture_t = void (*) (
 // so it must not throw into the renderer.
 bool overview_render_modif_active() {
     return HTPlugin::guardedValue("overview_render_modif_active", false, [] {
-        if (g_pHyprRenderer == nullptr || ht_manager == nullptr || !ht_manager->runtime_enabled())
+        if (g_pHyprRenderer == nullptr || !ht_manager->runtime_enabled())
             return false;
 
         const auto& render_modif = g_pHyprRenderer->m_renderData.renderModif;
@@ -374,12 +374,7 @@ bool initializeRendererHooks() {
         return false;
     }
     g_hooks.render_window = render_window_symbol.address;
-    Log::logger->log(
-        LOG,
-        "[Hyprtasking] Resolved {} via {}",
-        render_window_symbol.signature,
-        render_window_symbol.method
-    );
+    Log::logger->log(LOG, "[Hyprtasking] Resolved {}", render_window_spec().signature);
 
     return install(
         g_hooks.is_solitary_blocked,

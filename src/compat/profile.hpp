@@ -15,8 +15,6 @@ struct HookSpec {
 
 struct HookLookupResult {
     void* address = nullptr;
-    std::string signature;
-    std::string method;
     std::string error;
 };
 
@@ -42,7 +40,7 @@ const HookSpec& solitary_blocked_spec();
 HookLookupResult resolve_hook_address(const HookSpec& hook);
 HookInstallResult
 install_function_hook(CFunctionHook*& hook, const HookSpec& spec, void* destination);
-bool remove_function_hook(CFunctionHook*& hook, std::string_view label);
+void remove_function_hook(CFunctionHook*& hook, std::string_view label);
 
 // Typed call-through for an installed hook. Only reachable from that hook's
 // destination or while it is installed, and installation rejects hooks
