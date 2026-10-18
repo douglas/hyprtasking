@@ -415,7 +415,7 @@ bool HTCompat::listen_monitor_added(
 
 bool HTCompat::listen_monitor_removed(
     CHyprSignalListener& listener,
-    const std::function<void()>& callback
+    const std::function<void(PHLMONITOR)>& callback
 ) {
     return listen_bus(listener, callback, [](auto& events) -> auto& {
         return events.monitor.removed;

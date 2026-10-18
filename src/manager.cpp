@@ -351,7 +351,7 @@ void HTManager::cancel_window_drag() {
     reset_drag_state();
 }
 
-void HTManager::sync_monitor_views() {
+void HTManager::sync_monitor_views(MONITORID removed_monitor_id) {
     std::vector<HTLogic::MonitorID> view_ids;
     view_ids.reserve(views.size());
     for (const PHTVIEW& view : views) {
@@ -365,7 +365,8 @@ void HTManager::sync_monitor_views() {
     const std::vector<PHLMONITOR> monitors = HTCompat::compositor_monitors();
     monitor_ids.reserve(monitors.size());
     for (const PHLMONITOR& monitor : monitors) {
-        monitor_ids.push_back(HTCompat::monitor_id(monitor));
+        if (const MONITORID id = HTCompat::monitor_id(monitor); id != removed_monitor_id)
+            monitor_ids.push_back(id);
     }
 
     const auto stale_ids = HTLogic::staleMonitorViewIDs(view_ids, monitor_ids);

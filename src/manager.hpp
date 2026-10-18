@@ -44,7 +44,7 @@ class HTManager {
     PHLWINDOW get_window_from_cursor();
 
     void prepare_for_unload();
-    void sync_monitor_views();
+    void sync_monitor_views(MONITORID removed_monitor_id = MONITOR_INVALID);
     void reset_drag_state();
     void cancel_window_drag();
 

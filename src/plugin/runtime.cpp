@@ -7,6 +7,7 @@
 
 #include "../build_contract.hpp"
 #include "../compat/profile.hpp"
+#include "../compat/renderer_compat.hpp"
 #include "../compat/runtime_compat.hpp"
 #include "../config.hpp"
 #include "../globals.hpp"
@@ -216,19 +217,22 @@ bool registerCallbacks() {
         ))
         return false;
     if (!mark_listener_ready(
-            HTCompat::listen_monitor_added(g_monitor_added_listener, registerMonitors),
+            HTCompat::listen_monitor_added(g_monitor_added_listener, [] { registerMonitors(); }),
             "monitor.added"
         ))
         return false;
     if (!mark_listener_ready(
-            HTCompat::listen_monitor_removed(g_monitor_removed_listener, registerMonitors),
+            HTCompat::listen_monitor_removed(
+                g_monitor_removed_listener,
+                [](PHLMONITOR monitor) { registerMonitors(HTCompat::monitor_id(monitor)); }
+            ),
             "monitor.removed"
         ))
         return false;
     if (!mark_listener_ready(
             HTCompat::listen_monitor_layout_changed(
                 g_monitor_layout_changed_listener,
-                registerMonitors
+                [] { registerMonitors(); }
             ),
             "monitor.layoutChanged"
         ))
@@ -242,14 +246,14 @@ bool registerCallbacks() {
     return true;
 }
 
-void registerMonitors() {
-    HTPlugin::guardedCallback("register_monitors", [] {
+void registerMonitors(MONITORID removed_monitor_id) {
+    HTPlugin::guardedCallback("register_monitors", [removed_monitor_id] {
         if (ht_manager == nullptr)
             return;
         if (!ht_manager->runtime_enabled())
             return;
 
-        ht_manager->sync_monitor_views();
+        ht_manager->sync_monitor_views(removed_monitor_id);
     });
 }
 

@@ -80,7 +80,11 @@ bool listen_swipe_end(
 );
 bool listen_config_reloaded(CHyprSignalListener& listener, const std::function<void()>& callback);
 bool listen_monitor_added(CHyprSignalListener& listener, const std::function<void()>& callback);
-bool listen_monitor_removed(CHyprSignalListener& listener, const std::function<void()>& callback);
+// 0.55 emits this before dropping the monitor from its list, so pass it on.
+bool listen_monitor_removed(
+    CHyprSignalListener& listener,
+    const std::function<void(PHLMONITOR)>& callback
+);
 bool listen_monitor_layout_changed(
     CHyprSignalListener& listener,
     const std::function<void()>& callback
