@@ -62,8 +62,7 @@ bool commit_selection_target(HTView& view, WORKSPACEID target_workspace_id, bool
         }
     );
 
-    HTCompat::damage_monitor(monitor);
-    HTCompat::schedule_frame_for_monitor(monitor);
+    HTCompat::redraw_monitor(monitor);
     return true;
 }
 
@@ -95,8 +94,7 @@ void HTView::show() {
 
     layout->on_show();
 
-    HTCompat::damage_monitor(monitor);
-    HTCompat::schedule_frame_for_monitor(monitor);
+    HTCompat::redraw_monitor(monitor);
 }
 
 void HTView::hide() {
@@ -121,8 +119,7 @@ void HTView::hide() {
         reset_interaction_state();
     });
 
-    HTCompat::damage_monitor(monitor);
-    HTCompat::schedule_frame_for_monitor(monitor);
+    HTCompat::redraw_monitor(monitor);
 }
 
 void HTView::set_runtime_state(bool new_active, bool new_closing, bool new_navigating) {
@@ -245,8 +242,7 @@ void HTView::reload_config() {
 
     const PHLMONITOR monitor = get_monitor();
     if (monitor != nullptr) {
-        HTCompat::damage_monitor(monitor);
-        HTCompat::schedule_frame_for_monitor(monitor);
+        HTCompat::redraw_monitor(monitor);
     }
 }
 
@@ -365,8 +361,7 @@ bool HTView::navigate_selection(const std::string& arg) {
         const WORKSPACEID cursor_workspace_id =
             cursor_context.monitor == monitor ? cursor_context.workspace_id : WORKSPACE_INVALID;
         suppress_hover_workspace(cursor_workspace_id);
-        HTCompat::damage_monitor(monitor);
-        HTCompat::schedule_frame_for_monitor(monitor);
+        HTCompat::redraw_monitor(monitor);
     };
 
     if (navigate_arg.kind == HTLogic::NavigateArgKind::Direction) {

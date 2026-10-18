@@ -518,6 +518,24 @@ void HTLayoutGrid::render() {
 
     build_overview_layout(HT_VIEW_ANIMATING);
 
+    // Border plus workspace contents for one grid cell.
+    const bool sideways = HTCompat::monitor_transform(monitor) % 2 == 1;
+    const auto render_cell = [&](WORKSPACEID ws_id, const CBox& box, PHLWORKSPACE workspace) {
+        // renderModif translation used by renderWorkspace is weird so need
+        // to scale the translation up as well. Geometry is also calculated from pixel size and not transformed size??
+        CBox render_box = {{box.pos() / *render_scale}, box.size()};
+        if (sideways)
+            std::swap(render_box.w, render_box.h);
+
+        CBorderPassElement::SBorderData border;
+        border.box = box;
+        border.grad1 = selected_workspace_id == ws_id ? active_col : inactive_col;
+        border.borderSize = BORDERSIZE;
+        HTCompat::add_border_pass(border);
+
+        render_workspace_with_optional_state(monitor, workspace, time, render_box);
+    };
+
     const Vector2D monitor_pos = HTCompat::monitor_position(monitor);
     CBox global_mon_box = {monitor_pos, transformed_size};
     for (const auto& [ws_id, ws_layout] : overview_layout) {
@@ -525,64 +543,26 @@ void HTLayoutGrid::render() {
         if (ws_layout.box.width < 0.01 || ws_layout.box.height < 0.01)
             continue;
 
-        const PHLWORKSPACE workspace = HTCompat::workspace_by_id(ws_id);
-
-        // renderModif translation used by renderWorkspace is weird so need
-        // to scale the translation up as well. Geometry is also calculated from pixel size and not transformed size??
-        CBox render_box = {{ws_layout.box.pos() / *render_scale}, ws_layout.box.size()};
-        if (HTCompat::monitor_transform(monitor) % 2 == 1)
-            std::swap(render_box.w, render_box.h);
-
         // render active one last
-        if (workspace == start_workspace && start_workspace != nullptr)
+        const PHLWORKSPACE workspace = HTCompat::workspace_by_id(ws_id);
+        if (workspace == start_workspace)
             continue;
 
         CBox global_box = {ws_layout.box.pos() + monitor_pos, ws_layout.box.size()};
         if (global_box.expand(BORDERSIZE).intersection(global_mon_box).empty())
             continue;
 
-        const HTGradientValueData& border_col =
-            selected_workspace_id == ws_id ? active_col : inactive_col;
-        CBox border_box = ws_layout.box;
-
-        CBorderPassElement::SBorderData data;
-        data.box = border_box;
-        data.grad1 = border_col;
-        data.borderSize = BORDERSIZE;
-        HTCompat::add_border_pass(data);
-
-        render_workspace_with_optional_state(monitor, workspace, time, render_box);
+        render_cell(ws_id, ws_layout.box, workspace);
     }
 
     hide_start_workspace.dismiss();
     HTCompat::set_workspace_render_visibility(start_workspace, true);
 
     // Render active workspace last so the dragging window is always on top when let go of
-    if (const auto* start_layout = find_layout_workspace(HTCompat::workspace_id(start_workspace));
-        start_layout != nullptr) {
-        CBox ws_box = start_layout->box;
-        // make sure box is not empty
-        if (ws_box.width > 0.01 && ws_box.height > 0.01) {
-            // renderModif translation used by renderWorkspace is weird so need
-            // to scale the translation up as well. Geometry is also calculated from pixel size and not transformed size??
-            CBox render_box = {{ws_box.pos() / *render_scale}, ws_box.size()};
-            if (HTCompat::monitor_transform(monitor) % 2 == 1)
-                std::swap(render_box.w, render_box.h);
-
-            const HTGradientValueData& border_col =
-                selected_workspace_id == HTCompat::workspace_id(start_workspace) ? active_col
-                                                                                 : inactive_col;
-            CBox border_box = ws_box;
-
-            CBorderPassElement::SBorderData data;
-            data.box = border_box;
-            data.grad1 = border_col;
-            data.borderSize = BORDERSIZE;
-            HTCompat::add_border_pass(data);
-
-            render_workspace_with_optional_state(monitor, start_workspace, time, render_box);
-        }
-    }
+    const WORKSPACEID start_id = HTCompat::workspace_id(start_workspace);
+    if (const auto* start_layout = find_layout_workspace(start_id); start_layout != nullptr
+        && start_layout->box.width > 0.01 && start_layout->box.height > 0.01)
+        render_cell(start_id, start_layout->box, start_workspace);
 
     if (render_snapshot.has_value())
         render_dragged_window_snapshot(*render_snapshot);
@@ -593,8 +573,7 @@ void HTLayoutGrid::request_redraw() {
     if (monitor == nullptr)
         return;
 
-    HTCompat::damage_monitor(monitor);
-    HTCompat::schedule_frame_for_monitor(monitor);
+    HTCompat::redraw_monitor(monitor);
 }
 
 // Overview or window geometry still animating, so the next frame differs.

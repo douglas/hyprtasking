@@ -47,6 +47,8 @@ PHLWINDOW hover_target_window_at(const Vector2D& position);
 void set_cursor_override_enabled(bool enabled);
 void damage_monitor(PHLMONITOR monitor);
 void schedule_frame_for_monitor(PHLMONITOR monitor);
+// Damage the whole monitor and schedule a frame so the damage gets drawn.
+void redraw_monitor(PHLMONITOR monitor);
 void simulate_mouse_movement();
 bool do_later(const std::function<void()>& callback);
 // Drops queued do_later callbacks; their code lives in this plugin's .so.

@@ -411,8 +411,7 @@ bool HTManager::on_mouse_move() {
     if (cursor_context.workspace == nullptr) {
         if (cursor_view->hover_active) {
             cursor_view->clear_hover_workspace();
-            HTCompat::damage_monitor(cursor_monitor);
-            HTCompat::schedule_frame_for_monitor(cursor_monitor);
+            HTCompat::redraw_monitor(cursor_monitor);
         }
         return false;
     }
@@ -431,8 +430,7 @@ bool HTManager::on_mouse_move() {
             || cursor_view->hovered_workspace_id != cursor_context.workspace_id)) {
         cursor_view->set_hovered_workspace(cursor_context.workspace_id);
         cursor_view->set_selected_workspace_id(cursor_context.workspace_id);
-        HTCompat::damage_monitor(cursor_monitor);
-        HTCompat::schedule_frame_for_monitor(cursor_monitor);
+        HTCompat::redraw_monitor(cursor_monitor);
     }
 
     return false;
@@ -514,8 +512,7 @@ bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
             swipe_view->layout->close_open_lerp(*swipe_perc);
             const PHLMONITOR swipe_monitor = swipe_view->get_monitor();
             if (swipe_monitor != nullptr) {
-                HTCompat::damage_monitor(swipe_monitor);
-                HTCompat::schedule_frame_for_monitor(swipe_monitor);
+                HTCompat::redraw_monitor(swipe_monitor);
             }
         }
     } else if (e.fingers == move_fingers) {
@@ -537,8 +534,7 @@ bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
                 // need to schedule frames for monitor, otherwise the screen doesn't re-render
                 const PHLMONITOR swipe_monitor = swipe_view->get_monitor();
                 if (swipe_monitor != nullptr) {
-                    HTCompat::damage_monitor(swipe_monitor);
-                    HTCompat::schedule_frame_for_monitor(swipe_monitor);
+                    HTCompat::redraw_monitor(swipe_monitor);
                 }
             }
         }

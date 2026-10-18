@@ -83,23 +83,29 @@ Vector2D HTCompat::mouse_coords() {
     return g_pInputManager->getMouseCoordsInternal();
 }
 
+template<typename T>
+static bool create_animation(
+    const T& initial_value,
+    PHLANIMVAR<T>& animation,
+    const std::string& config_name,
+    eAVarDamagePolicy policy
+) {
+    const auto manager = HTCompat::animation_manager();
+    if (manager == nullptr || !Config::animationTree())
+        return false;
+
+    const auto config = Config::animationTree()->getAnimationPropertyConfig(config_name);
+    manager->createAnimation(initial_value, animation, config, policy);
+    return static_cast<bool>(animation);
+}
+
 bool HTCompat::create_float_animation(
     float initial_value,
     PHLANIMVAR<float>& animation,
     const std::string& config_name,
     eAVarDamagePolicy policy
 ) {
-    const auto manager = animation_manager();
-    if (manager == nullptr)
-        return false;
-
-    if (!Config::animationTree())
-        return false;
-
-    const auto config = Config::animationTree()->getAnimationPropertyConfig(config_name);
-
-    manager->createAnimation(initial_value, animation, config, policy);
-    return static_cast<bool>(animation);
+    return create_animation(initial_value, animation, config_name, policy);
 }
 
 bool HTCompat::create_vector_animation(
@@ -108,45 +114,27 @@ bool HTCompat::create_vector_animation(
     const std::string& config_name,
     eAVarDamagePolicy policy
 ) {
-    const auto manager = animation_manager();
-    if (manager == nullptr)
-        return false;
-
-    if (!Config::animationTree())
-        return false;
-
-    const auto config = Config::animationTree()->getAnimationPropertyConfig(config_name);
-
-    manager->createAnimation(initial_value, animation, config, policy);
-    return static_cast<bool>(animation);
+    return create_animation(initial_value, animation, config_name, policy);
 }
 
 std::vector<PHLMONITOR> HTCompat::compositor_monitors() {
 #if HT_HYPRLAND_GE_0_56
     if (!State::monitorState())
         return {};
-
-    std::vector<PHLMONITOR> monitors;
-    monitors.reserve(State::monitorState()->monitors().size());
-    for (const PHLMONITOR& monitor : State::monitorState()->monitors()) {
-        if (monitor != nullptr)
-            monitors.push_back(monitor);
-    }
-
-    return monitors;
+    const auto& source = State::monitorState()->monitors();
 #else
     if (!g_pCompositor)
         return {};
+    const auto& source = g_pCompositor->m_monitors;
+#endif
 
     std::vector<PHLMONITOR> monitors;
-    monitors.reserve(g_pCompositor->m_monitors.size());
-    for (const PHLMONITOR& monitor : g_pCompositor->m_monitors) {
+    monitors.reserve(source.size());
+    for (const PHLMONITOR& monitor : source) {
         if (monitor != nullptr)
             monitors.push_back(monitor);
     }
-
     return monitors;
-#endif
 }
 
 PHLMONITOR HTCompat::monitor_from_id(MONITORID monitor_id) {
@@ -212,6 +200,11 @@ void HTCompat::damage_monitor(PHLMONITOR monitor) {
         return;
 
     g_pHyprRenderer->damageMonitor(monitor);
+}
+
+void HTCompat::redraw_monitor(PHLMONITOR monitor) {
+    damage_monitor(monitor);
+    schedule_frame_for_monitor(monitor);
 }
 
 void HTCompat::schedule_frame_for_monitor(PHLMONITOR monitor) {
@@ -355,88 +348,78 @@ bool HTCompat::invoke_mouse_button_original(
     return true;
 }
 
-bool HTCompat::listen_mouse_move(
-    CHyprSignalListener& listener,
-    const std::function<void(Vector2D, Event::SCallbackInfo&)>& callback
-) {
+// Event::bus() is null before Hyprland finishes init and after shutdown.
+template<typename Callback, typename Select>
+static bool listen_bus(CHyprSignalListener& listener, const Callback& callback, Select&& select) {
     auto& bus = Event::bus();
     if (!bus || !callback)
         return false;
 
-    listener = bus->m_events.input.mouse.move.listen(callback);
+    listener = select(bus->m_events).listen(callback);
     return true;
+}
+
+bool HTCompat::listen_mouse_move(
+    CHyprSignalListener& listener,
+    const std::function<void(Vector2D, Event::SCallbackInfo&)>& callback
+) {
+    return listen_bus(listener, callback, [](auto& events) -> auto& {
+        return events.input.mouse.move;
+    });
 }
 
 bool HTCompat::listen_swipe_begin(
     CHyprSignalListener& listener,
     const std::function<void(IPointer::SSwipeBeginEvent, Event::SCallbackInfo&)>& callback
 ) {
-    auto& bus = Event::bus();
-    if (!bus || !callback)
-        return false;
-
-    listener = bus->m_events.gesture.swipe.begin.listen(callback);
-    return true;
+    return listen_bus(listener, callback, [](auto& events) -> auto& {
+        return events.gesture.swipe.begin;
+    });
 }
 
 bool HTCompat::listen_swipe_update(
     CHyprSignalListener& listener,
     const std::function<void(IPointer::SSwipeUpdateEvent, Event::SCallbackInfo&)>& callback
 ) {
-    auto& bus = Event::bus();
-    if (!bus || !callback)
-        return false;
-
-    listener = bus->m_events.gesture.swipe.update.listen(callback);
-    return true;
+    return listen_bus(listener, callback, [](auto& events) -> auto& {
+        return events.gesture.swipe.update;
+    });
 }
 
 bool HTCompat::listen_swipe_end(
     CHyprSignalListener& listener,
     const std::function<void(IPointer::SSwipeEndEvent, Event::SCallbackInfo&)>& callback
 ) {
-    auto& bus = Event::bus();
-    if (!bus || !callback)
-        return false;
-
-    listener = bus->m_events.gesture.swipe.end.listen(callback);
-    return true;
+    return listen_bus(listener, callback, [](auto& events) -> auto& {
+        return events.gesture.swipe.end;
+    });
 }
 
 bool HTCompat::listen_config_reloaded(
     CHyprSignalListener& listener,
     const std::function<void()>& callback
 ) {
-    auto& bus = Event::bus();
-    if (!bus || !callback)
-        return false;
-
-    listener = bus->m_events.config.reloaded.listen(callback);
-    return true;
+    return listen_bus(listener, callback, [](auto& events) -> auto& {
+        return events.config.reloaded;
+    });
 }
 
 bool HTCompat::listen_monitor_added(
     CHyprSignalListener& listener,
     const std::function<void()>& callback
 ) {
-    auto& bus = Event::bus();
-    if (!bus || !callback)
-        return false;
-
-    listener = bus->m_events.monitor.added.listen(callback);
-    return true;
+    return listen_bus(listener, callback, [](auto& events) -> auto& {
+        return events.monitor.added;
+    });
 }
 
 bool HTCompat::listen_monitor_removed(
     CHyprSignalListener& listener,
     const std::function<void()>& callback
 ) {
-    auto& bus = Event::bus();
-    if (!bus || !callback)
-        return false;
-
-    listener = bus->m_events.monitor.removed.listen(callback);
-    return true;
+    return listen_bus(listener, callback, [](auto& events) -> auto& {
+        return events.monitor.removed;
+    });
 }
 
 // Fired when mirroring or other layout changes edit the monitor list without
@@ -445,12 +428,9 @@ bool HTCompat::listen_monitor_layout_changed(
     CHyprSignalListener& listener,
     const std::function<void()>& callback
 ) {
-    auto& bus = Event::bus();
-    if (!bus || !callback)
-        return false;
-
-    listener = bus->m_events.monitor.layoutChanged.listen(callback);
-    return true;
+    return listen_bus(listener, callback, [](auto& events) -> auto& {
+        return events.monitor.layoutChanged;
+    });
 }
 
 bool HTCompat::listen_window_set_changed(

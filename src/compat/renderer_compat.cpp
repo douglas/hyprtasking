@@ -388,72 +388,43 @@ uint32_t hookIsSolitaryBlocked(void* thisptr, bool full) {
 namespace HTCompat {
 
 bool initializeRendererHooks() {
-    const auto render_workspace = install_function_hook(
-        g_hooks.render_workspace,
-        render_workspace_spec(),
-        hook_destination(hookRenderWorkspace)
-    );
-    if (!render_workspace.installed) {
-        HTRuntimeFail::disable("initialize_renderer_hooks", render_workspace.error);
+    // Any failure rolls back every hook installed so far.
+    const auto install = [](CFunctionHook*& hook, const HookSpec& spec, void* destination) {
+        const auto result = install_function_hook(hook, spec, destination);
+        if (result.installed)
+            return true;
+        HTRuntimeFail::disable("initialize_renderer_hooks", result.error);
+        shutdownRendererHooks();
         return false;
-    }
+    };
 
+    if (!install(
+            g_hooks.render_workspace,
+            render_workspace_spec(),
+            hook_destination(hookRenderWorkspace)
+        ))
+        return false;
 #if HT_HYPRLAND_GE_0_56
-    const auto render_texture = install_function_hook(
-        g_hooks.render_texture,
-        render_texture_spec(),
-        hook_destination(hookRenderTexture)
-    );
-    if (!render_texture.installed) {
-        HTRuntimeFail::disable("initialize_renderer_hooks", render_texture.error);
-        shutdownRendererHooks();
+    if (!install(g_hooks.render_texture, render_texture_spec(), hook_destination(hookRenderTexture))
+        || !install(g_hooks.render_border, render_border_spec(), hook_destination(hookRenderBorder))
+        || !install(
+            g_hooks.render_border_lerp,
+            render_border_lerp_spec(),
+            hook_destination(hookRenderBorderLerp)
+        )
+        || !install(
+            g_hooks.blur_optimizations,
+            blur_optimizations_spec(),
+            hook_destination(hookBlurOptimizations)
+        ))
         return false;
-    }
-
-    const auto render_border = install_function_hook(
-        g_hooks.render_border,
-        render_border_spec(),
-        hook_destination(hookRenderBorder)
-    );
-    if (!render_border.installed) {
-        HTRuntimeFail::disable("initialize_renderer_hooks", render_border.error);
-        shutdownRendererHooks();
-        return false;
-    }
-
-    const auto render_border_lerp = install_function_hook(
-        g_hooks.render_border_lerp,
-        render_border_lerp_spec(),
-        hook_destination(hookRenderBorderLerp)
-    );
-    if (!render_border_lerp.installed) {
-        HTRuntimeFail::disable("initialize_renderer_hooks", render_border_lerp.error);
-        shutdownRendererHooks();
-        return false;
-    }
-
-    const auto blur_optimizations = install_function_hook(
-        g_hooks.blur_optimizations,
-        blur_optimizations_spec(),
-        hook_destination(hookBlurOptimizations)
-    );
-    if (!blur_optimizations.installed) {
-        HTRuntimeFail::disable("initialize_renderer_hooks", blur_optimizations.error);
-        shutdownRendererHooks();
-        return false;
-    }
 #endif
-
-    const auto should_render_window = install_function_hook(
-        g_hooks.should_render_window,
-        should_render_window_spec(),
-        hook_destination(hookShouldRenderWindow)
-    );
-    if (!should_render_window.installed) {
-        HTRuntimeFail::disable("initialize_renderer_hooks", should_render_window.error);
-        shutdownRendererHooks();
+    if (!install(
+            g_hooks.should_render_window,
+            should_render_window_spec(),
+            hook_destination(hookShouldRenderWindow)
+        ))
         return false;
-    }
 
     const auto render_window_symbol = resolve_hook_address(render_window_spec());
     if (render_window_symbol.address == nullptr) {
@@ -472,18 +443,11 @@ bool initializeRendererHooks() {
         render_window_symbol.method
     );
 
-    const auto solitary_blocked_hook = install_function_hook(
+    return install(
         g_hooks.is_solitary_blocked,
         solitary_blocked_spec(),
         hook_destination(hookIsSolitaryBlocked)
     );
-    if (!solitary_blocked_hook.installed) {
-        HTRuntimeFail::disable("initialize_renderer_hooks", solitary_blocked_hook.error);
-        shutdownRendererHooks();
-        return false;
-    }
-
-    return true;
 }
 
 void shutdownRendererHooks() {
