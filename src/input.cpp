@@ -4,6 +4,7 @@
 #include "compat/renderer_compat.hpp"
 #include "compat/runtime_compat.hpp"
 #include "config.hpp"
+#include "globals.hpp"
 #include "logic/controller_state.hpp"
 #include "logic/geometry_model.hpp"
 #include "logic/gesture_model.hpp"

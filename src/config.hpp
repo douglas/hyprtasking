@@ -2,17 +2,10 @@
 
 #include <linux/input-event-codes.h>
 
-#include <hyprutils/math/Vector2D.hpp>
 #include <string>
 #include <string_view>
 
-#include "build_contract.hpp"
-#include "globals.hpp"
-
 namespace HTConfig {
-
-inline constexpr int MAX_GRID_ROWS = 8;
-inline constexpr int MAX_GRID_COLS = 8;
 
 struct RuntimeConfig {
     int drag_button = BTN_LEFT;
@@ -27,14 +20,6 @@ struct RuntimeConfig {
     int grid_cols = 3;
     bool grid_loop = false;
 };
-
-namespace Detail {
-
-    inline std::string prefixed_key(const std::string& config) {
-        return "plugin:hyprtasking:" + config;
-    }
-
-} // namespace Detail
 
 bool register_values();
 // Invalid values keep the last good config and report the error; the

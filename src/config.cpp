@@ -5,19 +5,26 @@
 #include <hyprland/src/config/values/types/FloatValue.hpp>
 #include <hyprland/src/config/values/types/IntValue.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
-#include <hyprlang.hpp>
 #include <optional>
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
-#include "build_contract.hpp"
+#include "globals.hpp"
 #include "logic/geometry_model.hpp"
 
 namespace {
 
 HTConfig::RuntimeConfig g_runtime_config;
 std::string g_config_error;
+
+constexpr int MAX_GRID_ROWS = 8;
+constexpr int MAX_GRID_COLS = 8;
+
+std::string prefixed_key(std::string_view key) {
+    return "plugin:hyprtasking:" + std::string(key);
+}
 
 void log_missing_config_once(const std::string& config) {
     static std::unordered_set<std::string> warned_configs;
@@ -27,9 +34,15 @@ void log_missing_config_once(const std::string& config) {
     Log::logger->log(
         Log::WARN,
         "[Hyprtasking] Missing config key '{}', using fallback",
-        HTConfig::Detail::prefixed_key(config)
+        prefixed_key(config)
     );
 }
+
+using IntValue = Config::Values::CIntValue;
+using FloatValue = Config::Values::CFloatValue;
+
+template<typename T>
+using StoredValue = decltype(std::declval<const T&>().value());
 
 template<typename T>
 struct OwnedConfigValue {
@@ -38,62 +51,35 @@ struct OwnedConfigValue {
     SP<T> value;
 };
 
-std::unordered_map<std::string, OwnedConfigValue<Config::Values::CIntValue>> g_int_config_values;
-std::unordered_map<std::string, OwnedConfigValue<Config::Values::CFloatValue>>
-    g_float_config_values;
+// Registered values by key, one map per value type.
+template<typename T>
+std::unordered_map<std::string, OwnedConfigValue<T>> g_config_values;
 
-bool add_int_config(std::string_view key, int default_value, std::string_view description) {
-    const std::string name = HTConfig::Detail::prefixed_key(std::string(key));
-    auto& entry = g_int_config_values[std::string(key)];
-    entry.name = name;
+template<typename T>
+bool add_config(std::string_view key, StoredValue<T> default_value, std::string_view description) {
+    auto& entry = g_config_values<T>[std::string(key)];
+    entry.name = prefixed_key(key);
     entry.description = std::string(description);
-    entry.value = makeShared<Config::Values::CIntValue>(
-        entry.name.c_str(),
-        entry.description.c_str(),
-        static_cast<Config::INTEGER>(default_value)
-    );
+    entry.value = makeShared<T>(entry.name.c_str(), entry.description.c_str(), default_value);
     if (!HyprlandAPI::addConfigValueV2(PHANDLE, entry.value)) {
-        g_int_config_values.erase(std::string(key));
+        g_config_values<T>.erase(std::string(key));
         return false;
     }
     return true;
 }
 
-bool add_float_config(std::string_view key, float default_value, std::string_view description) {
-    const std::string name = HTConfig::Detail::prefixed_key(std::string(key));
-    auto& entry = g_float_config_values[std::string(key)];
-    entry.name = name;
-    entry.description = std::string(description);
-    entry.value = makeShared<Config::Values::CFloatValue>(
-        entry.name.c_str(),
-        entry.description.c_str(),
-        static_cast<Config::FLOAT>(default_value)
-    );
-    if (!HyprlandAPI::addConfigValueV2(PHANDLE, entry.value)) {
-        g_float_config_values.erase(std::string(key));
-        return false;
-    }
-    return true;
-}
+const auto add_int_config = &add_config<IntValue>;
+const auto add_float_config = &add_config<FloatValue>;
 
-int int_config_or(std::string_view key, int fallback) {
-    const auto it = g_int_config_values.find(std::string(key));
-    if (it == g_int_config_values.end() || it->second.value == nullptr) {
+template<typename T, typename Fallback>
+Fallback value_or(std::string_view key, Fallback fallback) {
+    const auto it = g_config_values<T>.find(std::string(key));
+    if (it == g_config_values<T>.end()) {
         log_missing_config_once(std::string(key));
         return fallback;
     }
 
-    return static_cast<int>(it->second.value->value());
-}
-
-float float_config_or(std::string_view key, float fallback) {
-    const auto it = g_float_config_values.find(std::string(key));
-    if (it == g_float_config_values.end() || it->second.value == nullptr) {
-        log_missing_config_once(std::string(key));
-        return fallback;
-    }
-
-    return static_cast<float>(it->second.value->value());
+    return static_cast<Fallback>(it->second.value->value());
 }
 
 std::optional<std::string> validate_runtime_config(const HTConfig::RuntimeConfig& config) {
@@ -104,19 +90,14 @@ std::optional<std::string> validate_runtime_config(const HTConfig::RuntimeConfig
             config.grid_cols
         );
     }
-    if (!HTLogic::gridCellCount(
-             config.grid_rows,
-             config.grid_cols,
-             HTConfig::MAX_GRID_ROWS,
-             HTConfig::MAX_GRID_COLS
-        )
+    if (!HTLogic::gridCellCount(config.grid_rows, config.grid_cols, MAX_GRID_ROWS, MAX_GRID_COLS)
              .has_value()) {
         return std::format(
             "Grid dimensions exceed supported maximum rows={} cols={} max_rows={} max_cols={}",
             config.grid_rows,
             config.grid_cols,
-            HTConfig::MAX_GRID_ROWS,
-            HTConfig::MAX_GRID_COLS
+            MAX_GRID_ROWS,
+            MAX_GRID_COLS
         );
     }
     if (config.drag_button <= 0 || config.select_button <= 0) {
@@ -188,19 +169,19 @@ bool register_values() {
 
 bool refresh_runtime_config(std::string_view source) {
     RuntimeConfig config;
-    config.drag_button = int_config_or("drag_button", config.drag_button);
-    config.select_button = int_config_or("select_button", config.select_button);
+    config.drag_button = value_or<IntValue>("drag_button", config.drag_button);
+    config.select_button = value_or<IntValue>("select_button", config.select_button);
     config.gestures_enabled =
-        int_config_or("gestures:enabled", config.gestures_enabled ? 1 : 0) != 0;
-    config.move_fingers = int_config_or("gestures:move_fingers", config.move_fingers);
-    config.move_distance = float_config_or("gestures:move_distance", config.move_distance);
-    config.open_fingers = int_config_or("gestures:open_fingers", config.open_fingers);
-    config.open_distance = float_config_or("gestures:open_distance", config.open_distance);
+        value_or<IntValue>("gestures:enabled", config.gestures_enabled ? 1 : 0) != 0;
+    config.move_fingers = value_or<IntValue>("gestures:move_fingers", config.move_fingers);
+    config.move_distance = value_or<FloatValue>("gestures:move_distance", config.move_distance);
+    config.open_fingers = value_or<IntValue>("gestures:open_fingers", config.open_fingers);
+    config.open_distance = value_or<FloatValue>("gestures:open_distance", config.open_distance);
     config.open_positive =
-        int_config_or("gestures:open_positive", config.open_positive ? 1 : 0) != 0;
-    config.grid_rows = int_config_or("grid:rows", config.grid_rows);
-    config.grid_cols = int_config_or("grid:cols", config.grid_cols);
-    config.grid_loop = int_config_or("grid:loop", config.grid_loop ? 1 : 0) != 0;
+        value_or<IntValue>("gestures:open_positive", config.open_positive ? 1 : 0) != 0;
+    config.grid_rows = value_or<IntValue>("grid:rows", config.grid_rows);
+    config.grid_cols = value_or<IntValue>("grid:cols", config.grid_cols);
+    config.grid_loop = value_or<IntValue>("grid:loop", config.grid_loop ? 1 : 0) != 0;
 
     if (const auto error = validate_runtime_config(config); error.has_value()) {
         if (*error != g_config_error) {
@@ -232,8 +213,8 @@ const std::string& config_error() {
 void reset_runtime_config() {
     g_runtime_config = RuntimeConfig {};
     g_config_error.clear();
-    g_int_config_values.clear();
-    g_float_config_values.clear();
+    g_config_values<IntValue>.clear();
+    g_config_values<FloatValue>.clear();
 }
 
 } // namespace HTConfig
