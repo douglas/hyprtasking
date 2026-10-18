@@ -104,6 +104,10 @@ void HTView::show() {
 }
 
 void HTView::hide() {
+    // hide_all_views reaches views that were never opened or are already closing.
+    if (!active || closing)
+        return;
+
     const PHLMONITOR monitor = get_monitor();
     if (monitor == nullptr)
         return;
