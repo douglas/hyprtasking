@@ -20,7 +20,7 @@ void HTManager::reset_mouse_button_state() {
 }
 
 HTLogic::MouseButtonResult HTManager::handle_mouse_button(unsigned int button, bool pressed) {
-    const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace(false);
+    const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace();
     const PHTVIEW cursor_view = cursor_context.view;
     const bool has_view = cursor_view != nullptr;
     const bool view_active = cursor_view != nullptr && cursor_view->active;
@@ -175,7 +175,7 @@ bool HTManager::start_window_drag(const HTCursorWorkspaceContext& cursor_context
 }
 
 void HTManager::end_window_drag() {
-    const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace(false);
+    const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace();
     const PHLMONITOR cursor_monitor = cursor_context.monitor;
     const PHTVIEW cursor_view = cursor_context.view;
     HTScopeGuard reset_drag_mode([] { HTCompat::set_mouse_bind_mode(MBIND_INVALID); });
@@ -284,7 +284,7 @@ void HTManager::end_window_drag() {
 }
 
 bool HTManager::on_mouse_move() {
-    const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace(false);
+    const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace();
     const PHLMONITOR cursor_monitor = cursor_context.monitor;
     const PHTVIEW cursor_view = cursor_context.view;
 

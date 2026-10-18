@@ -51,7 +51,7 @@ PHTVIEW HTManager::get_view_from_id(VIEWID view_id) {
     return nullptr;
 }
 
-HTCursorWorkspaceContext HTManager::resolve_cursor_workspace(bool create_if_missing) {
+HTCursorWorkspaceContext HTManager::resolve_cursor_workspace() {
     HTCursorWorkspaceContext context;
     context.monitor = HTCompat::cursor_monitor();
     if (context.monitor == nullptr)
@@ -63,11 +63,8 @@ HTCursorWorkspaceContext HTManager::resolve_cursor_workspace(bool create_if_miss
         return context;
 
     context.workspace_id = context.view->layout->get_ws_id_from_global(context.mouse_coords);
-    context.workspace = HTCompat::resolve_workspace_target(
-        context.monitor,
-        context.workspace_id,
-        create_if_missing
-    );
+    context.workspace =
+        HTCompat::resolve_workspace_target(context.monitor, context.workspace_id, false);
     return context;
 }
 

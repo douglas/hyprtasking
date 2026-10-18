@@ -39,7 +39,7 @@ class HTManager {
     PHTVIEW get_view_from_monitor(PHLMONITOR pMonitor);
     PHTVIEW get_view_from_cursor();
     PHTVIEW get_view_from_id(VIEWID view_id);
-    HTCursorWorkspaceContext resolve_cursor_workspace(bool create_if_missing);
+    HTCursorWorkspaceContext resolve_cursor_workspace();
 
     void prepare_for_unload();
     void sync_monitor_views(MONITORID removed_monitor_id = MONITOR_INVALID);
