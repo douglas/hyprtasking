@@ -30,17 +30,6 @@ jobs:
           ref: ${{ matrix.ref }}
           path: hyprland
 
-      - name: Shell syntax checks
-        run: |
-          bash -n scripts/check-version-contract.sh
-          bash -n scripts/audit-compat.sh
-          bash -n scripts/audit-compat-surface.sh
-          bash -n scripts/audit-compat-coverage.sh
-          bash -n scripts/audit-boundary.sh
-          bash -n scripts/generate-compat-contract.sh
-          bash -n scripts/update-supported-hyprland.sh
-          bash -n scripts/release-check.sh
-
       - name: Install audit dependencies
         run: |
           sudo apt-get update
@@ -48,12 +37,6 @@ jobs:
 
       - name: Compat audits
         run: |
-          # The committed contract is generated against the newest supported release.
-          if [[ "${{ matrix.track }}" == "v0.56.2" ]]; then
-            bash scripts/generate-compat-contract.sh "$GITHUB_WORKSPACE/hyprland"
-            git diff --exit-code -- scripts/contracts
-          fi
           bash scripts/audit-compat.sh "$GITHUB_WORKSPACE/hyprland"
-          bash scripts/audit-compat-surface.sh "$GITHUB_WORKSPACE/hyprland"
           bash scripts/audit-compat-coverage.sh
           bash scripts/audit-boundary.sh

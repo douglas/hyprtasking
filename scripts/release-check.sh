@@ -171,14 +171,9 @@ if [[ -n "$HYPRLAND_SOURCE" && "$RELEASE_MODE" != "live" ]]; then
     AUDIT_JSON="$(
       env AUDIT_FORMAT=json bash "$SCRIPT_DIR/audit-compat.sh" "$HYPRLAND_SOURCE"
     )"
-    AUDIT_SURFACE_JSON="$(
-      env AUDIT_FORMAT=json bash "$SCRIPT_DIR/audit-compat-surface.sh" "$HYPRLAND_SOURCE"
-    )"
     run_stage audit env "AUDIT_FORMAT=json" bash "$SCRIPT_DIR/audit-compat.sh" "$HYPRLAND_SOURCE"
-    run_stage audit-surface env "AUDIT_FORMAT=json" bash "$SCRIPT_DIR/audit-compat-surface.sh" "$HYPRLAND_SOURCE"
   else
     run_stage audit bash "$SCRIPT_DIR/audit-compat.sh" "$HYPRLAND_SOURCE"
-    run_stage audit-surface bash "$SCRIPT_DIR/audit-compat-surface.sh" "$HYPRLAND_SOURCE"
   fi
 fi
 

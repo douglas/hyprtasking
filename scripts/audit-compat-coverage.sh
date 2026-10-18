@@ -3,7 +3,6 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
-source "$SCRIPT_DIR/compat-contract-manifest.sh"
 
 AUDIT_COVERAGE_FORMAT=${AUDIT_COVERAGE_FORMAT:-text}
 EXIT_UNMAPPED_SYMBOLS=4
@@ -74,10 +73,7 @@ SOURCE_SYMBOLS="$(
 )"
 
 MANIFEST_SYMBOLS="$(
-  {
-    compat_core_contracts_stream
-    compat_surface_contracts_stream
-  } \
+  rg -v '^#' "$SCRIPT_DIR/compat-contracts.tsv" \
     | cut -f4 \
     | tr '|' '\n' \
     | rg -o --no-filename -N -- "$TOKEN_REGEX" \
