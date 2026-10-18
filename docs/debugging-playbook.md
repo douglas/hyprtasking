@@ -1,8 +1,8 @@
 # Debugging Playbook
 
-This is the maintainer playbook for diagnosing runtime failures in Hyprtasking.
-It is written for the current supported Hyprland targets, `0.54.3` and `0.55.x`, and is meant
-to be followed in order.
+This is the maintainer playbook for diagnosing runtime failures in Hyprtasking
+on the supported Hyprland targets (`0.55.x`, `0.56.0`, `0.56.2`). Follow it in
+order.
 
 The shortest useful mental model is:
 
@@ -12,289 +12,143 @@ The shortest useful mental model is:
 4. overview state logic
 5. focus and seat aftermath
 
-For a visual map of the current runtime surface and release gates, see
-[`architecture.md`](architecture.md).
-
-If you classify the bug into the right layer early, fixes become much faster and
-safer.
+Classify the bug into the right layer early; fixes get faster and safer. The
+runtime shape is diagrammed in [`architecture.md`](architecture.md).
 
 ## 1. Establish the Baseline
-
-Start every investigation by recording the current repo and runtime state.
 
 ```bash
 git status --short
 git log --oneline --decorate -5
 hyprctl version
 hyprctl plugin list
+hyprctl eval 'hl.plugin.hyprtasking.health()'
 ```
 
-You want to know:
-
-- which local changes are present
-- whether the repo is already dirty before you begin
-- which Hyprland runtime is actually running
-- whether Hyprtasking is loaded once, multiple times, or not at all
-
+You want to know which local changes are present, which Hyprland is actually
+running, and whether Hyprtasking is loaded once, several times, or not at all.
 If the plugin is not loaded, do not reason about live behavior yet.
 
-## 2. Run the Fast Local Checks
+The health call prints one line:
 
-Before live debugging, run the repo-local checks that catch architecture and
-compat regressions cheaply.
+```text
+runtime_enabled=true disable_reason="" failure_source="" config_error="" views=2 active_views=0
+```
+
+`hyprctl dispatch hyprtasking:health` writes the same line to the Hyprland log
+and a notification.
+
+## 2. Run the Fast Local Checks
 
 ```bash
 meson compile -C build
 meson test -C build logic-tests --print-errorlogs
-bash scripts/audit-boundary.sh
-bash scripts/audit-guidelines.sh
-bash scripts/audit-config-keys.sh
+bash scripts/audit-source.sh
 ```
 
-Then, if the issue could involve version drift or Hyprland internals:
+If the issue could involve version drift or Hyprland internals:
 
 ```bash
 bash scripts/check-version-contract.sh
 bash scripts/audit-compat.sh /path/to/Hyprland
-bash scripts/audit-compat-surface.sh /path/to/Hyprland
 ```
 
-Interpretation:
-
-- compile or test failure -> stop and fix the repo first
-- boundary failure -> move Hyprland internals back behind `src/compat/`
-- version/compat audit failure -> treat as a Hyprland contract problem, not a
-  normal feature bug
+- compile or test failure: fix the repo first
+- source audit failure: move Hyprland internals back behind `src/compat/`
+- version or compat audit failure: a Hyprland contract problem, not a feature
+  bug
 
 ## 3. Prove the Live Binary
 
 If the user says "same thing" after a patch, verify the loaded binary before
-changing anything else.
-
-Use:
+changing anything else:
 
 ```bash
 hyprctl plugin list
 lsof -p "$(pgrep -o Hyprland)" | rg 'hyprtasking|libhyprtasking'
-```
-
-If needed, reload explicitly:
-
-```bash
 hyprctl plugin unload /absolute/path/to/libhyprtasking.so
 hyprctl plugin load /absolute/path/to/libhyprtasking.so
 ```
 
 If the mapped plugin path is not the file you just built, every later runtime
-observation is suspect.
-
-Also use the smoke script when the problem might really be stale plugin state or
-dispatcher registration:
-
-```bash
-bash scripts/smoke-live.sh load-unload
-bash scripts/smoke-live.sh dispatchers
-```
+observation is suspect. `bash scripts/smoke-live.sh load-unload` and
+`bash scripts/smoke-live.sh dispatchers` catch stale or partially initialized
+instances.
 
 ## 4. Classify the Symptom Before Choosing a Fix
 
 ### A. Dispatcher or plugin startup failure
 
-Typical signs:
+Signs: `Invalid dispatcher`, the plugin is listed but does nothing, or
+reload/unload/load leaves a stale instance. Check the health line and the
+Hyprland log (`$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/hyprland.log`)
+for `[Hyprtasking]` lines.
 
-- `hyprctl dispatch hyprtasking:...` says `Invalid dispatcher`
-- plugin list shows Hyprtasking, but its behavior is missing
-- reload/unload/load leaves a stale or partially initialized instance
+Start in `src/plugin/dispatchers.cpp`, `src/plugin/runtime.cpp`, and
+`src/compat/profile.cpp`.
 
-Use:
+### B. Rendering, recursion, or self-disable failure
 
-```bash
-bash scripts/smoke-live.sh dispatchers
-bash scripts/smoke-live.sh load-unload
-hyprctl eval 'hl.plugin.hyprtasking.health("json")'
-```
+Signs: blank or partial overview, the plugin disables itself after
+open/reopen/reload, or flicker when reopening quickly. Run the `render-reentry`
+manual check and `bash scripts/smoke-live.sh reload-open`.
 
-Start in:
-
-- `src/plugin/dispatchers.cpp`
-- `src/plugin/runtime.cpp`
-- `src/compat/profile.cpp`
-
-### B. Rendering, recursion, or overview self-disable failure
-
-Typical signs:
-
-- blank or partial overview
-- plugin disables itself after open/reopen/reload
-- crash or recursion-like flicker when reopening quickly
-
-Use:
-
-```bash
-bash scripts/manual-runtime-check.sh render-reentry
-bash scripts/smoke-live.sh reload-open
-```
-
-Start in:
-
-- `src/compat/renderer_compat.cpp`
-- `src/render.cpp`
-- `src/overview.cpp`
-
-Config reload always cancels active overview runtime state and reinitializes
-grid positions. If reload leaves a half-open overview, treat that as a bug in
-the reload lifecycle rather than a configuration mismatch.
+Start in `src/compat/renderer_compat.cpp`, `src/render.cpp`, and
+`src/overview.cpp`. Config reload always cancels active overview state and
+reinitializes grid positions; a half-open overview after reload is a lifecycle
+bug.
 
 ### C. Input path failure
 
-Typical signs:
-
-- drag never starts
-- right-click selection does nothing
-- the same logic patch appears to have no visible effect
-- trace values do not match actual button presses
-
-Use the dedicated input workflow in the next section.
+Signs: drag never starts, right-click selection does nothing, or a logic patch
+has no visible effect. Use section 5.
 
 ### D. State logic failure
 
-Typical signs:
+Signs: the plugin gets the right button data but selects the wrong workspace,
+drops on the wrong target, or resolves hover wrongly.
 
-- the plugin sees the correct click/button data
-- the wrong workspace is selected
-- drag starts but drops on the wrong target
-- hover selection or workspace resolution is incorrect
-
-Start in:
-
-- `src/input.cpp`
-- `src/overview.cpp`
-- `src/layout/`
-- `src/logic/interaction_model.*`
+Start in `src/input.cpp`, `src/overview.cpp`, `src/layout/`, and
+`src/logic/interaction_model.*`.
 
 ### E. Focus or seat aftermath failure
 
-Typical signs:
+Signs: the workspace switches but typing does not land at once, right-click
+causes client-side side effects, or focus is wrong after selection. Run the
+`typing-focus` manual check.
 
-- workspace switches visually, but typing does not land immediately
-- right-click causes client-side side effects
-- focus is wrong after selection or move
+Start in `src/compat/runtime_compat.cpp`, `src/overview.cpp`, and
+`src/input.cpp`.
 
-Use:
+## 5. Click, Drag, and Selection Bugs
 
-```bash
-bash scripts/manual-runtime-check.sh typing-focus
-```
+1. Reproduce one action at a time: one failed left-drag, or one failed
+   right-click selection. Do not mix symptoms.
+2. Check the health line and the Hyprland log right after the action.
+3. Run `wev`, click inside its window, and compare button values (`272`, `273`,
+   or your configured buttons):
+   - `wev` wrong too: input/session/device problem outside Hyprtasking
+   - `wev` right, plugin behavior wrong: plugin boundary or hook path
+   - both right: overview state logic
+4. Compare against a known-good commit by hook path, not only by the
+   drag/select helpers: where buttons are intercepted, whether right-click
+   selects on press or release, and which path cancels the event.
 
-Start in:
+   ```bash
+   git show <known-good-commit>:src/input.cpp
+   ```
 
-- `src/compat/runtime_compat.cpp`
-- `src/overview.cpp`
-- `src/input.cpp`
-
-## 5. Detailed Workflow for Click, Drag, and Selection Bugs
-
-This is the workflow that fixed the overview input regression and should be the
-default playbook for similar bugs.
-
-### Step 1: Enable trace
-
-```bash
-hyprctl keyword plugin:hyprtasking:debug:trace 1
-tail -f "$XDG_RUNTIME_DIR/hyprtasking-trace.log"
-```
-
-Notes:
-
-- runtime toggle may require a config reload or plugin reload before trace output starts
-- if you want it to survive plugin unload/load or Hyprland restart, put
-  `plugin:hyprtasking:debug:trace = 1` in config
-- trace is intentionally file-backed because plugin logs may not surface
-  reliably through `hyprctl rollinglog` on every setup
-
-### Step 2: Reproduce one action at a time
-
-Do not mix symptoms. Reproduce:
-
-- one failed left-drag
-- one failed right-click selection
-
-Read the trace immediately after each action. You want the smallest possible
-input sample.
-
-### Step 3: Check whether the plugin sees real input
-
-Look for:
-
-- expected button values (`272`, `273`, or your configured alternatives)
-- correct pressed/released state
-- whether the plugin enters drag/select logic or leaves the event unhandled
-
-If the trace is malformed or missing, do not patch overview logic yet.
-
-### Step 4: Verify the compositor-side ground truth with `wev`
-
-Run:
-
-```bash
-wev
-```
-
-Click inside the `wev` window and compare:
-
-- `wev` values
-- Hyprtasking trace values
-
-Interpretation:
-
-- `wev` wrong too -> input/session/device problem outside Hyprtasking
-- `wev` correct, Hyprtasking wrong -> plugin boundary or hook-path problem
-- both correct -> move up into overview state logic
-
-### Step 5: Compare against a known-good commit
-
-When a regression is suspected, compare behavior and hook path against a
-known-good revision:
-
-```bash
-git show <known-good-commit>:src/main.cpp
-git show <known-good-commit>:src/input.cpp
-```
-
-Do not compare only the drag/select helpers. Also compare:
-
-- where mouse buttons are intercepted
-- whether right-click selects on press or release
-- which path is responsible for cancellation
-
-### Step 6: Decide whether to patch compat or overview logic
-
-Patch `src/compat/` or hook code when:
-
-- the plugin receives wrong button data
-- the event-bus path is missing or malformed
-- Hyprland runtime contract drift changed how a listener path behaves
-
-Patch overview/state logic when:
-
-- the plugin receives correct button data
-- preconditions or workspace resolution are wrong
-- cancellation behavior is right but target selection or drag/drop logic is
-  wrong
+5. Patch `src/compat/` or hook code when the plugin gets wrong button data or a
+   listener path drifted. Patch overview logic when button data is right but
+   preconditions, workspace resolution, or drop targets are wrong.
 
 ## 6. When to Patch `src/compat/`
 
-Use `src/compat/` for:
-
-- direct Hyprland hooks and original call-throughs
-- runtime access that depends on Hyprland private or drift-prone APIs
-- version-line assumptions
-- logic that exists only to translate Hyprland runtime behavior into stable
-  plugin behavior
-
-Do not spread those decisions through unrelated plugin files. If a fix depends
-on a Hyprland contract, keep it behind the compat boundary and update
-`docs/compat-contract.md` with the new sensitive surface.
+Use `src/compat/` for direct Hyprland hooks and original call-throughs, access
+to private or drift-prone Hyprland APIs, version-line assumptions, and code that
+only translates Hyprland behavior into stable plugin behavior. Keep those
+decisions out of unrelated files, and record new sensitive surface in
+[`compat-contract.md`](compat-contract.md).
 
 ## Manual checks
 
@@ -311,101 +165,49 @@ ones matching the changed subsystem after a fix.
 | render-reentry | hook or rendering fixes | Open the overview, select a workspace, reopen at once; repeat, then do a reload-open cycle and repeat once more. | Hyprland stays up, the overview renders, the runtime stays enabled. | Crash, blank overview, self-disable notification, flicker or lockup on reopen. |
 | hook-sunset | input or hook-policy changes, once per supported target | Route overview mouse press/release through the cancellable event-bus path instead of the `CInputManager::onMouseButton` hook; run `bash scripts/check-version-contract.sh` and `hyprctl eval 'hl.plugin.hyprtasking.health()'`. | Drag/drop and right-click selection work on every target: the hook can go. | Any target regresses: keep the hook and record which one. |
 
-## 8. Release and Maintenance Workflow
+## 7. Release Gate
 
-For a single full maintenance gate:
+`bash scripts/release-check.sh` runs, in order: version contract, compat audit
+(when `HYPRLAND_SOURCE` is set), source audit, compile, tests, and live smoke.
+`RELEASE_MODE=offline` skips the live stages. The script header lists its
+options. Finish with the manual checks above.
 
-```bash
-bash scripts/release-check.sh
-```
+## 8. Common Failure Patterns
 
-For an offline gate that skips live compositor/runtime stages:
+- "My patch is correct but behavior does not change": wrong binary, stale
+  instance, the handler never saw real input, or the fix is at the wrong layer.
+- "The overview looks wrong after a Hyprland update": assume compat drift.
+- "Right-click switches workspaces, but the client still reacts": check
+  cancellation timing and hook level before selection logic.
+- "Drag starts, but the window or cursor lands in the wrong place": check
+  workspace resolution, pointer warp, and drag-controller state once the button
+  path is confirmed.
 
-```bash
-RELEASE_MODE=offline HYPRLAND_SOURCE=/path/to/Hyprland bash scripts/release-check.sh
-```
+## 9. Bare Key Bindings and the Submap
 
-For a release-prep run against a matching Hyprland source tree:
+Bare key bindings (no modifier) must live in the `hyprtasking` submap. The
+plugin enters it through `HTCompat::enter_submap()` when a view becomes
+interactively active (`active && !closing`) and leaves it through
+`HTCompat::exit_submap()` when no view is, but only if Hyprtasking entered it.
+The logic is in `set_runtime_state` in `src/overview.cpp`.
 
-```bash
-HYPRLAND_SOURCE=/path/to/Hyprland bash scripts/release-check.sh
-```
+If keypresses drop outside the overview, check for bare binds outside the
+submap block, that `hyprctl activesubmap` is empty with the overview closed, and
+for an input method module grabbing keys (see
+[`troubleshooting.md`](troubleshooting.md)).
 
-Use JSON output when integrating with tooling:
+## Lessons from the overview input regression
 
-```bash
-RELEASE_CHECK_FORMAT=json HYPRLAND_SOURCE=/path/to/Hyprland bash scripts/release-check.sh
-```
+Drag and right-click selection once broke because the event-bus mouse-button
+listener never delivered the real clicks, so correct handler logic looked
+ineffective. The fix was to hook `CInputManager::onMouseButton`, run
+Hyprtasking's drag/select logic first, and only call the original when
+Hyprtasking does not handle the event.
 
-The important point is not just to run the script, but to use its stage order:
-
-1. version contract
-2. compat audits
-3. compat coverage audit
-4. boundary audit
-5. guideline audit
-6. config-key audit
-7. compile and tests
-8. load/unload and dispatcher smoke
-9. live smoke
-10. manual checklist
-
-That order makes it much easier to distinguish architecture drift from runtime
-interaction regressions.
-
-## 9. Common Failure Patterns
-
-### "My patch is correct but behavior does not change"
-
-Assume one of these first:
-
-- wrong binary loaded
-- stale plugin instance
-- patched handler never received real input
-- fix applied at the wrong layer
-
-### "The overview looks wrong after a Hyprland update"
-
-Assume compat drift first, not a random feature regression.
-
-### "Right-click switches workspaces, but the client still reacts"
-
-Investigate cancellation timing and hook level before changing workspace
-selection logic.
-
-### "Drag starts, but the window or cursor lands in the wrong place"
-
-Investigate workspace resolution, pointer warp, and drag-controller state after
-you confirm the button path is correct.
-
-## 10. Bare Key Binding and Submap Considerations
-
-Bare key bindings (bindings with no modifier like `bind = , RETURN, ...`) must
-use a Hyprland submap to avoid intercepting keypresses during normal use. The
-plugin enters the `hyprtasking` submap automatically via
-`HTCompat::enter_submap()` when any view becomes interactively active
-(`active && !closing`) and exits via `HTCompat::exit_submap()` when all views
-leave that state.
-
-If a user reports dropped keypresses outside the overview, check:
-
-1. Whether their config has bare key bindings outside the submap block
-2. Whether `hyprctl activesubmap` returns empty when the overview is closed
-3. Whether an input method module is intercepting keypresses (see
-   [`troubleshooting.md`](troubleshooting.md))
-
-The submap enter/exit is in `src/overview.cpp` (`set_runtime_state`). The compat
-helpers are in `src/compat/runtime_compat.cpp`.
-
-## 11. Docs to Keep in Sync
-
-When the debugging workflow or runtime contract changes, update these together:
-
-- [`docs/compat-contract.md`](compat-contract.md)
-- [`docs/architecture.md`](architecture.md)
-- this playbook
-- [`docs/troubleshooting.md`](troubleshooting.md) if user-facing diagnostic
-  steps changed
-- [`docs/overview-input-regression.md`](overview-input-regression.md) if the
-  lesson materially changes
-- README maintenance/config references if user-facing debugging knobs changed
+- Prove the loaded binary before reasoning about behavior.
+- When a patch "should" work and does nothing, ask whether the code path ran
+  with real input, not which condition is still wrong.
+- Compare known-good commits by where input is intercepted, not only by what
+  happens afterwards.
+- Plugin-boundary, overview-state, and focus-aftermath bugs are different bugs;
+  do not give them the same first fix.
