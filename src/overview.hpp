@@ -1,8 +1,6 @@
 #pragma once
 
 #include <hyprland/src/desktop/DesktopTypes.hpp>
-#include <hyprland/src/helpers/AnimatedVariable.hpp>
-#include <hyprutils/math/Vector2D.hpp>
 #include <string_view>
 
 #include "layout/grid.hpp"

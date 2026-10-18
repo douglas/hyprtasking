@@ -4,7 +4,6 @@
 #include <format>
 #include <hyprland/src/plugins/PluginAPI.hpp>
 
-#include "compat/profile.hpp"
 #include "compat/renderer_compat.hpp"
 #include "compat/runtime_compat.hpp"
 #include "config.hpp"

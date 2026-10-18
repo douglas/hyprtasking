@@ -1,5 +1,4 @@
 #include <cmath>
-#include <format>
 
 #include "compat/renderer_compat.hpp"
 #include "compat/runtime_compat.hpp"

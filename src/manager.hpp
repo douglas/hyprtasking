@@ -2,7 +2,6 @@
 
 #include <chrono>
 #include <hyprland/src/desktop/DesktopTypes.hpp>
-#include <hyprland/src/helpers/AnimatedVariable.hpp>
 #include <string>
 #include <string_view>
 
