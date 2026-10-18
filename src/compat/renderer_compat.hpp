@@ -17,21 +17,13 @@ namespace HTCompat {
 bool initializeRendererHooks();
 void shutdownRendererHooks();
 
-bool should_render_window_original(void* renderer, PHLWINDOW window, PHLMONITOR monitor);
-bool render_workspace_original(
+void render_workspace_original(
     PHLMONITOR monitor,
     PHLWORKSPACE workspace,
     const Time::steady_tp& now,
     const CBox& geometry
 );
-bool render_workspace_original(
-    void* thisptr,
-    PHLMONITOR monitor,
-    PHLWORKSPACE workspace,
-    const Time::steady_tp& now,
-    const CBox& geometry
-);
-bool render_window_original(
+void render_window_original(
     PHLWINDOW window,
     PHLMONITOR monitor,
     const Time::steady_tp& time,

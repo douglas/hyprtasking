@@ -34,22 +34,6 @@ constexpr const char* CLEAR_PASS_ELEMENT_NAME = "CClearPassElement";
 int g_overview_render_scope_depth = 0;
 int g_overview_render_pass_depth = 0;
 
-void render_workspace_original_or_disable(
-    void* thisptr,
-    PHLMONITOR monitor,
-    PHLWORKSPACE workspace,
-    const Time::steady_tp& now,
-    const CBox& geometry
-) {
-    if (HTCompat::render_workspace_original(thisptr, monitor, workspace, now, geometry))
-        return;
-
-    HTRuntimeFail::disable(
-        "hook_render_workspace",
-        "missing renderWorkspace original call-through"
-    );
-}
-
 bool begin_overview_render_scope(PHLMONITOR monitor, PHLWORKSPACE workspace) {
     if (g_overview_render_scope_depth > 0) {
         HTRuntimeFail::disable(
@@ -83,20 +67,6 @@ void end_overview_render_scope() {
         g_overview_render_pass_depth = 0;
 }
 
-uint32_t solitaryBlockedOriginal(void* thisptr, bool full) {
-    const auto original =
-        HTCompat::hook_original<origIsSolitaryBlocked>(g_hooks.is_solitary_blocked);
-    if (thisptr == nullptr || original == nullptr) {
-        HTRuntimeFail::disable(
-            "hook_is_solitary_blocked",
-            "missing isSolitaryBlocked original call-through"
-        );
-        return static_cast<uint32_t>(HTCompat::MonitorClass::SC_UNKNOWN);
-    }
-
-    return original(thisptr, full);
-}
-
 const HTGradientValueData& fallback_border_color(bool active) {
     static const HTGradientValueData active_fallback {CHyprColor {0x33ccffee}};
     static const HTGradientValueData inactive_fallback {CHyprColor {0x444444ee}};
@@ -123,47 +93,33 @@ void hookRenderWorkspace(
     const Time::steady_tp& now,
     const CBox& geometry
 ) {
+    const auto render_original = [&] {
+        HTCompat::hook_original<render_workspace_t>(g_hooks.render_workspace)(
+            thisptr,
+            monitor,
+            workspace,
+            now,
+            geometry
+        );
+    };
     try {
-        if (ht_manager == nullptr) {
-            render_workspace_original_or_disable(thisptr, monitor, workspace, now, geometry);
-            return;
-        }
-        if (!ht_manager->runtime_enabled()) {
-            render_workspace_original_or_disable(thisptr, monitor, workspace, now, geometry);
-            return;
-        }
-
-        const PHTVIEW view = ht_manager->get_view_from_monitor(monitor);
-        if (view != nullptr && view->get_monitor() != monitor) {
-            Log::logger->log(
-                Log::WARN,
-                "[Hyprtasking] hook_render_workspace monitor/view mismatch for view {}",
-                view->monitor_id
-            );
-            render_workspace_original_or_disable(thisptr, monitor, workspace, now, geometry);
-            return;
-        }
-        if (view != nullptr && (view->navigating || ht_manager->has_active_view())) {
-            if (!begin_overview_render_scope(monitor, workspace)) {
-                render_workspace_original_or_disable(thisptr, monitor, workspace, now, geometry);
-                return;
-            }
-
-            HTScopeGuard render_scope([] { end_overview_render_scope(); });
-            view->layout->render();
+        const PHTVIEW view =
+            ht_manager->runtime_enabled() ? ht_manager->get_view_from_monitor(monitor) : nullptr;
+        if (view == nullptr || !(view->navigating || ht_manager->has_active_view())
+            || !begin_overview_render_scope(monitor, workspace)) {
+            render_original();
             return;
         }
 
-        render_workspace_original_or_disable(thisptr, monitor, workspace, now, geometry);
-    } catch (const std::exception& e) {
-        Log::logger->log(Log::ERR, "[Hyprtasking] hook_render_workspace failed: {}", e.what());
-        render_workspace_original_or_disable(thisptr, monitor, workspace, now, geometry);
+        HTScopeGuard render_scope([] { end_overview_render_scope(); });
+        view->layout->render();
     } catch (...) {
         Log::logger->log(
             Log::ERR,
-            "[Hyprtasking] hook_render_workspace failed with unknown exception"
+            "[Hyprtasking] hook_render_workspace failed: {}",
+            HTPlugin::current_exception_what()
         );
-        render_workspace_original_or_disable(thisptr, monitor, workspace, now, geometry);
+        render_original();
     }
 }
 
@@ -203,13 +159,6 @@ void hookRenderTexture(
     Render::GL::CHyprOpenGLImpl::STextureRenderData data
 ) {
     const auto original = HTCompat::hook_original<render_texture_t>(g_hooks.render_texture);
-    if (original == nullptr) {
-        HTRuntimeFail::disable(
-            "hook_render_texture",
-            "missing renderTexture original call-through"
-        );
-        return;
-    }
 
     // Every path calls this exactly once, so hand over the texture and data.
     const auto call_original = [&](const CBox& render_box) {
@@ -297,10 +246,6 @@ void hookRenderBorder(
     Render::GL::CHyprOpenGLImpl::SBorderRenderData data
 ) {
     const auto original = HTCompat::hook_original<render_border_t>(g_hooks.render_border);
-    if (original == nullptr) {
-        HTRuntimeFail::disable("hook_render_border", "missing renderBorder original call-through");
-        return;
-    }
 
     render_border_for_overview(box, data, [&](const CBox& render_box, const auto& render_data) {
         original(thisptr, render_box, gradient, render_data);
@@ -316,13 +261,6 @@ void hookRenderBorderLerp(
     Render::GL::CHyprOpenGLImpl::SBorderRenderData data
 ) {
     const auto original = HTCompat::hook_original<render_border_lerp_t>(g_hooks.render_border_lerp);
-    if (original == nullptr) {
-        HTRuntimeFail::disable(
-            "hook_render_border_lerp",
-            "missing renderBorder (lerp) original call-through"
-        );
-        return;
-    }
 
     render_border_for_overview(box, data, [&](const CBox& render_box, const auto& render_data) {
         original(thisptr, render_box, first_gradient, second_gradient, lerp, render_data);
@@ -330,30 +268,29 @@ void hookRenderBorderLerp(
 }
 
 bool hookBlurOptimizations(void* thisptr, PHLLS layer, PHLWINDOW window) {
-    const auto original = HTCompat::hook_original<blur_optimizations_t>(g_hooks.blur_optimizations);
-    if (original == nullptr) {
-        HTRuntimeFail::disable(
-            "hook_blur_optimizations",
-            "missing shouldUseNewBlurOptimizations original call-through"
-        );
-        return false;
-    }
-
     if (overview_render_modif_active())
         return false;
-    return original(thisptr, layer, window);
+    return HTCompat::hook_original<blur_optimizations_t>(g_hooks.blur_optimizations)(
+        thisptr,
+        layer,
+        window
+    );
 }
 #endif
 
 bool hookShouldRenderWindow(void* thisptr, PHLWINDOW window, PHLMONITOR monitor) {
-    const bool original_result = HTCompat::should_render_window_original(thisptr, window, monitor);
+    const bool original_result =
+        HTCompat::hook_original<should_render_window_t>(g_hooks.should_render_window)(
+            thisptr,
+            window,
+            monitor
+        );
     return HTPlugin::guardedValue("hook_should_render_window", original_result, [&] {
-        if (ht_manager == nullptr || !ht_manager->runtime_enabled()
-            || !ht_manager->has_active_view())
+        if (!ht_manager->has_active_view())
             return original_result;
 
         const PHTVIEW view = ht_manager->get_view_from_monitor(monitor);
-        if (view == nullptr || view->get_monitor() != monitor)
+        if (view == nullptr)
             return original_result;
 
         return view->layout->should_render_window(window, original_result);
@@ -363,15 +300,16 @@ bool hookShouldRenderWindow(void* thisptr, PHLWINDOW window, PHLMONITOR monitor)
 uint32_t hookIsSolitaryBlocked(void* thisptr, bool full) {
     // Fullscreen/solitary workspaces are otherwise skipped by Hyprland before
     // the overview can render their workspace cells.
-    const uint32_t original_result = solitaryBlockedOriginal(thisptr, full);
+    const uint32_t original_result =
+        HTCompat::hook_original<origIsSolitaryBlocked>(g_hooks.is_solitary_blocked)(thisptr, full);
     return HTPlugin::guardedValue("hook_is_solitary_blocked", original_result, [&] {
-        if (ht_manager == nullptr || !ht_manager->runtime_enabled())
+        if (!ht_manager->runtime_enabled())
             return original_result;
 
         // thisptr is the monitor being asked about, not the cursor's monitor.
         const auto view =
             std::ranges::find_if(ht_manager->views, [thisptr](const PHTVIEW& candidate) {
-                return candidate != nullptr && candidate->get_monitor().get() == thisptr;
+                return candidate->get_monitor().get() == thisptr;
             });
         if (view == ht_manager->views.end())
             return original_result;
@@ -462,47 +400,22 @@ void shutdownRendererHooks() {
     g_hooks.render_window = nullptr;
 }
 
-bool should_render_window_original(void* renderer, PHLWINDOW window, PHLMONITOR monitor) {
-    if (renderer == nullptr || g_hooks.should_render_window == nullptr || window == nullptr
-        || monitor == nullptr)
-        return false;
-    const auto original = hook_original<should_render_window_t>(g_hooks.should_render_window);
-    if (original == nullptr) {
-        HTRuntimeFail::disable(
-            "should_render_window_original",
-            "missing shouldRenderWindow original call-through"
-        );
-        return true;
-    }
-
-    return original(renderer, window, monitor);
-}
-
-bool render_workspace_original(
+void render_workspace_original(
     PHLMONITOR monitor,
     PHLWORKSPACE workspace,
     const Time::steady_tp& now,
     const CBox& geometry
 ) {
-    return render_workspace_original(g_pHyprRenderer.get(), monitor, workspace, now, geometry);
+    hook_original<render_workspace_t>(g_hooks.render_workspace)(
+        g_pHyprRenderer.get(),
+        monitor,
+        workspace,
+        now,
+        geometry
+    );
 }
 
-bool render_workspace_original(
-    void* thisptr,
-    PHLMONITOR monitor,
-    PHLWORKSPACE workspace,
-    const Time::steady_tp& now,
-    const CBox& geometry
-) {
-    const auto original = hook_original<render_workspace_t>(g_hooks.render_workspace);
-    if (thisptr == nullptr || original == nullptr)
-        return false;
-
-    original(thisptr, monitor, workspace, now, geometry);
-    return true;
-}
-
-bool render_window_original(
+void render_window_original(
     PHLWINDOW window,
     PHLMONITOR monitor,
     const Time::steady_tp& time,
@@ -511,13 +424,8 @@ bool render_window_original(
     bool ignore_position,
     bool standalone
 ) {
-    void* thisptr = g_pHyprRenderer.get();
-    if (thisptr == nullptr || g_hooks.render_window == nullptr || window == nullptr
-        || monitor == nullptr)
-        return false;
-
     reinterpret_cast<render_window_t>(g_hooks.render_window)(
-        thisptr,
+        g_pHyprRenderer.get(),
         window,
         monitor,
         time,
@@ -526,7 +434,6 @@ bool render_window_original(
         ignore_position,
         standalone
     );
-    return true;
 }
 
 Vector2D monitor_position(PHLMONITOR monitor) {

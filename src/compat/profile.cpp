@@ -283,10 +283,6 @@ bool remove_function_hook(CFunctionHook*& hook, std::string_view label) {
     return true;
 }
 
-bool function_hook_original_ready(CFunctionHook* hook) {
-    return hook != nullptr && hook->m_original != nullptr;
-}
-
 CompatibilityResult verify_compatibility() {
     const auto version = HyprlandAPI::getHyprlandVersion(PHANDLE);
     const auto reported_version =

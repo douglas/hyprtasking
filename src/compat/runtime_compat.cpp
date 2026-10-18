@@ -338,18 +338,13 @@ void HTCompat::end_drag_controller() {
     drag_controller->dragEnd();
 }
 
-bool HTCompat::invoke_mouse_button_original(
+void HTCompat::invoke_mouse_button_original(
     void* thisptr,
     IPointer::SButtonEvent event,
     SP<IPointer> mouse
 ) {
     using origOnMouseButton = void (*)(void*, IPointer::SButtonEvent, SP<IPointer>);
-    const auto original = hook_original<origOnMouseButton>(g_hooks.input_mouse_button);
-    if (thisptr == nullptr || original == nullptr)
-        return false;
-
-    original(thisptr, event, mouse);
-    return true;
+    hook_original<origOnMouseButton>(g_hooks.input_mouse_button)(thisptr, event, std::move(mouse));
 }
 
 // Event::bus() is null before Hyprland finishes init and after shutdown.

@@ -60,7 +60,7 @@ SP<Layout::ITarget> drag_controller_target();
 bool drag_controller_is_tiled();
 eMouseBindMode drag_controller_mode();
 void end_drag_controller();
-bool invoke_mouse_button_original(void* thisptr, IPointer::SButtonEvent event, SP<IPointer> mouse);
+void invoke_mouse_button_original(void* thisptr, IPointer::SButtonEvent event, SP<IPointer> mouse);
 
 bool listen_mouse_move(
     CHyprSignalListener& listener,

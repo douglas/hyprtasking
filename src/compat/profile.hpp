@@ -42,15 +42,13 @@ const HookSpec& solitary_blocked_spec();
 HookLookupResult resolve_hook_address(const HookSpec& hook);
 HookInstallResult
 install_function_hook(CFunctionHook*& hook, const HookSpec& spec, void* destination);
-bool function_hook_original_ready(CFunctionHook* hook);
 bool remove_function_hook(CFunctionHook*& hook, std::string_view label);
 
-// Typed call-through for an installed hook; nullptr when it is not ready.
+// Typed call-through for an installed hook. Only reachable from that hook's
+// destination or while it is installed, and installation rejects hooks
+// without an original.
 template<typename Fn>
 Fn hook_original(CFunctionHook* hook) {
-    if (!function_hook_original_ready(hook))
-        return nullptr;
-
     return reinterpret_cast<Fn>(hook->m_original);
 }
 

@@ -44,30 +44,14 @@ bool mark_listener_ready(bool installed, std::string_view label) {
     );
 }
 
-void shutdownMouseButtonHook();
-
-void onMouseButton(IPointer::SButtonEvent e, Event::SCallbackInfo& info) {
-    HTPlugin::guardedCallback("on_mouse_button", [&] {
-        if (ht_manager == nullptr || !ht_manager->runtime_enabled())
-            return;
-
-        const bool pressed = e.state == WL_POINTER_BUTTON_STATE_PRESSED;
-        const auto result = ht_manager->handle_mouse_button(e.button, pressed);
-        info.cancelled = result == HTLogic::MouseButtonResult::Consume;
-    });
-}
-
 void hookMouseButton(void* thisptr, IPointer::SButtonEvent e, SP<IPointer> mouse) {
-    const bool cancelled = HTPlugin::guardedValue("hook_mouse_button", false, [&] {
-        Event::SCallbackInfo info;
-        onMouseButton(e, info);
-        return info.cancelled;
+    const bool consumed = HTPlugin::guardedValue("hook_mouse_button", false, [&] {
+        return ht_manager->runtime_enabled()
+            && ht_manager->handle_mouse_button(e.button, e.state == WL_POINTER_BUTTON_STATE_PRESSED)
+            == HTLogic::MouseButtonResult::Consume;
     });
-    if (cancelled)
-        return;
-
-    if (!HTCompat::invoke_mouse_button_original(thisptr, e, mouse))
-        HTRuntimeFail::disable("hook_mouse_button", "missing onMouseButton original call-through");
+    if (!consumed)
+        HTCompat::invoke_mouse_button_original(thisptr, e, std::move(mouse));
 }
 
 bool initializeMouseButtonHook() {
