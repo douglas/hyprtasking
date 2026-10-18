@@ -61,6 +61,7 @@ check 'function hooks removed only in approved files' \
 check 'no deprecated Hyprland plugin APIs' "$(src_matches \
   'HyprlandAPI::(addConfigKeyword|registerCallbackDynamic|unregisterCallback|addLayout|removeLayout|addDispatcher|getConfigValue|getFunctionAddressFromSignature|addConfigValue)\(')"
 check 'no Hyprland 0.54 build gates' "$(src_matches 'HT_HYPRLAND_GE_0_55')"
+check 'no trace logging switches' "$(src_matches 'debug:trace|HYPRTASKING_TRACE')"
 check 'hook originals read only in compat wrappers' "$(src_matches '->m_original' \
   'src/compat/profile\.(cpp|hpp)|src/compat/renderer_compat\.cpp|src/compat/runtime_compat\.cpp')"
 check 'deferred callbacks never run synchronously' \

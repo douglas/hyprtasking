@@ -135,13 +135,19 @@ assert_extended_dispatchers_ready() {
       "Hyprtasking commit dispatcher is not registered even though the plugin is listed."
   fi
 
-  run_capture_hyprtasking hyprtasking:health json
+  run_capture_hyprtasking hyprtasking:health
   if [[ "$CAPTURED_OUTPUT" == *"Invalid dispatcher"* ]]; then
     fail_with_loaded_plugin_state \
       "Hyprtasking health dispatcher is not registered even though the plugin is listed."
   fi
 
-  if [[ "$CAPTURED_OUTPUT" != "ok" ]]; then
+  # hyprctl dispatch prints "ok"; Lua eval prints the one-line summary.
+  if [[ "$CAPTURED_OUTPUT" == *"runtime_enabled=false"* ]]; then
+    printf 'Hyprtasking runtime is disabled: %s\n' "$CAPTURED_OUTPUT" >&2
+    exit 1
+  fi
+
+  if [[ "$CAPTURED_OUTPUT" != "ok" && "$CAPTURED_OUTPUT" != *"runtime_enabled=true"* ]]; then
     printf 'Unexpected hyprtasking:health probe response: %s\n' "$CAPTURED_OUTPUT" >&2
     exit 1
   fi
