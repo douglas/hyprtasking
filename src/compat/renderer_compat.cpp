@@ -29,7 +29,7 @@
 
 namespace {
 
-const std::string CLEAR_PASS_ELEMENT_NAME = "CClearPassElement";
+constexpr const char* CLEAR_PASS_ELEMENT_NAME = "CClearPassElement";
 // Balanced by RAII in the render hooks; Hyprland renders on one thread.
 int g_overview_render_scope_depth = 0;
 int g_overview_render_pass_depth = 0;

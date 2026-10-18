@@ -14,7 +14,7 @@ using HTRenderPassMode = Render::eRenderPassMode;
 using HTGradientValueData = Config::CGradientValueData;
 constexpr HTRenderPassMode HT_RENDER_PASS_MAIN = Render::RENDER_PASS_MAIN;
 
-typedef void (*render_workspace_t)(
+using render_workspace_t = void (*)(
     void* thisptr,
     PHLMONITOR pMonitor,
     PHLWORKSPACE pWorkspace,
@@ -22,8 +22,8 @@ typedef void (*render_workspace_t)(
     const CBox& geometry
 );
 
-typedef bool (*should_render_window_t)(void* thisptr, PHLWINDOW pWindow, PHLMONITOR pMonitor);
-typedef void (*render_window_t)(
+using should_render_window_t = bool (*)(void* thisptr, PHLWINDOW pWindow, PHLMONITOR pMonitor);
+using render_window_t = void (*)(
     void* thisptr,
     PHLWINDOW pWindow,
     PHLMONITOR pMonitor,
@@ -34,4 +34,4 @@ typedef void (*render_window_t)(
     bool standalone
 );
 
-typedef long VIEWID;
+using VIEWID = long;

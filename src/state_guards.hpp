@@ -103,12 +103,9 @@ class [[nodiscard]] HTScopedWorkspaceVisibility {
     bool         restore_on_destroy = true;
 };
 
+// Not copyable or movable: its members are not.
 class [[nodiscard]] HTScopedWorkspaceRender {
   public:
-    // Copying or moving would restore the saved state twice.
-    HTScopedWorkspaceRender(const HTScopedWorkspaceRender&) = delete;
-    HTScopedWorkspaceRender& operator=(const HTScopedWorkspaceRender&) = delete;
-
     HTScopedWorkspaceRender(PHLMONITOR monitor, PHLWORKSPACE workspace)
         : active_workspace(monitor, workspace),
           visible_workspace(workspace, true) {}

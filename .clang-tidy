@@ -1,5 +1,7 @@
 ---
 # Focused on bugs and performance; style checks are left to clang-format.
+# unnecessary-value-param is off: Hyprland passes its smart pointers by value
+# and hook destinations must match its signatures exactly.
 Checks: >
   -*,
   bugprone-*,
@@ -12,9 +14,11 @@ Checks: >
   modernize-use-using,
   performance-*,
   -performance-enum-size,
+  -performance-unnecessary-value-param,
   readability-const-return-type,
   readability-redundant-smartptr-get
-HeaderFilterRegex: '.*/src/.*'
+HeaderFilterRegex: '.*/hyprtasking/src/.*'
 SystemHeaders: false
 CheckOptions:
   cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: true
+  cppcoreguidelines-special-member-functions.AllowMissingMoveFunctionsWhenCopyIsDeleted: true

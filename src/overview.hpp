@@ -58,4 +58,4 @@ class HTView {
     bool navigate_selection(const std::string& arg);
 };
 
-typedef SP<HTView> PHTVIEW;
+using PHTVIEW = SP<HTView>;

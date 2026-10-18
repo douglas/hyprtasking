@@ -21,8 +21,7 @@ void cleanup_step(std::string_view name, Fn&& fn) noexcept {
         const char* reason = HTPlugin::current_exception_what();
         try {
             Log::logger->log(Log::ERR, "[Hyprtasking] {} cleanup failed: {}", name, reason);
-        } catch (...) {
-        }
+        } catch (...) {} // NOLINT(bugprone-empty-catch): logging failed; nothing left to do
     }
 }
 

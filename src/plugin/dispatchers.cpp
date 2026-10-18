@@ -36,7 +36,7 @@ SDispatchResult requireRuntimeReady() {
 }
 
 SDispatchResult requireCursorView(PHTVIEW& cursor_view, bool require_interactive = false) {
-    const auto runtime_guard = requireRuntimeReady();
+    auto runtime_guard = requireRuntimeReady();
     if (!runtime_guard.success)
         return runtime_guard;
 
@@ -59,7 +59,7 @@ SDispatchResult requireCursorView(PHTVIEW& cursor_view, bool require_interactive
 
 SDispatchResult dispatchToggleView(std::string arg) {
     return guardedDispatch("dispatch_toggle_view", [&]() -> SDispatchResult {
-        const auto runtime_guard = requireRuntimeReady();
+        auto runtime_guard = requireRuntimeReady();
         if (!runtime_guard.success)
             return runtime_guard;
 
@@ -84,7 +84,7 @@ SDispatchResult dispatchToggleView(std::string arg) {
 SDispatchResult dispatchMove(std::string arg) {
     return guardedDispatch("dispatch_move", [&]() -> SDispatchResult {
         PHTVIEW cursor_view = nullptr;
-        const auto view_guard = requireCursorView(cursor_view);
+        auto view_guard = requireCursorView(cursor_view);
         if (!view_guard.success)
             return view_guard;
         if (!HTLogic::isGridDirection(arg))
@@ -98,7 +98,7 @@ SDispatchResult dispatchMove(std::string arg) {
 SDispatchResult dispatchSelect(std::string arg) {
     return guardedDispatch("dispatch_select", [&]() -> SDispatchResult {
         PHTVIEW cursor_view = nullptr;
-        const auto view_guard = requireCursorView(cursor_view, true);
+        auto view_guard = requireCursorView(cursor_view, true);
         if (!view_guard.success)
             return view_guard;
 
@@ -111,7 +111,7 @@ SDispatchResult dispatchSelect(std::string arg) {
 SDispatchResult dispatchCommit([[maybe_unused]] std::string arg) {
     return guardedDispatch("dispatch_commit", [&]() -> SDispatchResult {
         PHTVIEW cursor_view = nullptr;
-        const auto view_guard = requireCursorView(cursor_view, true);
+        auto view_guard = requireCursorView(cursor_view, true);
         if (!view_guard.success)
             return view_guard;
 

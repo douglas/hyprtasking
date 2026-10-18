@@ -13,11 +13,11 @@ void run_cleanup(Fn&& fn) noexcept {
     } catch (const std::exception& e) {
         try {
             Log::logger->log(Log::ERR, "[Hyprtasking] cleanup failed: {}", e.what());
-        } catch (...) {}
+        } catch (...) {} // NOLINT(bugprone-empty-catch): logging failed; nothing left to do
     } catch (...) {
         try {
             Log::logger->log(Log::ERR, "[Hyprtasking] cleanup failed with unknown exception");
-        } catch (...) {}
+        } catch (...) {} // NOLINT(bugprone-empty-catch): logging failed; nothing left to do
     }
 }
 
