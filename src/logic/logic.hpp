@@ -11,36 +11,11 @@
 namespace HTLogic {
 
 using WorkspaceID = long;
-using MonitorID = long;
 
 // Compatibility gate
 
-enum class CompatStatus {
-    Supported,
-    UnsupportedPackageVersion,
-    UnsupportedRuntimeVersion,
-    RuntimePackageMismatch,
-    HeaderRuntimeMismatch,
-};
-
-struct CompatDecision {
-    bool supported = false;
-    CompatStatus status = CompatStatus::Supported;
-    std::string error;
-};
-
-std::string normalizeVersion(std::string_view version);
-bool versionMatchesSupportedTarget(std::string_view version, std::string_view supported_version);
-bool versionIsSupported(
-    std::string_view version,
-    std::span<const std::string_view> supported_versions
-);
-std::string supportTargetForVersion(
-    std::string_view version,
-    std::span<const std::string_view> supported_versions
-);
-std::string supportedVersionsList(std::span<const std::string_view> supported_versions);
-CompatDecision decideCompatSupport(
+// nullopt when this build may run on this Hyprland, otherwise why not.
+std::optional<std::string> compatSupportError(
     bool hashes_match,
     std::string_view runtime_version,
     std::string_view package_version,
@@ -49,14 +24,10 @@ CompatDecision decideCompatSupport(
 
 // Geometry
 
-bool isPositiveFinite(float value);
-bool isFinitePoint(float x, float y);
-std::optional<int> gridCellCount(int rows, int cols, int max_rows, int max_cols);
-std::optional<float> workspaceWidthScale(float workspace_width, float monitor_width);
-std::optional<float> dragWindowScale(float drag_scale);
-std::optional<float> inverseDragWindowScale(float drag_scale);
-std::optional<float>
-windowRenderScale(float box_width, float box_height, float window_width, float window_height);
+bool isPositiveFinite(double value);
+bool isFinitePoint(double x, double y);
+// Scale that draws a window window_width wide box_width wide.
+std::optional<float> windowRenderScale(float box_width, float window_width);
 
 struct Point {
     double x = 0;
@@ -159,13 +130,6 @@ WorkspaceID gridWorkspaceID(int block, int rows, int cols, int x, int y);
 
 // Selection state
 
-struct DropWorkspaceDecision {
-    bool valid = false;
-    WorkspaceID workspace_id = -1;
-    bool create_if_missing = false;
-    bool snap_to_workspace = false;
-};
-
 WorkspaceID resolveSelectionWorkspace(
     WorkspaceID selected_workspace_id,
     WorkspaceID hovered_workspace_id,
@@ -180,10 +144,6 @@ WorkspaceID resolveVisualWorkspaceID(
     WorkspaceID keyboard_workspace_id,
     WorkspaceID fallback_workspace_id
 );
-DropWorkspaceDecision resolveDropWorkspace(
-    WorkspaceID hovered_workspace_id,
-    std::optional<WorkspaceID> dragged_workspace_id
-);
 
 // Monitor views
 
@@ -196,13 +156,7 @@ std::vector<std::string> assignMonitorBlocks(
 std::optional<int>
 monitorBlockIndex(const std::vector<std::string>& blocks, const std::string& monitor_name);
 
-std::vector<MonitorID> missingMonitorViewIDs(
-    const std::vector<MonitorID>& view_ids,
-    const std::vector<MonitorID>& monitor_ids
-);
-std::vector<MonitorID> staleMonitorViewIDs(
-    const std::vector<MonitorID>& view_ids,
-    const std::vector<MonitorID>& monitor_ids
-);
+// The ids in ids that are not in others, in order.
+std::vector<long> idsNotIn(const std::vector<long>& ids, const std::vector<long>& others);
 
 } // namespace HTLogic

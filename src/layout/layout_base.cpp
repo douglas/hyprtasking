@@ -132,15 +132,14 @@ std::optional<HTLogic::CellMapping> HTLayoutBase::cell_mapping(WORKSPACEID works
     if (layout_workspace == nullptr || layout_workspace->box.empty())
         return std::nullopt;
     const CBox& box = layout_workspace->box;
-    const auto width_scale =
-        HTLogic::workspaceWidthScale(box.w, HTCompat::monitor_transformed_size(monitor).x);
-    if (!width_scale.has_value())
+    const double monitor_width = HTCompat::monitor_transformed_size(monitor).x;
+    if (!HTLogic::isPositiveFinite(box.w) || !HTLogic::isPositiveFinite(monitor_width))
         return std::nullopt;
 
     const Vector2D monitor_pos = HTCompat::monitor_position(monitor);
     return HTLogic::CellMapping {
         .cell = {.x = box.x, .y = box.y},
-        .width_scale = *width_scale,
+        .width_scale = box.w / monitor_width,
         .monitor_scale = monitor_scale,
         .monitor = {.x = monitor_pos.x, .y = monitor_pos.y},
     };

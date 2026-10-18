@@ -278,14 +278,14 @@ CompatibilityResult verify_compatibility() {
     const auto version = HyprlandAPI::getHyprlandVersion(PHANDLE);
     const auto reported_version =
         version.tag.empty() ? std::string_view {version.branch} : std::string_view {version.tag};
-    const auto compat = HTLogic::decideCompatSupport(
+    const auto error = HTLogic::compatSupportError(
         __hyprland_api_get_hash() == std::string_view {__hyprland_api_get_client_hash()},
         reported_version,
         HT_BUILT_HYPRLAND_PKG_VERSION,
         supported_hyprland_versions()
     );
-    if (!compat.supported)
-        return {.supported = false, .error = compat.error};
+    if (error.has_value())
+        return {.supported = false, .error = *error};
 
     return {.supported = true};
 }

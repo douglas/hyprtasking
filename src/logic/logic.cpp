@@ -17,10 +17,6 @@ std::string_view trim(std::string_view value) {
     return value;
 }
 
-} // namespace
-
-namespace HTLogic {
-
 std::string normalizeVersion(std::string_view version) {
     version = trim(version);
     if (version.starts_with('v'))
@@ -36,15 +32,7 @@ bool versionMatchesSupportedTarget(std::string_view version, std::string_view su
     return normalized == supported || normalized.starts_with(supported + ".");
 }
 
-bool versionIsSupported(
-    std::string_view version,
-    std::span<const std::string_view> supported_versions
-) {
-    return std::ranges::any_of(supported_versions, [&](const std::string_view candidate) {
-        return versionMatchesSupportedTarget(version, candidate);
-    });
-}
-
+// The normalized supported version that version belongs to, empty if none.
 std::string supportTargetForVersion(
     std::string_view version,
     std::span<const std::string_view> supported_versions
@@ -73,7 +61,11 @@ std::string supportedVersionsList(std::span<const std::string_view> supported_ve
     return result;
 }
 
-CompatDecision decideCompatSupport(
+} // namespace
+
+namespace HTLogic {
+
+std::optional<std::string> compatSupportError(
     bool hashes_match,
     std::string_view runtime_version,
     std::string_view package_version,
@@ -81,72 +73,55 @@ CompatDecision decideCompatSupport(
 ) {
     const auto normalized_package = normalizeVersion(package_version);
     const auto normalized_runtime = normalizeVersion(runtime_version);
-    const auto supported_versions_list = supportedVersionsList(supported_versions);
     const auto package_support_target =
         supportTargetForVersion(package_version, supported_versions);
     const auto runtime_support_target =
         supportTargetForVersion(runtime_version, supported_versions);
 
-    if (!versionIsSupported(package_version, supported_versions)) {
-        return {
-            .supported = false,
-            .status = CompatStatus::UnsupportedPackageVersion,
-            .error = std::format(
-                "built against unsupported Hyprland package {} (supported: {})",
-                normalized_package,
-                supported_versions_list
-            ),
-        };
+    if (package_support_target.empty()) {
+        return std::format(
+            "built against unsupported Hyprland package {} (supported: {})",
+            normalized_package,
+            supportedVersionsList(supported_versions)
+        );
     }
 
-    if (!versionIsSupported(runtime_version, supported_versions)) {
-        return {
-            .supported = false,
-            .status = CompatStatus::UnsupportedRuntimeVersion,
-            .error = std::format(
-                "running on unsupported Hyprland runtime {} (supported: {})",
-                normalized_runtime,
-                supported_versions_list
-            ),
-        };
+    if (runtime_support_target.empty()) {
+        return std::format(
+            "running on unsupported Hyprland runtime {} (supported: {})",
+            normalized_runtime,
+            supportedVersionsList(supported_versions)
+        );
     }
 
     if (runtime_support_target != package_support_target) {
-        return {
-            .supported = false,
-            .status = CompatStatus::RuntimePackageMismatch,
-            .error = "installed Hyprland package " + normalized_package
-                + " does not match running Hyprland " + normalized_runtime,
-        };
+        return "installed Hyprland package " + normalized_package
+            + " does not match running Hyprland " + normalized_runtime;
     }
 
-    if (!hashes_match) {
-        return {
-            .supported = false,
-            .status = CompatStatus::HeaderRuntimeMismatch,
-            .error = "mismatched Hyprland headers and compositor build for version "
-                + normalized_runtime,
-        };
-    }
+    if (!hashes_match)
+        return "mismatched Hyprland headers and compositor build for version " + normalized_runtime;
 
-    return {.supported = true, .status = CompatStatus::Supported};
+    return std::nullopt;
 }
 
-bool isPositiveFinite(float value) {
-    return std::isfinite(value) && value > 0.f;
+bool isPositiveFinite(double value) {
+    return std::isfinite(value) && value > 0;
 }
 
-bool isFinitePoint(float x, float y) {
+bool isFinitePoint(double x, double y) {
     return std::isfinite(x) && std::isfinite(y);
 }
 
-std::optional<int> gridCellCount(int rows, int cols, int max_rows, int max_cols) {
-    if (rows <= 0 || cols <= 0 || max_rows <= 0 || max_cols <= 0)
-        return std::nullopt;
-    if (rows > max_rows || cols > max_cols)
+std::optional<float> windowRenderScale(float box_width, float window_width) {
+    if (!isPositiveFinite(box_width) || !isPositiveFinite(window_width))
         return std::nullopt;
 
-    return rows * cols;
+    const float scale = box_width / window_width;
+    if (!isPositiveFinite(scale))
+        return std::nullopt;
+
+    return scale;
 }
 
 std::optional<GridFit> fitGrid(double width, double height, int rows, int cols, double gap) {
@@ -200,41 +175,6 @@ Point globalToWorkspace(const CellMapping& m, Point global) {
     };
 }
 
-std::optional<float> workspaceWidthScale(float workspace_width, float monitor_width) {
-    if (!isPositiveFinite(workspace_width) || !isPositiveFinite(monitor_width))
-        return std::nullopt;
-
-    return workspace_width / monitor_width;
-}
-
-std::optional<float> dragWindowScale(float drag_scale) {
-    if (!isPositiveFinite(drag_scale))
-        return std::nullopt;
-
-    return drag_scale;
-}
-
-std::optional<float> inverseDragWindowScale(float drag_scale) {
-    const auto scale = dragWindowScale(drag_scale);
-    if (!scale.has_value())
-        return std::nullopt;
-
-    return 1.f / *scale;
-}
-
-std::optional<float>
-windowRenderScale(float box_width, float box_height, float window_width, float window_height) {
-    if (!isPositiveFinite(box_width) || !isPositiveFinite(box_height)
-        || !isPositiveFinite(window_width) || !isPositiveFinite(window_height))
-        return std::nullopt;
-
-    const float scale = box_width / window_width;
-    if (!isPositiveFinite(scale))
-        return std::nullopt;
-
-    return scale;
-}
-
 OpenSwipeStartAction
 resolveOpenSwipeStart(bool vertical, bool active, bool navigating, float delta_y) {
     if (!vertical || navigating)
@@ -266,7 +206,7 @@ bool canStartInteraction(bool has_view, bool view_active, bool view_closing, boo
 
 NavigateArg parseNavigateArg(std::string_view arg) {
     const std::string_view trimmed = trim(arg);
-    if (trimmed == "up" || trimmed == "down" || trimmed == "left" || trimmed == "right") {
+    if (isGridDirection(trimmed)) {
         return {
             .kind = NavigateArgKind::Direction,
             .direction = std::string(trimmed),
@@ -356,31 +296,6 @@ WorkspaceID resolveVisualWorkspaceID(
     return fallback_workspace_id;
 }
 
-DropWorkspaceDecision resolveDropWorkspace(
-    WorkspaceID hovered_workspace_id,
-    std::optional<WorkspaceID> dragged_workspace_id
-) {
-    if (hovered_workspace_id >= 0) {
-        return {
-            .valid = true,
-            .workspace_id = hovered_workspace_id,
-            .create_if_missing = true,
-            .snap_to_workspace = false,
-        };
-    }
-
-    if (dragged_workspace_id.has_value()) {
-        return {
-            .valid = true,
-            .workspace_id = *dragged_workspace_id,
-            .create_if_missing = false,
-            .snap_to_workspace = true,
-        };
-    }
-
-    return {};
-}
-
 std::vector<std::string> assignMonitorBlocks(
     std::vector<std::string> blocks,
     const std::vector<std::string>& connected_names
@@ -414,30 +329,14 @@ monitorBlockIndex(const std::vector<std::string>& blocks, const std::string& mon
     return static_cast<int>(std::distance(blocks.begin(), it));
 }
 
-std::vector<MonitorID> missingMonitorViewIDs(
-    const std::vector<MonitorID>& view_ids,
-    const std::vector<MonitorID>& monitor_ids
-) {
-    std::vector<MonitorID> missing_ids;
-    for (const auto monitor_id : monitor_ids) {
-        if (std::ranges::find(view_ids, monitor_id) == view_ids.end())
-            missing_ids.push_back(monitor_id);
+std::vector<long> idsNotIn(const std::vector<long>& ids, const std::vector<long>& others) {
+    std::vector<long> result;
+    for (const long id : ids) {
+        if (std::ranges::find(others, id) == others.end())
+            result.push_back(id);
     }
 
-    return missing_ids;
-}
-
-std::vector<MonitorID> staleMonitorViewIDs(
-    const std::vector<MonitorID>& view_ids,
-    const std::vector<MonitorID>& monitor_ids
-) {
-    std::vector<MonitorID> stale_ids;
-    for (const auto view_id : view_ids) {
-        if (std::ranges::find(monitor_ids, view_id) == monitor_ids.end())
-            stale_ids.push_back(view_id);
-    }
-
-    return stale_ids;
+    return result;
 }
 
 } // namespace HTLogic

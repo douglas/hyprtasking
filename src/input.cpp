@@ -135,10 +135,10 @@ bool HTManager::start_window_drag(const HTCursorWorkspaceContext& cursor_context
     const PHLWINDOW target_window = target->window();
     if (target_window != nullptr) {
         if (HTCompat::drag_controller_is_tiled()) {
-            const auto inverse_drag_scale =
-                HTLogic::inverseDragWindowScale(cursor_view->layout->drag_window_scale());
-            if (!inverse_drag_scale.has_value())
+            const float drag_scale = cursor_view->layout->drag_window_scale();
+            if (!HTLogic::isPositiveFinite(drag_scale))
                 return false;
+            const float inverse_drag_scale = 1.F / drag_scale;
             const PHLMONITOR dragged_monitor = HTCompat::window_monitor(target_window);
             if (dragged_monitor == nullptr)
                 return false;
@@ -153,9 +153,9 @@ bool HTManager::start_window_drag(const HTCursorWorkspaceContext& cursor_context
                 workspace_id
             );
             const Vector2D mapped_pre_pos =
-                (pre_pos - mouse_coords) * *inverse_drag_scale + mouse_coords;
+                (pre_pos - mouse_coords) * inverse_drag_scale + mouse_coords;
             const Vector2D mapped_post_pos =
-                (post_pos - mouse_coords) * *inverse_drag_scale + mouse_coords;
+                (post_pos - mouse_coords) * inverse_drag_scale + mouse_coords;
 
             HTCompat::set_window_real_position(target_window, mapped_pre_pos);
             HTCompat::set_window_real_position_goal(target_window, mapped_post_pos);
@@ -192,35 +192,32 @@ void HTManager::end_window_drag() {
 
     const Vector2D mouse_coords = cursor_context.mouse_coords;
     Vector2D use_mouse_coords = mouse_coords;
-    const WORKSPACEID hovered_workspace_id = cursor_context.workspace_id;
-    const PHLWORKSPACE dragged_workspace = HTCompat::window_workspace(dragged_window);
-    const std::optional<WORKSPACEID> dragged_workspace_id = dragged_workspace == nullptr
-        ? std::nullopt
-        : std::optional<WORKSPACEID> {HTCompat::workspace_id(dragged_workspace)};
-    const auto drop_decision =
-        HTLogic::resolveDropWorkspace(hovered_workspace_id, dragged_workspace_id);
-    if (!drop_decision.valid) {
-        Log::logger->log(LOG, "[Hyprtasking] tried to drop on null workspace??");
-        return;
+    // Drop on the hovered cell (creating its workspace), or off the grid snap
+    // back into the window's own workspace.
+    const bool snap_to_workspace = cursor_context.workspace_id < 0;
+    WORKSPACEID target_workspace_id = cursor_context.workspace_id;
+    if (snap_to_workspace) {
+        const PHLWORKSPACE dragged_workspace = HTCompat::window_workspace(dragged_window);
+        if (dragged_workspace == nullptr) {
+            Log::logger->log(LOG, "[Hyprtasking] tried to drop on null workspace??");
+            return;
+        }
+        target_workspace_id = HTCompat::workspace_id(dragged_workspace);
     }
 
-    PHLWORKSPACE cursor_workspace = HTCompat::resolve_workspace_target(
-        cursor_monitor,
-        drop_decision.workspace_id,
-        drop_decision.create_if_missing
-    );
-
+    const PHLWORKSPACE cursor_workspace =
+        HTCompat::resolve_workspace_target(cursor_monitor, target_workspace_id, !snap_to_workspace);
     if (cursor_workspace == nullptr) {
         Log::logger->log(
             LOG,
             "[Hyprtasking] drop target workspace {} could not be resolved",
-            drop_decision.workspace_id
+            target_workspace_id
         );
         return;
     }
 
     const WORKSPACEID drop_workspace_id = HTCompat::workspace_id(cursor_workspace);
-    if (drop_decision.snap_to_workspace) {
+    if (snap_to_workspace) {
         // Ensure that the mouse coords are snapped to inside the workspace box itself
         use_mouse_coords = cursor_view->layout->get_global_ws_box(drop_workspace_id)
                                .closestPoint(use_mouse_coords);
@@ -240,14 +237,14 @@ void HTManager::end_window_drag() {
     );
     if (!workspace_coords.has_value())
         return;
-    const auto drag_scale = HTLogic::dragWindowScale(cursor_view->layout->drag_window_scale());
-    if (!drag_scale.has_value())
+    const float drag_scale = cursor_view->layout->drag_window_scale();
+    if (!HTLogic::isPositiveFinite(drag_scale))
         return;
     const Vector2D cursor_monitor_pos = HTCompat::monitor_position(cursor_monitor);
 
     const Vector2D warped_global_pos =
         cursor_view->layout->global_to_local_ws_unscaled(
-            (HTCompat::window_real_position(dragged_window) - use_mouse_coords) * *drag_scale
+            (HTCompat::window_real_position(dragged_window) - use_mouse_coords) * drag_scale
                 + use_mouse_coords,
             drop_workspace_id
         )

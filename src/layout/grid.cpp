@@ -81,7 +81,7 @@ void render_window_at_box(
     if (!HTLogic::isPositiveFinite(monitor_scale))
         return;
 
-    const auto scale = HTLogic::windowRenderScale(box.w, box.h, window_size.x, window_size.y);
+    const auto scale = HTLogic::windowRenderScale(box.w, window_size.x);
     if (!scale.has_value())
         return;
 
@@ -475,15 +475,15 @@ void HTLayoutGrid::render() {
 
     constexpr float BORDERSIZE = 4.F;
 
-    const auto render_scale = HTLogic::dragWindowScale(scale->value());
-    if (!render_scale.has_value()) {
+    const float render_scale = scale->value();
+    if (!HTLogic::isPositiveFinite(render_scale)) {
         warn_invalid_geometry(
             "grid_render_validation",
             std::format("Invalid render scale {}", scale->value())
         );
         return;
     }
-    const auto dragged = dragged_window_box(monitor, *render_scale);
+    const auto dragged = dragged_window_box(monitor, render_scale);
     const auto time = Time::steadyNow();
     PHLWORKSPACE start_workspace = nullptr;
     if (par_view->closing && close_render_workspace_id != WORKSPACE_INVALID)
@@ -530,7 +530,7 @@ void HTLayoutGrid::render() {
     const auto render_cell = [&](WORKSPACEID ws_id, const CBox& box, PHLWORKSPACE workspace) {
         // renderModif translation used by renderWorkspace is weird so need
         // to scale the translation up as well. Geometry is also calculated from pixel size and not transformed size??
-        CBox render_box = {{box.pos() / *render_scale}, box.size()};
+        CBox render_box = {{box.pos() / render_scale}, box.size()};
         if (sideways)
             std::swap(render_box.w, render_box.h);
 

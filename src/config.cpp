@@ -90,8 +90,7 @@ std::optional<std::string> validate_runtime_config(const HTConfig::RuntimeConfig
             config.grid_cols
         );
     }
-    if (!HTLogic::gridCellCount(config.grid_rows, config.grid_cols, MAX_GRID_ROWS, MAX_GRID_COLS)
-             .has_value()) {
+    if (config.grid_rows > MAX_GRID_ROWS || config.grid_cols > MAX_GRID_COLS) {
         return std::format(
             "Grid dimensions exceed supported maximum rows={} cols={} max_rows={} max_cols={}",
             config.grid_rows,

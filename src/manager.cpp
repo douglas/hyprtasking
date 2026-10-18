@@ -284,14 +284,14 @@ void HTManager::cancel_window_drag() {
 }
 
 void HTManager::sync_monitor_views(MONITORID removed_monitor_id) {
-    std::vector<HTLogic::MonitorID> view_ids;
+    std::vector<MONITORID> view_ids;
     view_ids.reserve(views.size());
     for (const PHTVIEW& view : views) {
         view->refresh_monitor();
         view_ids.push_back(view->monitor_id);
     }
 
-    std::vector<HTLogic::MonitorID> monitor_ids;
+    std::vector<MONITORID> monitor_ids;
     const std::vector<PHLMONITOR> monitors = HTCompat::compositor_monitors();
     monitor_ids.reserve(monitors.size());
     for (const PHLMONITOR& monitor : monitors) {
@@ -299,7 +299,7 @@ void HTManager::sync_monitor_views(MONITORID removed_monitor_id) {
             monitor_ids.push_back(id);
     }
 
-    const auto stale_ids = HTLogic::staleMonitorViewIDs(view_ids, monitor_ids);
+    const auto stale_ids = HTLogic::idsNotIn(view_ids, monitor_ids);
     bool removed_runtime_view = false;
     std::erase_if(views, [&](const PHTVIEW& view) {
         if (std::ranges::find(stale_ids, view->monitor_id) == stale_ids.end())
@@ -321,7 +321,7 @@ void HTManager::sync_monitor_views(MONITORID removed_monitor_id) {
         reset_runtime_controls();
     }
 
-    const auto missing_ids = HTLogic::missingMonitorViewIDs(view_ids, monitor_ids);
+    const auto missing_ids = HTLogic::idsNotIn(monitor_ids, view_ids);
     for (const auto missing_id : missing_ids) {
         const PHLMONITOR monitor = HTCompat::monitor_from_id(missing_id);
         if (monitor == nullptr)

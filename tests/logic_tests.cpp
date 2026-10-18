@@ -27,70 +27,44 @@ int main() {
         "0.56.0",
         "0.56.2",
     };
+    const auto compat_error =
+        [&](bool hashes_match, std::string_view runtime, std::string_view package) {
+            return compatSupportError(hashes_match, runtime, package, SUPPORTED_VERSIONS);
+        };
 
-    {
-        const auto result = decideCompatSupport(true, "0.56.2", "0.56.2", SUPPORTED_VERSIONS);
-        expect(result.supported, "compat support should accept supported build versions");
-        expect(
-            result.status == CompatStatus::Supported,
-            "compat support should set supported status"
-        );
-    }
-    {
-        const auto result = decideCompatSupport(true, "0.55.0", "0.55.0", SUPPORTED_VERSIONS);
-        expect(result.supported, "compat support should accept Hyprland 0.55.0");
-        expect(
-            result.status == CompatStatus::Supported,
-            "compat support should set supported status for 0.55.0"
-        );
-    }
-    {
-        const auto result = decideCompatSupport(true, "0.55.2", "0.55.0", SUPPORTED_VERSIONS);
-        expect(result.supported, "compat support should accept supported 0.55 patch drift");
-        expect(
-            result.status == CompatStatus::Supported,
-            "compat support should keep 0.55 patch drift in the supported family"
-        );
-    }
-    {
-        const auto result = decideCompatSupport(false, "0.55.0", "0.55.0", SUPPORTED_VERSIONS);
-        expect(!result.supported, "compat support should reject mismatched hashes");
-        expect(
-            result.status == CompatStatus::HeaderRuntimeMismatch,
-            "compat support should expose hash mismatch status"
-        );
-    }
-    {
-        const auto result = decideCompatSupport(true, "0.56.0", "0.56.0", SUPPORTED_VERSIONS);
-        expect(result.supported, "compat support should accept Hyprland 0.56.0");
-        expect(
-            result.status == CompatStatus::Supported,
-            "compat support should set supported status for Hyprland 0.56.0"
-        );
-    }
-    {
-        const auto result = decideCompatSupport(true, "0.55.0", "0.56.0", SUPPORTED_VERSIONS);
-        expect(!result.supported, "compat support should reject mismatched package minors");
-        expect(
-            result.status == CompatStatus::RuntimePackageMismatch,
-            "compat support should expose runtime/package mismatch status"
-        );
-    }
-    {
-        const auto result = decideCompatSupport(true, "0.54.3", "0.54.3", SUPPORTED_VERSIONS);
-        expect(!result.supported, "compat support should reject dropped 0.54 releases");
-    }
-    {
-        const auto result = decideCompatSupport(true, "0.55.1", "0.55.1", SUPPORTED_VERSIONS);
-        expect(result.supported, "compat support should accept supported 0.55 patch releases");
-    }
+    expect(!compat_error(true, "0.56.2", "0.56.2"), "compat support should accept 0.56.2");
+    expect(!compat_error(true, "0.56.0", "0.56.0"), "compat support should accept 0.56.0");
+    expect(!compat_error(true, "0.55.0", "0.55.0"), "compat support should accept 0.55.0");
     expect(
-        versionIsSupported("v0.55.2", SUPPORTED_VERSIONS),
-        "compat version matching should accept v-prefixed supported minor versions"
+        !compat_error(true, "0.55.2", "0.55.0"),
+        "compat support should accept 0.55 patch drift between runtime and package"
     );
     expect(
-        !versionIsSupported("0.54.2", SUPPORTED_VERSIONS),
-        "compat version matching should reject unsupported patch releases"
+        !compat_error(true, "v0.55.2", "0.55.0"),
+        "compat support should accept v-prefixed runtime versions"
+    );
+    expect(
+        compat_error(false, "0.55.0", "0.55.0")
+            == "mismatched Hyprland headers and compositor build for version 0.55.0",
+        "compat support should reject mismatched hashes"
+    );
+    expect(
+        compat_error(true, "0.55.0", "0.56.0")
+            == "installed Hyprland package 0.56.0 does not match running Hyprland 0.55.0",
+        "compat support should reject mismatched package minors"
+    );
+    expect(
+        compat_error(
+            true,
+            "0.54.3",
+            "0.54.3"
+        ) == "built against unsupported Hyprland package 0.54.3 (supported: 0.55, 0.56.0, 0.56.2)",
+        "compat support should reject dropped 0.54 packages"
+    );
+    expect(
+        compat_error(true, "0.54.2", "0.55.0")
+            == "running on unsupported Hyprland runtime 0.54.2 (supported: 0.55, 0.56.0, 0.56.2)",
+        "compat support should reject dropped 0.54 runtimes"
     );
 
     {
@@ -107,31 +81,25 @@ int main() {
             "navigate parser should accept positive workspace args"
         );
     }
-    {
-        const auto parsed = parseNavigateArg("0");
+    expect(parseNavigateArg(" up ").kind == NavigateArgKind::Direction, "directions may be padded");
+    for (const std::string_view bad :
+         {"", "  ", "-3", "3x", "0", "+3", "99999999999999999999", "upp", "spin"})
         expect(
-            parsed.kind == NavigateArgKind::Invalid,
-            "navigate parser should reject non-positive numeric args"
+            parseNavigateArg(bad).kind == NavigateArgKind::Invalid,
+            "bad navigate args should be invalid"
         );
-    }
-    {
-        const auto parsed = parseNavigateArg("spin");
-        expect(
-            parsed.kind == NavigateArgKind::Invalid,
-            "navigate parser should reject unknown textual args"
-        );
-    }
-    {
-        const auto result = moveGridInDirection(0, 0, "right", 2, 3, false);
-        expect(result.has_value() && result->x == 1 && result->y == 0, "grid move should advance");
-    }
-    {
-        const auto result = moveGridInDirection(0, 0, "left", 2, 3, true);
-        expect(result.has_value() && result->x == 2 && result->y == 0, "grid move should loop");
-    }
+
+    expect(
+        isGridDirection("left") && !isGridDirection("spin") && !isGridDirection(" up "),
+        "only unpadded grid directions should be valid"
+    );
     {
         const auto result = moveGridInDirection(0, 0, "left", 2, 3, false);
         expect(!result.has_value(), "grid move should reject out-of-bounds when loop is disabled");
+    }
+    {
+        const auto result = moveGridInDirection(1, 1, "up", 2, 3, true);
+        expect(result.has_value() && result->x == 1 && result->y == 0, "grid move should go up");
     }
     {
         const auto result = moveGridInDirection(0, 0, "spin", 2, 3, true);
@@ -141,92 +109,52 @@ int main() {
         const auto result = moveGridInDirection(0, 0, "up", 0, 3, true);
         expect(!result.has_value(), "grid move should reject invalid dimensions");
     }
+    // Grid navigation over every cell and size: edges stop without loop and
+    // wrap with it.
+    for (int rows = 1; rows <= 8; rows++) {
+        for (int cols = 1; cols <= 8; cols++) {
+            for (int y = 0; y < rows; y++) {
+                for (int x = 0; x < cols; x++) {
+                    const auto right = moveGridInDirection(x, y, "right", rows, cols, false);
+                    expect(
+                        right.has_value() == (x + 1 < cols),
+                        "moving right should stop only at the last column"
+                    );
+                    const auto down = moveGridInDirection(x, y, "down", rows, cols, true);
+                    expect(
+                        down.has_value() && down->x == x && down->y == (y + 1) % rows,
+                        "moving down with loop should wrap to the first row"
+                    );
+                    const auto left = moveGridInDirection(x, y, "left", rows, cols, true);
+                    expect(
+                        left.has_value() && left->x == (x + cols - 1) % cols && left->y == y,
+                        "moving left with loop should wrap to the last column"
+                    );
+                }
+            }
+        }
+    }
 
-    expect(
-        isGridDirection("left") && !isGridDirection("spin"),
-        "only grid directions should be valid"
-    );
     expect(gridWorkspaceID(0, 2, 3, 0, 0) == 1, "the first block should start at workspace 1");
     expect(gridWorkspaceID(0, 2, 3, 2, 1) == 6, "the first block should end at rows * cols");
     expect(gridWorkspaceID(1, 2, 3, 0, 0) == 7, "the second block should follow the first");
     expect(gridWorkspaceID(1, 2, 3, 2, 1) == 12, "the second block should end at 2 * rows * cols");
-    {
-        const auto result = moveGridInDirection(1, 1, "up", 2, 3, true);
-        expect(result.has_value() && result->x == 1 && result->y == 0, "grid move should go up");
-    }
-    {
-        const auto result = moveGridInDirection(2, 1, "down", 2, 3, true);
-        expect(
-            result.has_value() && result->x == 2 && result->y == 0,
-            "grid move should wrap down"
-        );
-    }
 
-    expect(HTLogic::isPositiveFinite(1.0f), "positive finite values should be accepted");
-    expect(!HTLogic::isPositiveFinite(0.0f), "zero should be rejected as invalid geometry");
+    expect(isPositiveFinite(1.0), "positive finite values should be accepted");
+    expect(!isPositiveFinite(0.0), "zero should be rejected as invalid geometry");
+    expect(!isPositiveFinite(-1.0), "negative values should be rejected as invalid geometry");
+    expect(!isPositiveFinite(NAN), "NaN should be rejected as invalid geometry");
+    expect(isFinitePoint(1.0, 2.0), "finite points should be accepted");
+    expect(!isFinitePoint(INFINITY, 2.0), "non-finite x should be rejected");
+    expect(!isFinitePoint(1.0, -INFINITY), "non-finite y should be rejected");
+    {
+        const auto result = windowRenderScale(150.0f, 75.0f);
+        expect(result.has_value() && *result == 2.0f, "window render scale should divide widths");
+    }
     expect(
-        !HTLogic::isPositiveFinite(-1.0f),
-        "negative values should be rejected as invalid geometry"
+        !windowRenderScale(150.0f, 0.0f).has_value(),
+        "window render scale should reject zero window width"
     );
-    expect(HTLogic::isFinitePoint(1.0f, 2.0f), "finite points should be accepted");
-    expect(!HTLogic::isFinitePoint(INFINITY, 2.0f), "non-finite x should be rejected");
-    expect(!HTLogic::isFinitePoint(1.0f, -INFINITY), "non-finite y should be rejected");
-    {
-        const auto result = HTLogic::workspaceWidthScale(200.0f, 100.0f);
-        expect(
-            result.has_value() && *result == 2.0f,
-            "workspace width scale should divide valid widths"
-        );
-    }
-    {
-        const auto result = HTLogic::gridCellCount(3, 4, 8, 8);
-        expect(result.has_value() && *result == 12, "grid cell count should accept bounded grids");
-    }
-    {
-        const auto result = HTLogic::gridCellCount(9, 4, 8, 8);
-        expect(!result.has_value(), "grid cell count should reject too many rows");
-    }
-    {
-        const auto result = HTLogic::gridCellCount(3, 0, 8, 8);
-        expect(!result.has_value(), "grid cell count should reject non-positive columns");
-    }
-    {
-        const auto result = HTLogic::workspaceWidthScale(200.0f, 0.0f);
-        expect(!result.has_value(), "workspace width scale should reject zero monitor width");
-    }
-    {
-        const auto result = HTLogic::dragWindowScale(1.5f);
-        expect(
-            result.has_value() && *result == 1.5f,
-            "drag window scale should accept positive finite values"
-        );
-    }
-    {
-        const auto result = HTLogic::dragWindowScale(0.0f);
-        expect(!result.has_value(), "drag window scale should reject zero");
-    }
-    {
-        const auto result = HTLogic::inverseDragWindowScale(2.0f);
-        expect(
-            result.has_value() && *result == 0.5f,
-            "inverse drag window scale should invert valid scales"
-        );
-    }
-    {
-        const auto result = HTLogic::inverseDragWindowScale(-1.0f);
-        expect(!result.has_value(), "inverse drag window scale should reject invalid scales");
-    }
-    {
-        const auto result = HTLogic::windowRenderScale(150.0f, 100.0f, 75.0f, 50.0f);
-        expect(
-            result.has_value() && *result == 2.0f,
-            "window render scale should divide valid widths"
-        );
-    }
-    {
-        const auto result = HTLogic::windowRenderScale(150.0f, 100.0f, 0.0f, 50.0f);
-        expect(!result.has_value(), "window render scale should reject zero window width");
-    }
 
     expect(
         resolveSelectionWorkspace(8, 9, 3) == 8,
@@ -260,46 +188,6 @@ int main() {
         resolveVisualWorkspaceID(-1, -1, 1) == 1,
         "visual selection should fall back when no hover or keyboard selection exists"
     );
-
-    {
-        const auto result = resolveDropWorkspace(12, std::optional<long> {7});
-        expect(result.valid, "drop resolution should accept hovered workspaces");
-        expect(result.workspace_id == 12, "drop resolution should use the hovered workspace id");
-        expect(result.create_if_missing, "hovered workspace drops should allow creation");
-        expect(!result.snap_to_workspace, "hovered workspace drops should not snap");
-    }
-    {
-        const auto result = resolveDropWorkspace(-1, std::optional<long> {7});
-        expect(result.valid, "drop resolution should fall back to the dragged workspace");
-        expect(result.workspace_id == 7, "drop resolution should use the dragged workspace id");
-        expect(
-            !result.create_if_missing,
-            "fallback workspace drops should not create new workspaces"
-        );
-        expect(result.snap_to_workspace, "fallback workspace drops should snap to the workspace");
-    }
-    {
-        const auto result = resolveDropWorkspace(-1, std::nullopt);
-        expect(
-            !result.valid,
-            "drop resolution should reject missing hovered and dragged workspaces"
-        );
-    }
-    {
-        const auto result = resolveDropWorkspace(-1, std::optional<long> {42});
-        expect(
-            result.valid,
-            "drop resolution should accept invalid-hover fallback with dragged workspace"
-        );
-        expect(
-            result.workspace_id == 42,
-            "drop resolution fallback should keep the dragged workspace id"
-        );
-        expect(
-            result.snap_to_workspace,
-            "drop resolution fallback should snap to the dragged workspace"
-        );
-    }
 
     expect(
         canStartInteraction(true, true, false, true),
@@ -352,17 +240,14 @@ int main() {
         );
     }
 
-    {
-        const auto result = missingMonitorViewIDs({1, 3}, {1, 2, 3, 4});
-        expect(
-            result == std::vector<long>({2, 4}),
-            "missing monitor ids should preserve monitor order"
-        );
-    }
-    {
-        const auto result = staleMonitorViewIDs({1, 2, 5}, {2, 3, 4});
-        expect(result == std::vector<long>({1, 5}), "stale monitor ids should preserve view order");
-    }
+    expect(
+        idsNotIn({1, 2, 3, 4}, {1, 3}) == std::vector<long>({2, 4}),
+        "missing ids should keep their order"
+    );
+    expect(
+        idsNotIn({1, 2, 5}, {2, 3, 4}) == std::vector<long>({1, 5}),
+        "stale ids should keep their order"
+    );
 
     expect(
         resolveOpenSwipeStart(true, false, false, -1.0f) == OpenSwipeStartAction::ShowOverview,
@@ -462,43 +347,6 @@ int main() {
             std::abs(origin.x - (2560 + 640 / 1.5)) < 1e-9 && std::abs(origin.y - 360 / 1.5) < 1e-9,
             "the workspace origin should map to the cell origin in logical pixels"
         );
-    }
-
-    // Grid navigation over every cell and size: edges stop without loop and
-    // wrap with it.
-    for (int rows = 1; rows <= 8; rows++) {
-        for (int cols = 1; cols <= 8; cols++) {
-            for (int y = 0; y < rows; y++) {
-                for (int x = 0; x < cols; x++) {
-                    const auto right = moveGridInDirection(x, y, "right", rows, cols, false);
-                    expect(
-                        right.has_value() == (x + 1 < cols),
-                        "moving right should stop only at the last column"
-                    );
-                    const auto down = moveGridInDirection(x, y, "down", rows, cols, true);
-                    expect(
-                        down.has_value() && down->x == x && down->y == (y + 1) % rows,
-                        "moving down with loop should wrap to the first row"
-                    );
-                    const auto left = moveGridInDirection(x, y, "left", rows, cols, true);
-                    expect(
-                        left.has_value() && left->x == (x + cols - 1) % cols && left->y == y,
-                        "moving left with loop should wrap to the last column"
-                    );
-                }
-            }
-        }
-    }
-
-    expect(parseNavigateArg(" up ").kind == NavigateArgKind::Direction, "directions may be padded");
-    for (const std::string_view bad : {"", "  ", "-3", "3x", "0", "99999999999999999999", "upp"})
-        expect(
-            parseNavigateArg(bad).kind == NavigateArgKind::Invalid,
-            "bad navigate args should be invalid"
-        );
-    {
-        const auto arg = parseNavigateArg("+3");
-        expect(arg.kind == NavigateArgKind::Invalid, "signed workspace numbers should be invalid");
     }
 
     return 0;
