@@ -21,7 +21,6 @@ WorkspaceID resolveSelectionWorkspace(
 WorkspaceID
 resolveKeyboardSelectionWorkspace(WorkspaceID keyboard_workspace_id, WorkspaceID active_workspace_id);
 WorkspaceID resolveVisualWorkspaceID(
-    bool hover_active,
     WorkspaceID hovered_workspace_id,
     WorkspaceID keyboard_workspace_id,
     WorkspaceID fallback_workspace_id

@@ -24,12 +24,11 @@ resolveKeyboardSelectionWorkspace(WorkspaceID keyboard_workspace_id, WorkspaceID
 }
 
 WorkspaceID resolveVisualWorkspaceID(
-    bool hover_active,
     WorkspaceID hovered_workspace_id,
     WorkspaceID keyboard_workspace_id,
     WorkspaceID fallback_workspace_id
 ) {
-    if (hover_active && hovered_workspace_id >= 0)
+    if (hovered_workspace_id >= 0)
         return hovered_workspace_id;
     if (keyboard_workspace_id >= 0)
         return keyboard_workspace_id;

@@ -255,15 +255,15 @@ int main() {
         "keyboard selection should fall back to the active workspace"
     );
     expect(
-        resolveVisualWorkspaceID(true, 9, 3, 1) == 9,
-        "visual selection should prefer hovered workspace when hover is active"
+        resolveVisualWorkspaceID(9, 3, 1) == 9,
+        "visual selection should prefer the hovered workspace"
     );
     expect(
-        resolveVisualWorkspaceID(false, 9, 3, 1) == 3,
-        "visual selection should prefer keyboard selection when hover is inactive"
+        resolveVisualWorkspaceID(-1, 3, 1) == 3,
+        "visual selection should prefer keyboard selection without a hover"
     );
     expect(
-        resolveVisualWorkspaceID(false, -1, -1, 1) == 1,
+        resolveVisualWorkspaceID(-1, -1, 1) == 1,
         "visual selection should fall back when no hover or keyboard selection exists"
     );
 

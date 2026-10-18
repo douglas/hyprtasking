@@ -69,9 +69,6 @@ bool commit_selection_target(HTView& view, WORKSPACEID target_workspace_id, bool
 
 HTView::HTView(MONITORID in_monitor_id) {
     monitor_id = in_monitor_id;
-    reset_interaction_state();
-    set_runtime_state(false, false, false);
-
     layout = makeShared<HTLayoutGrid>(monitor_id);
 }
 
@@ -164,43 +161,27 @@ void HTView::reset_interaction_state() {
 }
 
 void HTView::clear_hover_workspace() {
-    hover_active = false;
     hovered_workspace_id = WORKSPACE_INVALID;
 }
 
 void HTView::clear_hover_suppression() {
-    hover_suppressed = false;
     hover_suppressed_workspace_id = WORKSPACE_INVALID;
 }
 
 void HTView::suppress_hover_workspace(WORKSPACEID workspace_id) {
     clear_hover_workspace();
-    if (workspace_id == WORKSPACE_INVALID) {
-        clear_hover_suppression();
-        return;
-    }
-
-    hover_suppressed = true;
     hover_suppressed_workspace_id = workspace_id;
 }
 
-void HTView::set_hovered_workspace(WORKSPACEID workspace_id) {
-    if (workspace_id == WORKSPACE_INVALID) {
-        clear_hover_workspace();
-        return;
-    }
-
-    hover_active = true;
+// The hovered workspace is also the selection.
+void HTView::hover_workspace(WORKSPACEID workspace_id) {
     hovered_workspace_id = workspace_id;
+    selected_workspace_id = workspace_id;
 }
 
 void HTView::set_keyboard_workspace(WORKSPACEID workspace_id) {
     keyboard_workspace_id = workspace_id;
     selected_workspace_id = workspace_id;
-}
-
-void HTView::set_selected_workspace_id(WORKSPACEID ws_id) {
-    selected_workspace_id = ws_id;
 }
 
 WORKSPACEID
@@ -210,7 +191,6 @@ HTView::keyboard_selection_workspace_id(WORKSPACEID fallback_workspace_id) const
 
 WORKSPACEID HTView::visual_workspace_id(WORKSPACEID fallback_workspace_id) const {
     return HTLogic::resolveVisualWorkspaceID(
-        hover_active,
         hovered_workspace_id,
         selected_workspace_id,
         fallback_workspace_id
@@ -250,8 +230,6 @@ bool HTView::commit_selection() {
     if (active_workspace == nullptr)
         return false;
 
-    const WORKSPACEID hovered_workspace_id =
-        hover_active ? this->hovered_workspace_id : WORKSPACE_INVALID;
     const WORKSPACEID target_workspace_id = HTLogic::resolveSelectionWorkspace(
         selected_workspace_id,
         hovered_workspace_id,
@@ -316,9 +294,8 @@ void HTView::move(std::string_view arg) {
     const PHLWORKSPACE active_workspace = HTCompat::active_monitor_workspace(monitor);
     if (active_workspace == nullptr)
         return;
-    const WORKSPACEID navigation_workspace_id =
+    const WORKSPACEID source_ws_id =
         keyboard_selection_workspace_id(HTCompat::workspace_id(active_workspace));
-    const WORKSPACEID source_ws_id = navigation_workspace_id;
     if (source_ws_id == WORKSPACE_INVALID)
         return;
 
@@ -359,8 +336,7 @@ bool HTView::navigate_selection(const std::string& arg) {
     };
 
     if (navigate_arg.kind == HTLogic::NavigateArgKind::Direction) {
-        const WORKSPACEID source_ws_id =
-            HTLogic::resolveKeyboardSelectionWorkspace(keyboard_workspace_id, active_workspace_id);
+        const WORKSPACEID source_ws_id = keyboard_selection_workspace_id(active_workspace_id);
 
         if (source_ws_id == WORKSPACE_INVALID)
             return false;

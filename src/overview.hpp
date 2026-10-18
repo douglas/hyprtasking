@@ -12,9 +12,8 @@ class HTView {
     bool closing = false;
     bool active = false;
     bool navigating = false;
-    bool hover_active = false;
+    // WORKSPACE_INVALID while nothing is hovered or suppressed.
     WORKSPACEID hovered_workspace_id = WORKSPACE_INVALID;
-    bool hover_suppressed = false;
     WORKSPACEID hover_suppressed_workspace_id = WORKSPACE_INVALID;
     WORKSPACEID keyboard_workspace_id = WORKSPACE_INVALID;
     WORKSPACEID selected_workspace_id = WORKSPACE_INVALID;
@@ -46,9 +45,8 @@ class HTView {
     void clear_hover_workspace();
     void clear_hover_suppression();
     void suppress_hover_workspace(WORKSPACEID workspace_id);
-    void set_hovered_workspace(WORKSPACEID workspace_id);
+    void hover_workspace(WORKSPACEID workspace_id);
     void set_keyboard_workspace(WORKSPACEID workspace_id);
-    void set_selected_workspace_id(WORKSPACEID ws_id);
     WORKSPACEID keyboard_selection_workspace_id(WORKSPACEID fallback_workspace_id) const;
     WORKSPACEID visual_workspace_id(WORKSPACEID fallback_workspace_id) const;
 

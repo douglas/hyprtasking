@@ -60,8 +60,7 @@ HTLogic::MouseButtonResult HTManager::handle_mouse_button(unsigned int button, b
         } else {
             claimed_mouse_interaction = HT_MOUSE_SELECT;
             pending_mouse_selection_workspace_id = cursor_context.workspace_id;
-            cursor_view->set_hovered_workspace(cursor_context.workspace_id);
-            cursor_view->set_selected_workspace_id(cursor_context.workspace_id);
+            cursor_view->hover_workspace(cursor_context.workspace_id);
         }
         return HTLogic::MouseButtonResult::Consume;
     }
@@ -287,7 +286,7 @@ void HTManager::on_mouse_move() {
         return;
 
     if (cursor_context.workspace == nullptr) {
-        if (cursor_view->hover_active) {
+        if (cursor_view->hovered_workspace_id != WORKSPACE_INVALID) {
             cursor_view->clear_hover_workspace();
             HTCompat::redraw_monitor(cursor_context.monitor);
         }
@@ -298,17 +297,15 @@ void HTManager::on_mouse_move() {
     if (claimed_mouse_interaction == HT_MOUSE_SELECT)
         return;
 
-    if (cursor_view->hover_suppressed) {
+    if (cursor_view->hover_suppressed_workspace_id != WORKSPACE_INVALID) {
         if (cursor_context.workspace_id == cursor_view->hover_suppressed_workspace_id)
             return;
 
         cursor_view->clear_hover_suppression();
     }
 
-    if (!cursor_view->hover_active
-        || cursor_view->hovered_workspace_id != cursor_context.workspace_id) {
-        cursor_view->set_hovered_workspace(cursor_context.workspace_id);
-        cursor_view->set_selected_workspace_id(cursor_context.workspace_id);
+    if (cursor_view->hovered_workspace_id != cursor_context.workspace_id) {
+        cursor_view->hover_workspace(cursor_context.workspace_id);
         HTCompat::redraw_monitor(cursor_context.monitor);
     }
 }
