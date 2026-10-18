@@ -15,6 +15,7 @@
 #include "../logic/geometry_model.hpp"
 #include "../logic/navigation_model.hpp"
 #include "../overview.hpp"
+#include "../plugin/guards.hpp"
 #include "../render.hpp"
 #include "../render_snapshot.hpp"
 #include "../state_guards.hpp"
@@ -137,10 +138,21 @@ void HTLayoutGrid::close_open_lerp(float perc) {
     offset->setValueAndWarp(new_pos);
 }
 
+// End callbacks run from Hyprland's animation tick, or right away from the
+// caller's scope guard destructor, so nothing may escape them. They can also
+// reset this variable's callbacks (e.g. by disabling the runtime), which frees
+// the closure mid-call, so run a local copy.
+void HTLayoutGrid::set_offset_end_callback(CallbackFun on_complete) {
+    offset->setCallbackOnEnd([on_complete = std::move(on_complete)](auto var) {
+        const CallbackFun callback = on_complete;
+        HTPlugin::guardedCallback("animation_end", [&callback, &var] { callback(var); });
+    });
+}
+
 void HTLayoutGrid::on_show(CallbackFun on_complete) {
     CScopeGuard x([this, &on_complete] {
         if (on_complete != nullptr)
-            offset->setCallbackOnEnd(on_complete);
+            set_offset_end_callback(on_complete);
     });
 
     const PHLMONITOR monitor = get_monitor();
@@ -162,7 +174,7 @@ void HTLayoutGrid::on_show(CallbackFun on_complete) {
 void HTLayoutGrid::on_hide(WORKSPACEID target_workspace_id, CallbackFun on_complete) {
     CScopeGuard x([this, &on_complete] {
         if (on_complete != nullptr)
-            offset->setCallbackOnEnd(on_complete);
+            set_offset_end_callback(on_complete);
     });
 
     const PHLMONITOR monitor = get_monitor();
@@ -191,7 +203,7 @@ void HTLayoutGrid::on_hide(WORKSPACEID target_workspace_id, CallbackFun on_compl
 void HTLayoutGrid::on_move(WORKSPACEID old_id, WORKSPACEID new_id, CallbackFun on_complete) {
     CScopeGuard x([this, &on_complete] {
         if (on_complete != nullptr)
-            offset->setCallbackOnEnd(on_complete);
+            set_offset_end_callback(on_complete);
     });
 
     const PHTVIEW par_view = ht_manager->get_view_from_id(view_id);

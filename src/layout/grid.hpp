@@ -36,6 +36,7 @@ class HTLayoutGrid: public HTLayoutBase {
 
     std::optional<GridGeometry> grid_geometry();
     CBox cell_box(const GridGeometry& geometry, int x, int y, HTViewStage stage) const;
+    void set_offset_end_callback(CallbackFun on_complete);
 
     LayoutShape layout_shape;
     std::optional<LayoutInputs> layout_inputs;
