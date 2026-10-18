@@ -3,7 +3,6 @@
 #include <cmath>
 #include <format>
 #include <hyprutils/math/Vector2D.hpp>
-#include <hyprutils/utils/ScopeGuard.hpp>
 #include <optional>
 #include <stdexcept>
 #include <string_view>
@@ -17,10 +16,9 @@
 #include "../overview.hpp"
 #include "../plugin/guards.hpp"
 #include "../render_snapshot.hpp"
+#include "../scope_guard.hpp"
 #include "../state_guards.hpp"
 #include "../types.hpp"
-
-using Hyprutils::Utils::CScopeGuard;
 
 namespace {
 
@@ -149,7 +147,7 @@ void HTLayoutGrid::set_offset_end_callback(CallbackFun on_complete) {
 }
 
 void HTLayoutGrid::on_show(CallbackFun on_complete) {
-    CScopeGuard x([this, &on_complete] {
+    HTScopeGuard x([this, &on_complete] {
         if (on_complete != nullptr)
             set_offset_end_callback(on_complete);
     });
@@ -171,7 +169,7 @@ void HTLayoutGrid::on_show(CallbackFun on_complete) {
 }
 
 void HTLayoutGrid::on_hide(WORKSPACEID target_workspace_id, CallbackFun on_complete) {
-    CScopeGuard x([this, &on_complete] {
+    HTScopeGuard x([this, &on_complete] {
         if (on_complete != nullptr)
             set_offset_end_callback(on_complete);
     });
@@ -200,7 +198,7 @@ void HTLayoutGrid::on_hide(WORKSPACEID target_workspace_id, CallbackFun on_compl
 }
 
 void HTLayoutGrid::on_move(WORKSPACEID old_id, WORKSPACEID new_id, CallbackFun on_complete) {
-    CScopeGuard x([this, &on_complete] {
+    HTScopeGuard x([this, &on_complete] {
         if (on_complete != nullptr)
             set_offset_end_callback(on_complete);
     });
@@ -430,7 +428,7 @@ void HTLayoutGrid::build_overview_layout(HTViewStage stage) {
 
 void HTLayoutGrid::render() {
     HTLayoutBase::begin_render();
-    CScopeGuard x([this] { post_render(); });
+    HTScopeGuard x([this] { post_render(); });
 
     const PHTVIEW par_view = ht_manager->get_view_from_id(view_id);
     if (par_view == nullptr)

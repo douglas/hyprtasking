@@ -1,5 +1,4 @@
 #include <format>
-#include <hyprutils/utils/ScopeGuard.hpp>
 
 #include "compat/renderer_compat.hpp"
 #include "compat/runtime_compat.hpp"
@@ -10,9 +9,8 @@
 #include "logic/interaction_model.hpp"
 #include "manager.hpp"
 #include "overview.hpp"
+#include "scope_guard.hpp"
 #include "state_guards.hpp"
-
-using Hyprutils::Utils::CScopeGuard;
 
 void HTManager::claim_mouse_button(
     unsigned int button,
@@ -143,13 +141,13 @@ bool HTManager::start_window_drag() {
         return false;
 
     bool reset_mouse_bind_mode = false;
-    CScopeGuard reset_drag_mode([&reset_mouse_bind_mode] {
+    HTScopeGuard reset_drag_mode([&reset_mouse_bind_mode] {
         if (reset_mouse_bind_mode)
             HTCompat::set_mouse_bind_mode(MBIND_INVALID);
     });
 
     bool end_drag_on_failure = false;
-    CScopeGuard end_failed_drag([this, &end_drag_on_failure] {
+    HTScopeGuard end_failed_drag([this, &end_drag_on_failure] {
         if (end_drag_on_failure)
             abort_drag_controller();
     });
@@ -217,10 +215,10 @@ void HTManager::end_window_drag() {
     const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace(false);
     const PHLMONITOR cursor_monitor = cursor_context.monitor;
     const PHTVIEW cursor_view = cursor_context.view;
-    CScopeGuard reset_drag_mode([] { HTCompat::set_mouse_bind_mode(MBIND_INVALID); });
-    CScopeGuard clear_dragged_window_guard([this] { clear_dragged_window(); });
+    HTScopeGuard reset_drag_mode([] { HTCompat::set_mouse_bind_mode(MBIND_INVALID); });
+    HTScopeGuard clear_dragged_window_guard([this] { clear_dragged_window(); });
     bool drop_completed = false;
-    CScopeGuard end_unfinished_drag([this, &drop_completed] {
+    HTScopeGuard end_unfinished_drag([this, &drop_completed] {
         if (!drop_completed)
             abort_drag_controller();
     });

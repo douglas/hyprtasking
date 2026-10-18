@@ -6,7 +6,6 @@
 #include <hyprland/src/config/ConfigValue.hpp>
 #include <hyprland/src/render/OpenGL.hpp>
 #include <hyprland/src/render/Renderer.hpp>
-#include <hyprutils/utils/ScopeGuard.hpp>
 #include <string_view>
 
 #include "../build_contract.hpp"
@@ -16,6 +15,7 @@
 #include "../pass/pass_element.hpp"
 #include "../plugin/guards.hpp"
 #include "../runtime_fail.hpp"
+#include "../scope_guard.hpp"
 #include "../types.hpp"
 #include "animation_compat.hpp"
 #include "monitor_compat.hpp"
@@ -32,8 +32,6 @@ namespace {
 const std::string CLEAR_PASS_ELEMENT_NAME = "CClearPassElement";
 thread_local int g_overview_render_scope_depth = 0;
 thread_local int g_overview_render_pass_depth = 0;
-
-using Hyprutils::Utils::CScopeGuard;
 
 void render_workspace_original_or_disable(
     void* thisptr,
@@ -150,7 +148,7 @@ void hookRenderWorkspace(
                 return;
             }
 
-            CScopeGuard render_scope([] { end_overview_render_scope(); });
+            HTScopeGuard render_scope([] { end_overview_render_scope(); });
             view->layout->render();
             return;
         }
@@ -231,7 +229,7 @@ void hookRenderTexture(
     data.clipRegion = {};
     const CBox previous_clip_box = g_pHyprRenderer->m_renderData.clipBox;
     g_pHyprRenderer->m_renderData.clipBox = {};
-    CScopeGuard restore_clip_box {[previous_clip_box] {
+    HTScopeGuard restore_clip_box {[previous_clip_box] {
         g_pHyprRenderer->m_renderData.clipBox = previous_clip_box;
     }};
 
@@ -245,7 +243,7 @@ void hookRenderTexture(
     render_modif.applyToBox(transformed_box);
     const bool previous_modif_enabled = render_modif.enabled;
     render_modif.enabled = false;
-    CScopeGuard restore_modif {[previous_modif_enabled] {
+    HTScopeGuard restore_modif {[previous_modif_enabled] {
         g_pHyprRenderer->m_renderData.renderModif.enabled = previous_modif_enabled;
     }};
     call_original(transformed_box);
@@ -284,7 +282,7 @@ void render_border_for_overview(
     data.borderSize = std::round(data.borderSize * render_modif.combinedScale());
     const bool previous_modif_enabled = render_modif.enabled;
     render_modif.enabled = false;
-    CScopeGuard restore_modif {[previous_modif_enabled] {
+    HTScopeGuard restore_modif {[previous_modif_enabled] {
         g_pHyprRenderer->m_renderData.renderModif.enabled = previous_modif_enabled;
     }};
     call_original(transformed_box, data);

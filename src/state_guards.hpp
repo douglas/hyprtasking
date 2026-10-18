@@ -3,6 +3,7 @@
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 
 #include "compat/renderer_compat.hpp"
+#include "scope_guard.hpp"
 
 class [[nodiscard]] HTScopedMonitorWorkspace {
   public:
@@ -27,7 +28,7 @@ class [[nodiscard]] HTScopedMonitorWorkspace {
         if (workspace == nullptr)
             return;
 
-        HTCompat::restore_monitor_workspace(monitor, workspace, true);
+        run_cleanup([&] { HTCompat::restore_monitor_workspace(monitor, workspace, true); });
     }
 
     void dismiss() noexcept {
@@ -63,7 +64,7 @@ class [[nodiscard]] HTScopedActiveWorkspace {
         if (workspace == nullptr)
             return;
 
-        HTCompat::restore_monitor_workspace(monitor, workspace, false);
+        run_cleanup([&] { HTCompat::restore_monitor_workspace(monitor, workspace, false); });
     }
 
   private:
@@ -87,7 +88,9 @@ class [[nodiscard]] HTScopedWorkspaceVisibility {
         if (!restore_on_destroy)
             return;
 
-        HTCompat::set_workspace_render_visibility(workspace, previous_visible);
+        run_cleanup([&] {
+            HTCompat::set_workspace_render_visibility(workspace, previous_visible);
+        });
     }
 
     void dismiss() noexcept {

@@ -2,13 +2,11 @@
 
 #include <cmath>
 #include <hyprutils/math/Vector2D.hpp>
-#include <hyprutils/utils/ScopeGuard.hpp>
 
 #include "compat/renderer_compat.hpp"
 #include "logic/geometry_model.hpp"
+#include "scope_guard.hpp"
 #include "types.hpp"
-
-using Hyprutils::Utils::CScopeGuard;
 
 // Note: box is relative to (0, 0), not monitor
 void render_window_at_box(
@@ -42,7 +40,7 @@ void render_window_at_box(
     data.modifs.push_back({HTRenderModifData::eRenderModifType::RMOD_TYPE_TRANSLATE, transform});
     data.modifs.push_back({HTRenderModifData::eRenderModifType::RMOD_TYPE_SCALE, *scale});
     HTCompat::add_renderer_hints_pass(data);
-    CScopeGuard reset_hints([] { HTCompat::add_renderer_hints_pass(HTRenderModifData {}); });
+    HTScopeGuard reset_hints([] { HTCompat::add_renderer_hints_pass(HTRenderModifData {}); });
 
     HTCompat::render_window_original(window, monitor, time, true, HT_RENDER_PASS_MAIN, false, true);
 }
