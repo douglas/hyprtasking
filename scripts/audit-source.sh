@@ -87,8 +87,8 @@ done
 check 'hyprpm pins cover supported Hyprland refs' "$missing_pins"
 
 # Config keys: every key read through HTConfig is registered.
-used_keys=$(rg -o --no-filename '(?:int|float)_config_or\("([^"]+)"' -r '$1' \
-  "$SRC" --glob '!config.hpp' | sort -u)
+used_keys=$(rg -o --no-filename 'value_or<\w+>\("([^"]+)"' -r '$1' "$SRC/config.cpp" |
+  sort -u || true)
 registered_keys=$(rg -o --no-filename 'add_(?:int|float)_config\("([^"]+)"' -r '$1' \
   "$SRC/config.cpp" | sort -u || true)
 if [[ -z "$used_keys" ]]; then
