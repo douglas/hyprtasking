@@ -42,12 +42,24 @@ HTCompat::invoke_dispatcher(const std::string& dispatch_name, const std::string&
     return dispatcher->second(dispatch_arg);
 }
 
+// Only reset a submap Hyprtasking entered, so cleanup never kicks the user out
+// of a submap of their own.
+static bool entered_submap = false;
+
 bool HTCompat::enter_submap(const std::string& name) {
-    return invoke_dispatcher("submap", name).success;
+    if (!invoke_dispatcher("submap", name).success)
+        return false;
+    entered_submap = true;
+    return true;
 }
 
 bool HTCompat::exit_submap() {
-    return invoke_dispatcher("submap", "reset").success;
+    if (!entered_submap)
+        return true;
+    if (!invoke_dispatcher("submap", "reset").success)
+        return false;
+    entered_submap = false;
+    return true;
 }
 
 PHLMONITOR HTCompat::cursor_monitor() {

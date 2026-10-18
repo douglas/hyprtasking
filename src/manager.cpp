@@ -449,6 +449,11 @@ void HTManager::reset_runtime_controls() {
     if (compat_blocked)
         return;
 
+    // Hand input back first: if a later step throws, the keyboard and cursor
+    // must not stay captured by a disabled runtime.
+    HTCompat::exit_submap();
+    HTCompat::set_cursor_override_enabled(false);
+
     HTCompat::reset_overview_render_guard();
     reset_selection_state();
     reset_mouse_button_state();
@@ -461,7 +466,6 @@ void HTManager::reset_runtime_controls() {
 
     reset_drag_state();
     reset_swipe_state();
-    HTCompat::exit_submap();
     HTCompat::set_cursor_override_enabled(false);
 }
 
