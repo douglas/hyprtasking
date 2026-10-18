@@ -67,8 +67,6 @@ class HTManager {
     HTLogic::MouseButtonResult handle_mouse_button(unsigned int button, bool pressed);
     bool start_window_drag();
     void end_window_drag();
-    bool begin_workspace_select();
-    bool end_workspace_select(VIEWID view_id, WORKSPACEID target_workspace_id);
     bool on_mouse_move();
 
     enum class swipe_state_t {

@@ -56,9 +56,11 @@ HTLogic::MouseButtonResult HTManager::handle_mouse_button(unsigned int button, b
         if (is_drag_button) {
             if (start_window_drag())
                 claimed_mouse_interaction = HT_MOUSE_DRAG;
-        } else if (begin_workspace_select()) {
+        } else {
             claimed_mouse_interaction = HT_MOUSE_SELECT;
             pending_mouse_selection_workspace_id = cursor_context.workspace_id;
+            cursor_view->set_hovered_workspace(cursor_context.workspace_id);
+            cursor_view->set_selected_workspace_id(cursor_context.workspace_id);
         }
         return HTLogic::MouseButtonResult::Consume;
     }
@@ -66,10 +68,14 @@ HTLogic::MouseButtonResult HTManager::handle_mouse_button(unsigned int button, b
     if (claimed_mouse_button == 0 || claimed_mouse_button != button)
         return HTLogic::MouseButtonResult::Ignore;
 
-    if (claimed_mouse_interaction == HT_MOUSE_SELECT)
-        end_workspace_select(claimed_mouse_view_id, pending_mouse_selection_workspace_id);
-    else if (claimed_mouse_interaction == HT_MOUSE_DRAG)
+    if (claimed_mouse_interaction == HT_MOUSE_SELECT) {
+        // Commit only if the view the press selected on is still open.
+        const PHTVIEW view = get_view_from_id(claimed_mouse_view_id);
+        if (view != nullptr && view->active && !view->closing)
+            view->commit_mouse_selection(pending_mouse_selection_workspace_id);
+    } else if (claimed_mouse_interaction == HT_MOUSE_DRAG) {
         end_window_drag();
+    }
     reset_mouse_button_state();
     return HTLogic::MouseButtonResult::Consume;
 }
@@ -284,45 +290,6 @@ void HTManager::end_window_drag() {
     HTCompat::reset_window_workspace_move_alpha(dragged_window);
     restore_workspace.dismiss();
     drop_completed = true;
-}
-
-bool HTManager::begin_workspace_select() {
-    const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace(false);
-    const PHTVIEW cursor_view = cursor_context.view;
-
-    if (!HTLogic::canStartInteraction(
-            cursor_view != nullptr,
-            cursor_view != nullptr && cursor_view->active,
-            cursor_view != nullptr && cursor_view->closing,
-            cursor_context.workspace != nullptr
-        ))
-        return false;
-
-    cursor_view->set_hovered_workspace(cursor_context.workspace_id);
-    cursor_view->set_selected_workspace_id(cursor_context.workspace_id);
-    return true;
-}
-
-bool HTManager::end_workspace_select(VIEWID view_id, WORKSPACEID target_workspace_id) {
-    const PHTVIEW cursor_view = get_view_from_id(view_id);
-    const auto action = HTLogic::decideSelectEnd(
-        true,
-        cursor_view != nullptr,
-        cursor_view != nullptr && cursor_view->active,
-        cursor_view != nullptr && cursor_view->closing,
-        target_workspace_id != WORKSPACE_INVALID
-    );
-
-    switch (action) {
-        case HTLogic::SelectEndAction::Ignore:
-            return false;
-        case HTLogic::SelectEndAction::CancelSelect:
-            return true;
-        case HTLogic::SelectEndAction::FinalizeSelect:
-            return cursor_view->commit_mouse_selection(target_workspace_id);
-    }
-
-    return false;
 }
 
 bool HTManager::on_mouse_move() {

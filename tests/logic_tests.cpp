@@ -323,18 +323,6 @@ int main() {
         !canStartInteraction(true, true, true, true),
         "interactions should not start while the overview closes"
     );
-    expect(
-        decideSelectEnd(true, true, true, false, true) == SelectEndAction::FinalizeSelect,
-        "select end should finalize valid pending selections"
-    );
-    expect(
-        decideSelectEnd(true, true, true, false, false) == SelectEndAction::CancelSelect,
-        "select end should cancel pending selections released off target"
-    );
-    expect(
-        decideSelectEnd(false, true, true, false, true) == SelectEndAction::Ignore,
-        "select end should ignore releases without a pending selection"
-    );
 
     {
         const auto blocks = assignMonitorBlocks({}, {"eDP-1", "DP-1"});
