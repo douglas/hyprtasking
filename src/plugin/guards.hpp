@@ -27,8 +27,8 @@ inline void disable_runtime_for_current_exception(std::string_view name) noexcep
         if (ht_manager != nullptr)
             ht_manager->disable_runtime(name, reason);
         Log::logger->log(Log::ERR, "[Hyprtasking] {} failed: {}", name, reason);
-    } catch (...) {
-    } // NOLINT(bugprone-empty-catch): disabling or logging failed; nothing left to do
+        // Disabling or logging failed; nothing left to do.
+    } catch (...) {} // NOLINT(bugprone-empty-catch)
 }
 
 template<typename Fn>
