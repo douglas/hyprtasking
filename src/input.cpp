@@ -222,28 +222,24 @@ void HTManager::end_window_drag() {
         return;
     }
 
+    const WORKSPACEID drop_workspace_id = HTCompat::workspace_id(cursor_workspace);
     if (drop_decision.snap_to_workspace) {
         // Ensure that the mouse coords are snapped to inside the workspace box itself
-        use_mouse_coords =
-            cursor_view->layout->get_global_ws_box(HTCompat::workspace_id(cursor_workspace))
-                .closestPoint(use_mouse_coords);
+        use_mouse_coords = cursor_view->layout->get_global_ws_box(drop_workspace_id)
+                               .closestPoint(use_mouse_coords);
 
         Log::logger->log(
             LOG,
             "[Hyprtasking] Dragging to invalid position, snapping to last ws {}",
-            HTCompat::workspace_id(cursor_workspace)
+            drop_workspace_id
         );
     }
 
-    Log::logger->log(
-        LOG,
-        "[Hyprtasking] trying to drop window on ws {}",
-        HTCompat::workspace_id(cursor_workspace)
-    );
+    Log::logger->log(LOG, "[Hyprtasking] trying to drop window on ws {}", drop_workspace_id);
 
     const auto workspace_coords = cursor_view->layout->global_to_workspace_monitor_coords(
         use_mouse_coords,
-        HTCompat::workspace_id(cursor_workspace)
+        drop_workspace_id
     );
     if (!workspace_coords.has_value())
         return;
@@ -256,12 +252,11 @@ void HTManager::end_window_drag() {
         cursor_view->layout->global_to_local_ws_unscaled(
             (HTCompat::window_real_position(dragged_window) - use_mouse_coords) * *drag_scale
                 + use_mouse_coords,
-            HTCompat::workspace_id(cursor_workspace)
+            drop_workspace_id
         )
         + cursor_monitor_pos;
     if (!HTLogic::isFinitePoint(warped_global_pos.x, warped_global_pos.y))
         return;
-    const Vector2D tp_pos = warped_global_pos;
 
     HTScopedMonitorWorkspace restore_workspace(cursor_monitor);
     if (!HTCompat::activate_monitor_workspace_internal(cursor_monitor, cursor_workspace))
@@ -269,7 +264,7 @@ void HTManager::end_window_drag() {
     HTScopedWorkspaceVisibility visible_workspace(cursor_workspace, true);
 
     HTCompat::move_window_to_workspace(dragged_window, cursor_workspace);
-    HTCompat::set_window_real_position(dragged_window, tp_pos);
+    HTCompat::set_window_real_position(dragged_window, warped_global_pos);
 
     if (!HTCompat::warp_pointer(*workspace_coords))
         return;
