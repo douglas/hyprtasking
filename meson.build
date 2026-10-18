@@ -69,37 +69,22 @@ logic_src = [
   'src/logic/view_sync_model.cpp',
 ]
 
-pass_src = [
-  'src/pass/pass_element.cpp',
-]
-
 plugin_src = [
   'src/compat/profile.cpp',
   'src/plugin/dispatchers.cpp',
   'src/plugin/runtime.cpp',
 ]
 
-src = core_src + layout_src + plugin_src + pass_src
+src = core_src + layout_src + plugin_src
 
 # Pure logic, shared by the plugin and the tests; no Hyprland dependency.
 logic_lib = static_library('htlogic', logic_src, pic: true)
 
-incdir = []
-dependencies = [
-  dependency('pixman-1'),
-  dependency('libdrm'),
-  dependency('libinput'),
-  dependency('libudev'),
-  dependency('wayland-server'),
-  dependency('xkbcommon'),
-  hyprland_dep,
-]
-
+# hyprland.pc pulls in the libraries its headers need.
 shared_module(meson.project_name(), src,
-  dependencies: dependencies,
+  dependencies: hyprland_dep,
   link_with: logic_lib,
   install: true,
-  include_directories: incdir
 )
 
 logic_tests = executable('logic-tests',

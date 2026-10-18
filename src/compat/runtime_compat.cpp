@@ -234,35 +234,29 @@ void HTCompat::simulate_mouse_movement() {
 
 namespace {
 
-std::vector<uint64_t>& pending_do_later() {
-    static std::vector<uint64_t> pending;
-    return pending;
-}
+std::vector<uint64_t> pending_do_later_ids;
 
 } // namespace
 
 bool HTCompat::do_later(const std::function<void()>& callback) {
-    if (!callback)
-        return false;
-
     if (!g_pEventLoopManager)
         return false;
 
     const auto seq = std::make_shared<uint64_t>(0);
     *seq = g_pEventLoopManager->doLater([deferred = callback, seq] {
-        std::erase(pending_do_later(), *seq);
+        std::erase(pending_do_later_ids, *seq);
         HTPlugin::guardedCallback("do_later", deferred);
     });
-    pending_do_later().push_back(*seq);
+    pending_do_later_ids.push_back(*seq);
     return true;
 }
 
 void HTCompat::cancel_pending_do_later() {
     if (g_pEventLoopManager) {
-        for (const uint64_t seq : pending_do_later())
+        for (const uint64_t seq : pending_do_later_ids)
             g_pEventLoopManager->removeDoLater(seq);
     }
-    pending_do_later().clear();
+    pending_do_later_ids.clear();
 }
 
 void HTCompat::move_window_to_workspace(PHLWINDOW window, PHLWORKSPACE workspace) {
@@ -351,7 +345,7 @@ void HTCompat::invoke_mouse_button_original(
 template<typename Callback, typename Select>
 static bool listen_bus(CHyprSignalListener& listener, const Callback& callback, Select&& select) {
     auto& bus = Event::bus();
-    if (!bus || !callback)
+    if (!bus)
         return false;
 
     listener = select(bus->m_events).listen(callback);
@@ -437,7 +431,7 @@ bool HTCompat::listen_window_set_changed(
     const std::function<void()>& callback
 ) {
     auto& bus = Event::bus();
-    if (!bus || !callback)
+    if (!bus)
         return false;
 
     listeners.clear();
@@ -465,7 +459,7 @@ const std::vector<PHLWINDOW>& HTCompat::compositor_windows() {
 
 CHyprSignalListener
 HTCompat::listen_window_surface_commit(PHLWINDOW window, const std::function<void()>& callback) {
-    if (window == nullptr || !callback)
+    if (window == nullptr)
         return {};
 
     const auto surface = window->resource();
@@ -479,7 +473,7 @@ SP<CEventLoopTimer> HTCompat::start_repeating_timer(
     std::chrono::milliseconds interval,
     const std::function<void()>& callback
 ) {
-    if (!g_pEventLoopManager || !callback)
+    if (!g_pEventLoopManager)
         return nullptr;
 
     auto timer = makeShared<CEventLoopTimer>(

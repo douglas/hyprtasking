@@ -3,8 +3,6 @@
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <string>
 
-#include "../build_contract.hpp"
-
 // Plugin Lua functions arrived in Hyprland 0.55.
 extern "C" {
 #include <lauxlib.h>

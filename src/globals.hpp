@@ -3,7 +3,6 @@
 #include <hyprland/src/debug/log/Logger.hpp>
 #include <hyprland/src/plugins/HookSystem.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
-#include <string>
 
 #include "manager.hpp"
 

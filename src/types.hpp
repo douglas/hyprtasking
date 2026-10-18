@@ -7,8 +7,6 @@
 #include <hyprland/src/render/types.hpp>
 #include <hyprutils/math/Box.hpp>
 
-#include "build_contract.hpp"
-
 using HTRenderModifData = Render::SRenderModifData;
 using HTRenderPassMode = Render::eRenderPassMode;
 using HTGradientValueData = Config::CGradientValueData;

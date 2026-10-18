@@ -13,22 +13,13 @@ class [[nodiscard]] HTScopedMonitorWorkspace {
 
     explicit HTScopedMonitorWorkspace(PHLMONITOR monitor) :
         monitor(monitor),
-        previous_workspace(
-            monitor == nullptr ? PHLWORKSPACEREF {}
-                               : PHLWORKSPACEREF {HTCompat::active_monitor_workspace(monitor)}
-        ) {}
+        previous_workspace(HTCompat::active_monitor_workspace(monitor)) {}
 
     ~HTScopedMonitorWorkspace() {
-        if (!restore_on_destroy)
-            return;
-        if (monitor == nullptr || previous_workspace == nullptr)
-            return;
-
-        const PHLWORKSPACE workspace = previous_workspace.lock();
-        if (workspace == nullptr)
-            return;
-
-        run_cleanup([&] { HTCompat::restore_monitor_workspace(monitor, workspace, true); });
+        if (restore_on_destroy)
+            run_cleanup([&] {
+                HTCompat::restore_monitor_workspace(monitor, previous_workspace.lock(), true);
+            });
     }
 
     void dismiss() noexcept {
@@ -47,24 +38,16 @@ class [[nodiscard]] HTScopedActiveWorkspace {
     HTScopedActiveWorkspace(const HTScopedActiveWorkspace&) = delete;
     HTScopedActiveWorkspace& operator=(const HTScopedActiveWorkspace&) = delete;
 
-    HTScopedActiveWorkspace(PHLMONITOR monitor, PHLWORKSPACE workspace)
-        : monitor(monitor),
-          previous_workspace(
-              monitor == nullptr ? PHLWORKSPACEREF {}
-                                 : PHLWORKSPACEREF {HTCompat::active_monitor_workspace(monitor)}
-          ) {
+    HTScopedActiveWorkspace(PHLMONITOR monitor, PHLWORKSPACE workspace) :
+        monitor(monitor),
+        previous_workspace(HTCompat::active_monitor_workspace(monitor)) {
         HTCompat::restore_monitor_workspace(monitor, workspace, false);
     }
 
     ~HTScopedActiveWorkspace() {
-        if (monitor == nullptr)
-            return;
-
-        const PHLWORKSPACE workspace = previous_workspace.lock();
-        if (workspace == nullptr)
-            return;
-
-        run_cleanup([&] { HTCompat::restore_monitor_workspace(monitor, workspace, false); });
+        run_cleanup([&] {
+            HTCompat::restore_monitor_workspace(monitor, previous_workspace.lock(), false);
+        });
     }
 
   private:

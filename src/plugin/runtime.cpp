@@ -5,7 +5,6 @@
 #include <hyprutils/signal/Listener.hpp>
 #include <string_view>
 
-#include "../build_contract.hpp"
 #include "../compat/profile.hpp"
 #include "../compat/renderer_compat.hpp"
 #include "../compat/runtime_compat.hpp"
