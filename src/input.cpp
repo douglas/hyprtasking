@@ -1,3 +1,4 @@
+#include <cmath>
 #include <format>
 
 #include "compat/renderer_compat.hpp"
@@ -329,18 +330,10 @@ bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
         return false;
     }
 
-    PHTVIEW swipe_view = nullptr;
-    if (swipe_state == HT_SWIPE_NONE) {
-        const PHLMONITOR cursor_monitor = HTCompat::cursor_monitor();
-        swipe_view = get_view_from_monitor(cursor_monitor);
-    } else {
-        swipe_view = get_swipe_view();
-    }
-    if (swipe_view == nullptr) {
-        reset_swipe_state();
-        return false;
-    }
-    if (swipe_view->closing) {
+    const PHTVIEW swipe_view = swipe_state == HT_SWIPE_NONE
+        ? get_view_from_monitor(HTCompat::cursor_monitor())
+        : get_swipe_view();
+    if (swipe_view == nullptr || swipe_view->closing) {
         reset_swipe_state();
         return false;
     }
@@ -349,92 +342,60 @@ bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
     const uint32_t open_fingers = static_cast<uint32_t>(config.open_fingers);
     const uint32_t move_fingers = static_cast<uint32_t>(config.move_fingers);
 
-    bool res = false;
-    const auto swipe_direction = HTLogic::detectSwipeDirection(e.delta.x, e.delta.y);
-
     if (e.fingers == open_fingers) {
-        if (HTLogic::shouldConsumeOpenSwipe(swipe_view->active, swipe_state == HT_SWIPE_OPEN))
-            res = true;
-
-        const float deltaY = HTLogic::normalizedOpenDelta(e.delta.y, config.open_positive);
+        const bool res = swipe_view->active || swipe_state == HT_SWIPE_OPEN;
+        const float deltaY = config.open_positive ? e.delta.y : -e.delta.y;
 
         if (swipe_state != HT_SWIPE_OPEN) {
             const auto action = HTLogic::resolveOpenSwipeStart(
-                swipe_direction,
-                swipe_view->closing,
+                std::abs(e.delta.y) > std::abs(e.delta.x),
                 swipe_view->active,
                 swipe_view->navigating,
                 deltaY
             );
-            if (action == HTLogic::OpenSwipeStartAction::None) {
+            if (action == HTLogic::OpenSwipeStartAction::None)
                 return res;
-            } else if (action == HTLogic::OpenSwipeStartAction::ShowOverview) {
+
+            const bool show = action == HTLogic::OpenSwipeStartAction::ShowOverview;
+            if (show)
                 swipe_view->show();
-                swipe_state = HT_SWIPE_OPEN;
-                swipe_started_open = false;
-                swipe_view_id = swipe_view->monitor_id;
-                swipe_amt = config.open_distance;
-            } else if (action == HTLogic::OpenSwipeStartAction::HideOverview) {
-                swipe_state = HT_SWIPE_OPEN;
-                swipe_started_open = true;
-                swipe_view_id = swipe_view->monitor_id;
-                swipe_amt = 0.0;
-            }
+            swipe_state = HT_SWIPE_OPEN;
+            swipe_started_open = !show;
+            swipe_view_id = swipe_view->monitor_id;
+            swipe_amt = show ? config.open_distance : 0.F;
         }
 
-        if (swipe_state == HT_SWIPE_OPEN) {
-            const auto next_amount =
-                HTLogic::nextSwipeAmount(swipe_amt, deltaY, config.open_distance);
-            if (!next_amount.has_value()) {
-                reset_swipe_state();
-                return res;
-            }
-
-            swipe_amt = *next_amount;
-            const auto swipe_perc = HTLogic::openSwipeProgress(swipe_amt, config.open_distance);
-            if (!swipe_perc.has_value()) {
-                reset_swipe_state();
-                return res;
-            }
-
-            swipe_view->layout->close_open_lerp(*swipe_perc);
-            const PHLMONITOR swipe_monitor = swipe_view->get_monitor();
-            if (swipe_monitor != nullptr) {
-                HTCompat::redraw_monitor(swipe_monitor);
-            }
-        }
-    } else if (e.fingers == move_fingers) {
-        if (swipe_state == HT_SWIPE_MOVE)
-            res = true;
-
-        if (swipe_state != HT_SWIPE_MOVE) {
-            if (!HTLogic::shouldStartMoveSwipe(
-                    swipe_view->active,
-                    swipe_view->closing,
-                    swipe_view->navigating
-                )) {
-                return res;
-            } else {
-                swipe_state = HT_SWIPE_MOVE;
-                swipe_view_id = swipe_view->monitor_id;
-                swipe_view->set_runtime_state(swipe_view->active, swipe_view->closing, true);
-
-                // need to schedule frames for monitor, otherwise the screen doesn't re-render
-                const PHLMONITOR swipe_monitor = swipe_view->get_monitor();
-                if (swipe_monitor != nullptr) {
-                    HTCompat::redraw_monitor(swipe_monitor);
-                }
-            }
-        }
-
-        if (swipe_state == HT_SWIPE_MOVE) {
-            if (!swipe_view->navigating) {
-                reset_swipe_state();
-                return res;
-            }
-            swipe_view->layout->on_move_swipe(e.delta);
-        }
+        swipe_amt += deltaY;
+        swipe_view->layout->close_open_lerp(
+            HTLogic::openSwipeProgress(swipe_amt, config.open_distance)
+        );
+        if (const PHLMONITOR swipe_monitor = swipe_view->get_monitor(); swipe_monitor != nullptr)
+            HTCompat::redraw_monitor(swipe_monitor);
+        return res;
     }
+
+    if (e.fingers != move_fingers)
+        return false;
+
+    const bool res = swipe_state == HT_SWIPE_MOVE;
+    if (swipe_state != HT_SWIPE_MOVE) {
+        if (!HTLogic::shouldStartMoveSwipe(swipe_view->active, swipe_view->navigating))
+            return res;
+
+        swipe_state = HT_SWIPE_MOVE;
+        swipe_view_id = swipe_view->monitor_id;
+        swipe_view->set_runtime_state(swipe_view->active, swipe_view->closing, true);
+
+        // need to schedule frames for monitor, otherwise the screen doesn't re-render
+        if (const PHLMONITOR swipe_monitor = swipe_view->get_monitor(); swipe_monitor != nullptr)
+            HTCompat::redraw_monitor(swipe_monitor);
+    }
+
+    if (!swipe_view->navigating) {
+        reset_swipe_state();
+        return res;
+    }
+    swipe_view->layout->on_move_swipe(e.delta);
     return res;
 }
 
@@ -444,32 +405,22 @@ bool HTManager::swipe_end(bool cancelled) {
         return false;
 
     const PHTVIEW swipe_view = get_swipe_view();
-    if (swipe_view == nullptr) {
-        reset_swipe_state();
-        return false;
-    }
-    if (swipe_view->closing) {
+    if (swipe_view == nullptr || swipe_view->closing) {
         reset_swipe_state();
         return false;
     }
 
     switch (swipe_state) {
         case HT_SWIPE_OPEN: {
-            const auto keep_open = cancelled ? std::optional<bool> {swipe_started_open}
+            const bool keep_open = cancelled ? swipe_started_open
                                              : HTLogic::shouldKeepOverviewOpen(
                                                    swipe_amt,
                                                    HTConfig::runtime_config().open_distance
                                                );
-            if (!keep_open.has_value()) {
-                reset_swipe_state();
-                return false;
-            }
-
-            if (*keep_open) {
+            if (keep_open)
                 swipe_view->show();
-            } else {
+            else
                 swipe_view->hide();
-            }
             break;
         }
         case HT_SWIPE_MOVE: {

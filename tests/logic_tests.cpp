@@ -371,87 +371,34 @@ int main() {
     }
 
     expect(
-        detectSwipeDirection(4.0, 1.0) == SwipeDirection::Horizontal,
-        "swipe direction should prefer horizontal deltas"
-    );
-    expect(
-        detectSwipeDirection(1.0, 4.0) == SwipeDirection::Vertical,
-        "swipe direction should prefer vertical deltas"
-    );
-    expect(
-        detectSwipeDirection(2.0, 2.0) == SwipeDirection::None,
-        "swipe direction should reject equal deltas"
-    );
-
-    expect(normalizedOpenDelta(5.0f, true) == 5.0f, "open-positive delta should be unchanged");
-    expect(normalizedOpenDelta(5.0f, false) == -5.0f, "open-negative delta should be inverted");
-    expect(shouldConsumeOpenSwipe(true, false), "active views should consume open swipes");
-    expect(shouldConsumeOpenSwipe(false, true), "existing open swipes should stay consumed");
-    expect(
-        !shouldConsumeOpenSwipe(false, false),
-        "inactive idle views should not consume open swipes"
-    );
-
-    expect(
-        resolveOpenSwipeStart(SwipeDirection::Vertical, false, false, false, -1.0f)
-            == OpenSwipeStartAction::ShowOverview,
+        resolveOpenSwipeStart(true, false, false, -1.0f) == OpenSwipeStartAction::ShowOverview,
         "vertical negative swipes should open inactive overviews"
     );
     expect(
-        resolveOpenSwipeStart(SwipeDirection::Vertical, false, true, false, 1.0f)
-            == OpenSwipeStartAction::HideOverview,
+        resolveOpenSwipeStart(true, true, false, 1.0f) == OpenSwipeStartAction::HideOverview,
         "vertical positive swipes should close active overviews"
     );
     expect(
-        resolveOpenSwipeStart(SwipeDirection::Horizontal, false, false, false, -1.0f)
-            == OpenSwipeStartAction::None,
+        resolveOpenSwipeStart(false, false, false, -1.0f) == OpenSwipeStartAction::None,
         "horizontal swipes should not trigger open gestures"
     );
     expect(
-        resolveOpenSwipeStart(SwipeDirection::Vertical, true, true, false, 1.0f)
-            == OpenSwipeStartAction::None,
-        "closing views should reject new open gestures"
-    );
-    expect(
-        resolveOpenSwipeStart(SwipeDirection::Vertical, false, false, true, -1.0f)
-            == OpenSwipeStartAction::None,
+        resolveOpenSwipeStart(true, false, true, -1.0f) == OpenSwipeStartAction::None,
         "navigating views should reject new open gestures"
     );
-    expect(
-        shouldStartMoveSwipe(false, false, false),
-        "inactive stable views should allow move swipes"
-    );
-    expect(!shouldStartMoveSwipe(true, false, false), "active views should reject move swipes");
-    expect(!shouldStartMoveSwipe(false, true, false), "closing views should reject move swipes");
-    expect(!shouldStartMoveSwipe(false, false, true), "navigating views should reject move swipes");
+    expect(shouldStartMoveSwipe(false, false), "inactive stable views should allow move swipes");
+    expect(!shouldStartMoveSwipe(true, false), "active views should reject move swipes");
+    expect(!shouldStartMoveSwipe(false, true), "navigating views should reject move swipes");
 
-    {
-        const auto result = nextSwipeAmount(10.0f, -2.0f, 100.0f);
-        expect(result.has_value() && *result == 8.0f, "swipe amount should accumulate deltas");
-    }
-    {
-        const auto result = nextSwipeAmount(10.0f, -2.0f, 0.0f);
-        expect(!result.has_value(), "swipe amount should reject invalid limits");
-    }
-    {
-        const auto result = openSwipeProgress(50.0f, 100.0f);
-        expect(
-            result.has_value() && *result == 0.5f,
-            "open swipe progress should map distance to progress"
-        );
-    }
-    {
-        const auto result = openSwipeProgress(50.0f, 0.0f);
-        expect(!result.has_value(), "open swipe progress should reject invalid distances");
-    }
-    {
-        const auto result = shouldKeepOverviewOpen(20.0f, 100.0f);
-        expect(result.has_value() && *result, "low swipe progress should keep the overview open");
-    }
-    {
-        const auto result = shouldKeepOverviewOpen(80.0f, 100.0f);
-        expect(result.has_value() && !*result, "high swipe progress should close the overview");
-    }
+    expect(
+        openSwipeProgress(50.0f, 100.0f) == 0.5f,
+        "open swipe progress should map distance to progress"
+    );
+    expect(
+        shouldKeepOverviewOpen(20.0f, 100.0f),
+        "low swipe progress should keep the overview open"
+    );
+    expect(!shouldKeepOverviewOpen(80.0f, 100.0f), "high swipe progress should close the overview");
 
     // Grid fit: every opened cell lies on the monitor, keeps its aspect ratio
     // and the grid is centred, for several grid sizes and monitor shapes.
