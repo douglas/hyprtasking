@@ -296,25 +296,20 @@ Do not spread those decisions through unrelated plugin files. If a fix depends
 on a Hyprland contract, keep it behind the compat boundary and update
 `docs/compat-contract.md` with the new sensitive surface.
 
-## 7. Manual Runtime Checks Worth Running
+## Manual checks
 
-After a fix, use the script scenarios that match the changed subsystem:
+These need eyes on the compositor. Run all of them before a release, and the
+ones matching the changed subsystem after a fix.
 
-```bash
-bash scripts/manual-runtime-check.sh drag
-bash scripts/manual-runtime-check.sh typing-focus
-bash scripts/manual-runtime-check.sh gesture
-bash scripts/manual-runtime-check.sh render-reentry
-bash scripts/manual-runtime-check.sh reload-open
-```
-
-General guidance:
-
-- use `drag` after click/drag or workspace-target fixes
-- use `typing-focus` after right-click or selection/focus fixes
-- use `gesture` after swipe or grid-navigation changes
-- use `render-reentry` after hook or rendering fixes
-- use `reload-open` after reload-safety changes
+| Check | Run after | Steps | Pass | Fail |
+| --- | --- | --- | --- | --- |
+| drag | click/drag or workspace-target fixes | Open the overview with a tiled window, drag it across two workspace cells, drop it. | The window follows the cursor, renders once, lands on the target workspace. | Duplicate window, large offset, hidden selected workspace, stuck mouse bind mode. |
+| typing-focus | right-click, selection, or focus fixes | In grid mode with a terminal or Nautilus open, right-click a workspace, then type at once (or press `Ctrl+L` in Nautilus). | Input lands on the first key; no extra Enter needed. | The workspace shows but ignores the first keys. |
+| gesture | swipe or grid-navigation changes | Start the open gesture and stop halfway, then start a move gesture and interrupt it. | The overview closes or recovers; swipe state clears. | Captured input, sticky cursor override, a later gesture acting on the wrong monitor. |
+| reload-open | reload-safety changes | `hyprctl eval 'hl.plugin.hyprtasking.toggle("cursor")'`, then `hyprctl reload`. | Plugin reloads, dispatchers stay registered, compositor usable. | `Invalid dispatcher`, half-open overview, sticky cursor override. |
+| monitor-remove | monitor or lifecycle changes | With the overview open or a gesture held, disable or unplug that monitor. | Stale views disappear; no drag or gesture state survives. | Crash, frozen input, callbacks on a removed monitor. |
+| render-reentry | hook or rendering fixes | Open the overview, select a workspace, reopen at once; repeat, then do a reload-open cycle and repeat once more. | Hyprland stays up, the overview renders, the runtime stays enabled. | Crash, blank overview, self-disable notification, flicker or lockup on reopen. |
+| hook-sunset | input or hook-policy changes, once per supported target | Route overview mouse press/release through the cancellable event-bus path instead of the `CInputManager::onMouseButton` hook; run `bash scripts/check-version-contract.sh` and `hyprctl eval 'hl.plugin.hyprtasking.health()'`. | Drag/drop and right-click selection work on every target: the hook can go. | Any target regresses: keep the hook and record which one. |
 
 ## 8. Release and Maintenance Workflow
 

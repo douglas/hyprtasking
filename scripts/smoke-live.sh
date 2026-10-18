@@ -15,7 +15,6 @@ MODE=${1:-all}
 LOAD_UNLOAD_CYCLES=${LOAD_UNLOAD_CYCLES:-1}
 TOGGLE_CYCLES=${TOGGLE_CYCLES:-1}
 RELOAD_CYCLES=${RELOAD_CYCLES:-1}
-PRINT_MANUAL_FOLLOW_UP=${PRINT_MANUAL_FOLLOW_UP:-1}
 HYPRCTL_PREFIX=()
 CAPTURED_OUTPUT=""
 
@@ -367,15 +366,7 @@ smoke_load_unload() {
   done
 }
 
-run_manual_follow_up() {
-  run bash "$SCRIPT_DIR/manual-runtime-check.sh" all
-}
-
-print_manual_follow_up_if_enabled() {
-  if [[ "$PRINT_MANUAL_FOLLOW_UP" == "1" ]]; then
-    run_manual_follow_up
-  fi
-}
+MANUAL_CHECKS_DOC=docs/debugging-playbook.md#manual-checks
 
 case "$MODE" in
   all)
@@ -385,11 +376,9 @@ case "$MODE" in
     smoke_toggle
     smoke_reload
     smoke_reload_open
-    print_manual_follow_up_if_enabled
     ;;
   stress)
     smoke_stress
-    print_manual_follow_up_if_enabled
     ;;
   dispatchers)
     smoke_dispatchers
@@ -411,10 +400,10 @@ case "$MODE" in
     ;;
   manual)
     assert_plugin_loaded
-    run bash "$SCRIPT_DIR/manual-runtime-check.sh" "${2:-all}"
+    printf 'Plugin loaded. Run the manual checks in %s\n' "$MANUAL_CHECKS_DOC"
     ;;
   *)
-    printf 'Usage: %s [all|stress|dispatchers|safety|load-unload|toggle|move|reload|reload-open|manual [all|drag|typing-focus|gesture|reload-open|monitor-remove|render-reentry|hook-sunset]]\n' "$0" >&2
+    printf 'Usage: %s [all|stress|dispatchers|safety|load-unload|toggle|move|reload|reload-open|manual]\n' "$0" >&2
     exit 1
     ;;
 esac

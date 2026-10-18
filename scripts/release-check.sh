@@ -11,8 +11,6 @@ BUILD_DIR=${BUILD_DIR:-"$REPO_DIR/build"}
 RELEASE_MODE=${RELEASE_MODE:-full}
 SMOKE_MODE=${SMOKE_MODE:-stress}
 HYPRLAND_SOURCE=${HYPRLAND_SOURCE:-}
-PRINT_MANUAL_CHECKLIST=${PRINT_MANUAL_CHECKLIST:-1}
-MANUAL_SCENARIO=${MANUAL_SCENARIO:-all}
 
 stage() {
   printf '\n== %s\n$ %s\n' "$1" "${*:2}"
@@ -46,10 +44,8 @@ if [[ "$RELEASE_MODE" != "live" ]]; then
 fi
 
 if [[ "$RELEASE_MODE" != "offline" ]]; then
-  stage smoke env PRINT_MANUAL_FOLLOW_UP=0 bash "$SCRIPT_DIR/smoke-live.sh" "$SMOKE_MODE"
-  if [[ "$PRINT_MANUAL_CHECKLIST" == "1" ]]; then
-    stage manual bash "$SCRIPT_DIR/manual-runtime-check.sh" "$MANUAL_SCENARIO"
-  fi
+  stage smoke bash "$SCRIPT_DIR/smoke-live.sh" "$SMOKE_MODE"
+  printf '\nFinish with the manual checks in docs/debugging-playbook.md#manual-checks.\n'
 fi
 
 printf '\nRelease check passed (%s mode).\n' "$RELEASE_MODE"
