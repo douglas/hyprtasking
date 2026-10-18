@@ -320,7 +320,6 @@ bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
         return false;
     }
 
-    HTConfig::refresh_runtime_config("gesture_config_validation");
     const uint32_t open_fingers = static_cast<uint32_t>(config.open_fingers);
     const uint32_t move_fingers = static_cast<uint32_t>(config.move_fingers);
 

@@ -27,6 +27,7 @@ bool isViewInteractivelyActive(const PHTVIEW& view) {
 SDispatchResult requireRuntimeReady() {
     if (!ht_manager->runtime_enabled())
         return {.success = false, .error = "runtime disabled"};
+    // A runtime hl.config()/keyword change does not fire config.reloaded.
     HTConfig::refresh_runtime_config("runtime_config_validation");
     return {};
 }

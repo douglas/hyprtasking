@@ -86,6 +86,9 @@ void onSwipeBegin(
         if (!ht_manager->runtime_enabled())
             return;
 
+        // A runtime hl.config()/keyword change does not fire config.reloaded,
+        // so pick it up once per gesture (dispatchers do the same per call).
+        HTConfig::refresh_runtime_config("on_swipe_begin");
         ht_manager->reset_swipe_state();
     });
 }

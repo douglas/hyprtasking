@@ -104,7 +104,6 @@ HTLayoutGrid::HTLayoutGrid(VIEWID new_view_id) : view_id(new_view_id) {
 }
 
 WORKSPACEID HTLayoutGrid::get_ws_id_in_direction(int x, int y, std::string_view direction) {
-    HTConfig::refresh_runtime_config("grid_config_validation");
     const auto& config = HTConfig::runtime_config();
 
     const auto target = HTLogic::moveGridInDirection(
@@ -125,7 +124,6 @@ void HTLayoutGrid::on_move_swipe(Vector2D delta) {
     if (monitor == nullptr)
         return;
 
-    HTConfig::refresh_runtime_config("gesture_config_validation");
     const auto& config = HTConfig::runtime_config();
 
     const CBox min_ws = calculate_ws_box(0, 0, HT_VIEW_CLOSED);
