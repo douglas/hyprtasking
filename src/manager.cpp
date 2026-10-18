@@ -27,8 +27,6 @@ PHTVIEW HTManager::get_view_from_monitor(PHLMONITOR monitor) {
     if (monitor == nullptr)
         return nullptr;
     for (const PHTVIEW& view : views) {
-        if (view == nullptr)
-            continue;
         if (view->get_monitor() != monitor)
             continue;
         return view;
@@ -42,8 +40,6 @@ PHTVIEW HTManager::get_view_from_cursor() {
 
 PHTVIEW HTManager::get_view_from_id(VIEWID view_id) {
     for (const PHTVIEW& view : views) {
-        if (view == nullptr)
-            continue;
         if (view->monitor_id != view_id)
             continue;
         return view;
@@ -70,16 +66,12 @@ HTCursorWorkspaceContext HTManager::resolve_cursor_workspace() {
 
 void HTManager::show_all_views() {
     for (const PHTVIEW& view : views) {
-        if (view == nullptr)
-            continue;
         view->show();
     }
 }
 
 void HTManager::hide_all_views() {
     for (const PHTVIEW& view : views) {
-        if (view == nullptr)
-            continue;
         view->hide();
     }
 }
@@ -92,7 +84,7 @@ void HTManager::show_cursor_view() {
 
 bool HTManager::has_runtime_view() {
     return std::ranges::any_of(views, [](const PHTVIEW& view) {
-        return view != nullptr && view->has_runtime_activity();
+        return view->has_runtime_activity();
     });
 }
 
@@ -152,7 +144,7 @@ void HTManager::on_window_set_changed() {
 // Redraws overviews with runtime activity, on one monitor or all of them.
 void HTManager::request_redraw(PHLMONITOR monitor) {
     for (const PHTVIEW& view : views) {
-        if (view == nullptr || !view->has_runtime_activity())
+        if (!view->has_runtime_activity())
             continue;
         if (monitor != nullptr && view->get_monitor() != monitor)
             continue;
@@ -221,9 +213,8 @@ void HTManager::block_runtime(std::string_view source, std::string_view reason) 
 }
 
 std::string HTManager::runtime_health_summary() const {
-    const auto active_views = std::ranges::count_if(views, [](const PHTVIEW& view) {
-        return view != nullptr && view->active;
-    });
+    const auto active_views =
+        std::ranges::count_if(views, [](const PHTVIEW& view) { return view->active; });
     return std::format(
         "runtime_enabled={} disable_reason=\"{}\" failure_source=\"{}\" config_error=\"{}\" views={} active_views={}",
         runtime_enabled(),
@@ -247,8 +238,6 @@ void HTManager::reset_runtime_controls() {
     reset_mouse_button_state();
 
     for (const PHTVIEW& view : views) {
-        if (view == nullptr)
-            continue;
         view->cancel_runtime_state();
     }
 
@@ -307,8 +296,6 @@ void HTManager::sync_monitor_views(MONITORID removed_monitor_id) {
     std::vector<HTLogic::MonitorID> view_ids;
     view_ids.reserve(views.size());
     for (const PHTVIEW& view : views) {
-        if (view == nullptr)
-            continue;
         view->refresh_monitor();
         view_ids.push_back(view->monitor_id);
     }
@@ -324,9 +311,6 @@ void HTManager::sync_monitor_views(MONITORID removed_monitor_id) {
     const auto stale_ids = HTLogic::staleMonitorViewIDs(view_ids, monitor_ids);
     bool removed_runtime_view = false;
     std::erase_if(views, [&](const PHTVIEW& view) {
-        if (view == nullptr)
-            return true;
-
         if (std::ranges::find(stale_ids, view->monitor_id) == stale_ids.end())
             return false;
 
@@ -387,8 +371,6 @@ bool HTManager::has_active_view() {
         return false;
 
     for (const auto& view : views) {
-        if (view == nullptr)
-            continue;
         if (view->active)
             return true;
     }
@@ -400,8 +382,6 @@ bool HTManager::has_interactively_active_view() {
         return false;
 
     for (const auto& view : views) {
-        if (view == nullptr)
-            continue;
         if (view->active && !view->closing)
             return true;
     }

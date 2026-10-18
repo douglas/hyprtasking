@@ -125,9 +125,6 @@ void onConfigReloaded() {
         ht_manager->sync_monitor_views();
 
         for (PHTVIEW& view : ht_manager->views) {
-            if (view == nullptr)
-                continue;
-
             view->reload_config();
         }
     });
