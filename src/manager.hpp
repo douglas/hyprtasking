@@ -50,7 +50,7 @@ class HTManager {
     std::string runtime_health_summary() const;
 
     HTLogic::MouseButtonResult handle_mouse_button(unsigned int button, bool pressed);
-    bool on_mouse_move();
+    void on_mouse_move();
 
     void reset_swipe_state();
     bool swipe_update(IPointer::SSwipeUpdateEvent e);

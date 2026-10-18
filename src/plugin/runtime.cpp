@@ -69,12 +69,12 @@ void shutdownMouseButtonHook() {
     HTCompat::remove_function_hook(g_hooks.input_mouse_button, "onMouseButton");
 }
 
-void onMouseMove([[maybe_unused]] Vector2D cursor, Event::SCallbackInfo& info) {
-    HTPlugin::guardedCallback("on_mouse_move", [&] {
+void onMouseMove([[maybe_unused]] Vector2D cursor, [[maybe_unused]] Event::SCallbackInfo& info) {
+    HTPlugin::guardedCallback("on_mouse_move", [] {
         if (!ht_manager->runtime_enabled())
             return;
 
-        info.cancelled = ht_manager->on_mouse_move();
+        ht_manager->on_mouse_move();
     });
 }
 

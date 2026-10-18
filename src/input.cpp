@@ -284,43 +284,38 @@ void HTManager::end_window_drag() {
     drop_completed = true;
 }
 
-bool HTManager::on_mouse_move() {
+void HTManager::on_mouse_move() {
     const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace();
-    const PHLMONITOR cursor_monitor = cursor_context.monitor;
     const PHTVIEW cursor_view = cursor_context.view;
-
-    if (cursor_monitor == nullptr || cursor_view == nullptr)
-        return false;
-    if (!cursor_view->active || cursor_view->closing)
-        return false;
+    // A view implies the cursor monitor was found.
+    if (cursor_view == nullptr || !cursor_view->active || cursor_view->closing)
+        return;
 
     if (cursor_context.workspace == nullptr) {
         if (cursor_view->hover_active) {
             cursor_view->clear_hover_workspace();
-            HTCompat::redraw_monitor(cursor_monitor);
+            HTCompat::redraw_monitor(cursor_context.monitor);
         }
-        return false;
+        return;
     }
 
-    const bool selection_pending = claimed_mouse_interaction == HT_MOUSE_SELECT;
-    if (!selection_pending) {
-        if (cursor_view->hover_suppressed) {
-            if (cursor_context.workspace_id == cursor_view->hover_suppressed_workspace_id)
-                return false;
+    // A pending selection keeps the cell it was pressed on.
+    if (claimed_mouse_interaction == HT_MOUSE_SELECT)
+        return;
 
-            cursor_view->clear_hover_suppression();
-        }
+    if (cursor_view->hover_suppressed) {
+        if (cursor_context.workspace_id == cursor_view->hover_suppressed_workspace_id)
+            return;
+
+        cursor_view->clear_hover_suppression();
     }
 
-    if (!selection_pending
-        && (!cursor_view->hover_active
-            || cursor_view->hovered_workspace_id != cursor_context.workspace_id)) {
+    if (!cursor_view->hover_active
+        || cursor_view->hovered_workspace_id != cursor_context.workspace_id) {
         cursor_view->set_hovered_workspace(cursor_context.workspace_id);
         cursor_view->set_selected_workspace_id(cursor_context.workspace_id);
-        HTCompat::redraw_monitor(cursor_monitor);
+        HTCompat::redraw_monitor(cursor_context.monitor);
     }
-
-    return false;
 }
 
 bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
