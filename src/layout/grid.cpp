@@ -31,12 +31,6 @@ void warn_invalid_geometry(std::string_view source, const std::string& reason) {
     Log::logger->log(Log::WARN, "[Hyprtasking] {}: {}", source, reason);
 }
 
-template<typename T>
-T skip_invalid_geometry(std::string_view source, const std::string& reason, T fallback) {
-    warn_invalid_geometry(source, reason);
-    return fallback;
-}
-
 struct DraggedWindowBox {
     PHLWINDOW window;
     CBox box;
@@ -101,7 +95,7 @@ void render_window_at_box(
 
 } // namespace
 
-HTLayoutGrid::HTLayoutGrid(VIEWID new_view_id) : HTLayoutBase(new_view_id) {
+HTLayoutGrid::HTLayoutGrid(VIEWID new_view_id) : view_id(new_view_id) {
     if (!HTCompat::create_vector_animation({0, 0}, offset, "workspaces", AVARDAMAGE_NONE)
         || !HTCompat::create_float_animation(1.f, scale, "workspaces", AVARDAMAGE_NONE))
         throw std::runtime_error("failed creating overview animation variables");
@@ -171,16 +165,16 @@ void HTLayoutGrid::close_open_lerp(float perc) {
     const PHLWORKSPACE active_workspace = HTCompat::active_monitor_workspace(monitor);
     if (active_workspace == nullptr)
         return;
-    const Vector2D transformed_size = HTCompat::monitor_transformed_size(monitor);
 
-    double open_scale = calculate_ws_box(0, 0, HT_VIEW_OPENED).w / transformed_size.x; // 1 / ROWS
-    Vector2D open_pos = {0, 0};
-
+    const auto geometry = grid_geometry();
     build_overview_layout(HT_VIEW_CLOSED);
-    double close_scale = 1.;
     const auto* active_layout = find_layout_workspace(HTCompat::workspace_id(active_workspace));
-    if (active_layout == nullptr)
+    if (!geometry.has_value() || active_layout == nullptr)
         return;
+
+    const double open_scale = geometry->fit.opened_scale;
+    const Vector2D open_pos = {0, 0};
+    const double close_scale = 1.;
     Vector2D close_pos = -active_layout->box.pos();
 
     double new_scale = std::lerp(close_scale, open_scale, perc);
@@ -222,8 +216,8 @@ void HTLayoutGrid::on_show(CallbackFun on_complete) {
     init_position();
     close_render_workspace_id = WORKSPACE_INVALID;
 
-    *scale = calculate_ws_box(0, 0, HT_VIEW_OPENED).w
-        / HTCompat::monitor_transformed_size(monitor).x; // 1 / ROWS
+    const auto geometry = grid_geometry();
+    *scale = geometry.has_value() ? geometry->fit.opened_scale : 0.0;
     // Offset for the whole grid of workspaces
     *offset = {0, 0};
 }
@@ -297,7 +291,24 @@ bool HTLayoutGrid::should_render_window(PHLWINDOW window, bool original_result) 
     if (workspace == nullptr)
         return false;
 
-    CBox window_box = get_global_window_box(window, workspace);
+    if (HTCompat::workspace_monitor(workspace) != monitor)
+        return false;
+
+    // The window's box where its workspace cell draws it.
+    const Vector2D monitor_pos = HTCompat::monitor_position(monitor);
+    const CBox ws_window_box = HTCompat::window_main_surface_box(window);
+    const WORKSPACEID workspace_id = HTCompat::workspace_id(workspace);
+    const Vector2D top_left =
+        local_ws_unscaled_to_global(ws_window_box.pos() - monitor_pos, workspace_id);
+    const Vector2D bottom_right = local_ws_unscaled_to_global(
+        ws_window_box.pos() + ws_window_box.size() - monitor_pos,
+        workspace_id
+    );
+    if (!HTLogic::isFinitePoint(top_left.x, top_left.y)
+        || !HTLogic::isFinitePoint(bottom_right.x, bottom_right.y))
+        return false;
+
+    const CBox window_box = {top_left, bottom_right - top_left};
     if (window_box.empty())
         return false;
     if (window_box.intersection(HTCompat::monitor_logical_box(monitor)).empty())
@@ -343,7 +354,7 @@ std::optional<HTLayoutGrid::GridGeometry> HTLayoutGrid::grid_geometry() {
     const auto fit =
         HTLogic::fitGrid(transformed_size.x, transformed_size.y, ROWS, COLS, gap_width);
     if (!HTLogic::isPositiveFinite(monitor_scale) || !fit.has_value()) {
-        return skip_invalid_geometry(
+        warn_invalid_geometry(
             "grid_geometry_validation",
             std::format(
                 "Invalid monitor geometry scale={} size={}x{} for a {}x{} grid",
@@ -352,9 +363,9 @@ std::optional<HTLayoutGrid::GridGeometry> HTLayoutGrid::grid_geometry() {
                 transformed_size.y,
                 ROWS,
                 COLS
-            ),
-            std::optional<GridGeometry> {}
+            )
         );
+        return std::nullopt;
     }
 
     return GridGeometry {.transformed_size = transformed_size, .fit = *fit};
@@ -424,7 +435,6 @@ void HTLayoutGrid::build_overview_layout(HTViewStage stage) {
     const auto geometry = grid_block < 0 ? std::nullopt : grid_geometry();
     if (!geometry.has_value()) {
         overview_layout.clear();
-        layout_shape = {};
         layout_inputs.reset();
         return;
     }
@@ -443,13 +453,12 @@ void HTLayoutGrid::build_overview_layout(HTViewStage stage) {
     };
     if (layout_inputs == inputs)
         return;
-    layout_inputs = inputs;
 
-    if (shape != layout_shape) {
+    if (!layout_inputs.has_value() || layout_inputs->shape != shape) {
         overview_layout.clear();
         overview_layout.reserve(static_cast<size_t>(ROWS) * static_cast<size_t>(COLS));
-        layout_shape = shape;
     }
+    layout_inputs = inputs;
 
     for (int y = 0; y < ROWS; y++) {
         for (int x = 0; x < COLS; x++) {
@@ -460,8 +469,15 @@ void HTLayoutGrid::build_overview_layout(HTViewStage stage) {
 }
 
 void HTLayoutGrid::render() {
-    HTLayoutBase::begin_render();
-    HTScopeGuard x([this] { post_render(); });
+    bool rendered_workspace_cells = false;
+    HTCompat::begin_overview_render_pass();
+    HTScopeGuard finish_render([&rendered_workspace_cells] {
+        // Pass elements run after the frame is built, so one sweep removes the
+        // clear passes added by every rendered workspace cell.
+        if (rendered_workspace_cells)
+            HTCompat::remove_clear_passes();
+        HTCompat::finalize_overview_render_pass();
+    });
 
     const PHTVIEW par_view = ht_manager->get_view_from_id(view_id);
     if (par_view == nullptr)
@@ -540,7 +556,11 @@ void HTLayoutGrid::render() {
         border.borderSize = BORDERSIZE;
         HTCompat::add_border_pass(border);
 
-        render_workspace_with_optional_state(monitor, workspace, time, render_box);
+        // Hyprland renders wallpaper and layers for a null workspace as well.
+        // Empty grid slots may not have a workspace until a window is moved there.
+        HTScopedWorkspaceRender render_workspace(monitor, workspace);
+        HTCompat::render_workspace_original(monitor, workspace, time, render_box);
+        rendered_workspace_cells = true;
     };
 
     const Vector2D monitor_pos = HTCompat::monitor_position(monitor);
@@ -600,4 +620,137 @@ void HTLayoutGrid::cancel_animation_callbacks() {
     close_render_workspace_id = WORKSPACE_INVALID;
     scale->resetAllCallbacks();
     offset->resetAllCallbacks();
+}
+
+PHLMONITOR HTLayoutGrid::get_monitor() {
+    const auto par_view = ht_manager->get_view_from_id(view_id);
+    if (par_view == nullptr)
+        return nullptr;
+    return par_view->get_monitor();
+}
+
+const HTLayoutGrid::HTWorkspace*
+HTLayoutGrid::find_layout_workspace(WORKSPACEID workspace_id) const {
+    const auto it = overview_layout.find(workspace_id);
+    if (it == overview_layout.end())
+        return nullptr;
+
+    return &it->second;
+}
+
+WORKSPACEID HTLayoutGrid::get_ws_id_from_global(Vector2D pos) {
+    const PHLMONITOR monitor = get_monitor();
+    const float monitor_scale = HTCompat::monitor_scale(monitor);
+    if (monitor == nullptr || !HTLogic::isPositiveFinite(monitor_scale))
+        return WORKSPACE_INVALID;
+
+    if (!HTCompat::monitor_logical_box(monitor).containsPoint(pos))
+        return WORKSPACE_INVALID;
+
+    const Vector2D monitor_pos = HTCompat::monitor_position(monitor);
+    Vector2D relative_pos = (pos - monitor_pos) * monitor_scale;
+    for (const auto& [id, layout] : overview_layout)
+        if (layout.box.containsPoint(relative_pos))
+            return id;
+
+    return WORKSPACE_INVALID;
+}
+
+CBox HTLayoutGrid::get_global_ws_box(WORKSPACEID workspace_id) {
+    const auto* layout_workspace = find_layout_workspace(workspace_id);
+    if (layout_workspace == nullptr)
+        return {};
+
+    const CBox scaled_ws_box = layout_workspace->box;
+    const Vector2D top_left = local_ws_scaled_to_global(scaled_ws_box.pos(), workspace_id);
+    const Vector2D bottom_right =
+        local_ws_scaled_to_global(scaled_ws_box.pos() + scaled_ws_box.size(), workspace_id);
+    if (!HTLogic::isFinitePoint(top_left.x, top_left.y)
+        || !HTLogic::isFinitePoint(bottom_right.x, bottom_right.y))
+        return {};
+    return {top_left, bottom_right - top_left};
+}
+
+// Where workspace_id is drawn right now; nullopt without a usable cell.
+std::optional<HTLogic::CellMapping> HTLayoutGrid::cell_mapping(WORKSPACEID workspace_id) {
+    const PHLMONITOR monitor = get_monitor();
+    if (monitor == nullptr)
+        return std::nullopt;
+    const float monitor_scale = HTCompat::monitor_scale(monitor);
+    if (!HTLogic::isPositiveFinite(monitor_scale))
+        return std::nullopt;
+
+    const auto* layout_workspace = find_layout_workspace(workspace_id);
+    if (layout_workspace == nullptr || layout_workspace->box.empty())
+        return std::nullopt;
+    const CBox& box = layout_workspace->box;
+    const double monitor_width = HTCompat::monitor_transformed_size(monitor).x;
+    if (!HTLogic::isPositiveFinite(box.w) || !HTLogic::isPositiveFinite(monitor_width))
+        return std::nullopt;
+
+    const Vector2D monitor_pos = HTCompat::monitor_position(monitor);
+    return HTLogic::CellMapping {
+        .cell = {.x = box.x, .y = box.y},
+        .width_scale = box.w / monitor_width,
+        .monitor_scale = monitor_scale,
+        .monitor = {.x = monitor_pos.x, .y = monitor_pos.y},
+    };
+}
+
+Vector2D HTLayoutGrid::global_to_local_ws_unscaled(Vector2D pos, WORKSPACEID workspace_id) {
+    const auto mapping = cell_mapping(workspace_id);
+    if (!mapping.has_value())
+        return {};
+
+    const auto local = HTLogic::globalToWorkspace(*mapping, {.x = pos.x, .y = pos.y});
+    if (!HTLogic::isFinitePoint(local.x, local.y))
+        return {};
+    return {local.x, local.y};
+}
+
+std::optional<Vector2D>
+HTLayoutGrid::global_to_workspace_monitor_coords(Vector2D pos, WORKSPACEID workspace_id) {
+    const PHLMONITOR monitor = get_monitor();
+    if (monitor == nullptr)
+        return std::nullopt;
+
+    const Vector2D local_coords = global_to_local_ws_unscaled(pos, workspace_id);
+    const Vector2D monitor_coords = local_coords + HTCompat::monitor_position(monitor);
+    if (!std::isfinite(monitor_coords.x) || !std::isfinite(monitor_coords.y))
+        return std::nullopt;
+
+    return monitor_coords;
+}
+
+Vector2D HTLayoutGrid::local_ws_unscaled_to_global(Vector2D pos, WORKSPACEID workspace_id) {
+    const auto mapping = cell_mapping(workspace_id);
+    if (!mapping.has_value())
+        return {};
+
+    const auto global = HTLogic::workspaceToGlobal(*mapping, {.x = pos.x, .y = pos.y});
+    if (!HTLogic::isFinitePoint(global.x, global.y))
+        return {};
+    return {global.x, global.y};
+}
+
+Vector2D HTLayoutGrid::local_ws_scaled_to_global(Vector2D pos, WORKSPACEID workspace_id) {
+    const PHLMONITOR monitor = get_monitor();
+    const float monitor_scale = HTCompat::monitor_scale(monitor);
+    if (monitor == nullptr || !HTLogic::isPositiveFinite(monitor_scale))
+        return {};
+
+    pos /= monitor_scale;
+    return local_ws_unscaled_to_global(pos, workspace_id);
+}
+
+WORKSPACEID HTLayoutGrid::get_ws_id_from_xy(int x, int y) {
+    if (!layout_inputs.has_value())
+        return WORKSPACE_INVALID;
+
+    const LayoutShape& shape = layout_inputs->shape;
+    if (x < 0 || y < 0 || x >= shape.cols || y >= shape.rows)
+        return WORKSPACE_INVALID;
+
+    const WORKSPACEID ws_id = HTLogic::gridWorkspaceID(shape.block, shape.rows, shape.cols, x, y);
+    return overview_layout.contains(ws_id) ? ws_id : WORKSPACE_INVALID;
 }

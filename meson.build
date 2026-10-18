@@ -54,7 +54,6 @@ core_src = [
 
 layout_src = [
   'src/layout/grid.cpp',
-  'src/layout/layout_base.cpp',
 ]
 
 logic_src = [
