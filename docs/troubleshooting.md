@@ -61,26 +61,6 @@ table contains exactly one `hyprtasking` submap block:
 hyprctl binds | rg 'submap: hyprtasking|hyprtasking:select|hyprtasking:commit'
 ```
 
-## `hyprctl` says it cannot connect to `.socket.sock`
-
-If `hyprctl` prints `Couldn't connect to .../.socket.sock`, your shell is
-usually targeting a stale Hyprland instance signature.
-
-Set `HYPRLAND_INSTANCE_SIGNATURE` from the newest live socket:
-
-```bash
-unset HYPRLAND_INSTANCE_SIGNATURE
-export HYPRLAND_INSTANCE_SIGNATURE="$(
-  ls -1t /run/user/$UID/hypr/*/.socket.sock \
-  | head -n1 \
-  | xargs dirname \
-  | xargs basename
-)"
-hyprctl instances
-```
-
-After this, retry your command (for example `hyprctl eval 'hl.plugin.hyprtasking.health()'` on Hyprland 0.56+).
-
 ### Cause 2: fcitx5 in-process input method module
 
 **Symptom:** The first keypress after switching window focus is dropped,
@@ -125,6 +105,27 @@ instead of keeping it killed.
 - Mozilla Bug 1742039: text-input-v3 interaction with fcitx5
 - Hyprland Discussion #10726: fcitx5 keypress issues on Wayland
 - fcitx5 Issue #954: first keypress dropped after focus change
+
+## `hyprctl` says it cannot connect to `.socket.sock`
+
+If `hyprctl` prints `Couldn't connect to .../.socket.sock`, your shell is
+usually targeting a stale Hyprland instance signature.
+
+Set `HYPRLAND_INSTANCE_SIGNATURE` from the newest live socket:
+
+```bash
+unset HYPRLAND_INSTANCE_SIGNATURE
+export HYPRLAND_INSTANCE_SIGNATURE="$(
+  ls -1t /run/user/$UID/hypr/*/.socket.sock \
+  | head -n1 \
+  | xargs dirname \
+  | xargs basename
+)"
+hyprctl instances
+```
+
+After this, retry your command (for example
+`hyprctl eval 'hl.plugin.hyprtasking.health()'`).
 
 ## Overview keyboard navigation does not work
 
@@ -211,15 +212,20 @@ overview after options change. Reopen the overview after the reload completes.
 
 If you see the notification "Disabled for this session after an internal runtime
 failure", check the Hyprland log for the `[Hyprtasking] runtime disabled`
-message which includes the reason and a state snapshot.
+message which includes the reason and a state snapshot. Then check health:
 
 ```bash
-hyprctl eval 'hl.plugin.hyprtasking.health("json")'
+hyprctl eval 'hl.plugin.hyprtasking.health()'
 ```
 
-This returns the current runtime health state including whether the plugin is
-enabled, how many views are active, which hooks are registered, and which
-Event::bus listeners installed successfully.
+It prints one line:
+
+```text
+runtime_enabled=false disable_reason="..." failure_source="..." config_error="" views=2 active_views=0
+```
+
+`hyprctl dispatch hyprtasking:health` writes the same line to the Hyprland log
+and a notification.
 
 Common causes:
 
@@ -249,7 +255,7 @@ load, the package version and runtime likely drifted out of the supported set.
 1. Check package/runtime compatibility:
    `bash scripts/check-version-contract.sh`
 2. Check runtime state and disable reason:
-   `hyprctl eval 'hl.plugin.hyprtasking.health("json")'`
+   `hyprctl eval 'hl.plugin.hyprtasking.health()'`
 3. Rebuild/reload the plugin against the currently installed headers:
    `meson setup build --reconfigure --buildtype=release && ninja -C build`
 4. Reload the plugin binary (not just config):
@@ -267,5 +273,3 @@ build, so it is not a regression introduced by the current branch.
 ## Related docs
 
 - [`debugging-playbook.md`](debugging-playbook.md): maintainer debugging workflow
-- [`overview-input-regression.md`](overview-input-regression.md): lessons from
-  the overview click/drag regression
