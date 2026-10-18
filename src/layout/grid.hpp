@@ -4,7 +4,7 @@
 #include <optional>
 #include <string_view>
 
-#include "../logic/geometry_model.hpp"
+#include "../logic/logic.hpp"
 #include "../types.hpp"
 #include "layout_base.hpp"
 

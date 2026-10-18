@@ -8,7 +8,7 @@
 #include <optional>
 #include <unordered_map>
 
-#include "../logic/geometry_model.hpp"
+#include "../logic/logic.hpp"
 #include "../types.hpp"
 
 enum class HTViewStage {

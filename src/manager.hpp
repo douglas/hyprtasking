@@ -7,8 +7,7 @@
 #include <string_view>
 
 #include "compat/runtime_compat.hpp"
-#include "logic/interaction_model.hpp"
-#include "logic/view_sync_model.hpp"
+#include "logic/logic.hpp"
 #include "overview.hpp"
 
 struct HTCursorWorkspaceContext {

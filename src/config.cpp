@@ -12,7 +12,7 @@
 #include <utility>
 
 #include "globals.hpp"
-#include "logic/geometry_model.hpp"
+#include "logic/logic.hpp"
 
 namespace {
 

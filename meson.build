@@ -58,13 +58,7 @@ layout_src = [
 ]
 
 logic_src = [
-  'src/logic/compat_model.cpp',
-  'src/logic/controller_state.cpp',
-  'src/logic/gesture_model.cpp',
-  'src/logic/geometry_model.cpp',
-  'src/logic/interaction_model.cpp',
-  'src/logic/navigation_model.cpp',
-  'src/logic/view_sync_model.cpp',
+  'src/logic/logic.cpp',
 ]
 
 plugin_src = [

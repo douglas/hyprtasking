@@ -6,13 +6,7 @@
 #include <string_view>
 #include <vector>
 
-#include "../src/logic/compat_model.hpp"
-#include "../src/logic/controller_state.hpp"
-#include "../src/logic/geometry_model.hpp"
-#include "../src/logic/gesture_model.hpp"
-#include "../src/logic/interaction_model.hpp"
-#include "../src/logic/navigation_model.hpp"
-#include "../src/logic/view_sync_model.hpp"
+#include "../src/logic/logic.hpp"
 
 namespace {
 

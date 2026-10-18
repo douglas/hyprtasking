@@ -9,7 +9,7 @@
 #include "compat/runtime_compat.hpp"
 #include "config.hpp"
 #include "globals.hpp"
-#include "logic/view_sync_model.hpp"
+#include "logic/logic.hpp"
 #include "overview.hpp"
 #include "plugin/guards.hpp"
 

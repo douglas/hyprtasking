@@ -5,7 +5,7 @@
 #include <hyprland/src/plugins/PluginAPI.hpp>
 
 #include "../globals.hpp"
-#include "../logic/compat_model.hpp"
+#include "../logic/logic.hpp"
 #include "build_contract.hpp"
 
 namespace {

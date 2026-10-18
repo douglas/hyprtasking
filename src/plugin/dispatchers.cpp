@@ -11,7 +11,7 @@ extern "C" {
 
 #include "../config.hpp"
 #include "../globals.hpp"
-#include "../logic/navigation_model.hpp"
+#include "../logic/logic.hpp"
 #include "../overview.hpp"
 #include "guards.hpp"
 

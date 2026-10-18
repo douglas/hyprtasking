@@ -10,7 +10,7 @@
 
 #include "../build_contract.hpp"
 #include "../globals.hpp"
-#include "../logic/geometry_model.hpp"
+#include "../logic/logic.hpp"
 #include "../overview.hpp"
 #include "../pass/pass_element.hpp"
 #include "../plugin/guards.hpp"

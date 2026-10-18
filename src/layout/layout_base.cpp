@@ -4,7 +4,7 @@
 
 #include "../compat/renderer_compat.hpp"
 #include "../globals.hpp"
-#include "../logic/geometry_model.hpp"
+#include "../logic/logic.hpp"
 #include "../state_guards.hpp"
 
 void HTLayoutBase::begin_render() {

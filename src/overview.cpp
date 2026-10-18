@@ -4,8 +4,7 @@
 #include "compat/runtime_compat.hpp"
 #include "globals.hpp"
 #include "layout/grid.hpp"
-#include "logic/controller_state.hpp"
-#include "logic/navigation_model.hpp"
+#include "logic/logic.hpp"
 #include "runtime_fail.hpp"
 
 namespace {
