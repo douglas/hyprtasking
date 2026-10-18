@@ -95,7 +95,6 @@ void onMouseButton(IPointer::SButtonEvent e, Event::SCallbackInfo& info) {
     });
 }
 
-#if HT_HYPRLAND_GE_0_55
 void hookMouseButton(void* thisptr, IPointer::SButtonEvent e, SP<IPointer> mouse) {
     const bool cancelled = HTPlugin::guardedValue("hook_mouse_button", false, [&] {
         Event::SCallbackInfo info;
@@ -108,20 +107,6 @@ void hookMouseButton(void* thisptr, IPointer::SButtonEvent e, SP<IPointer> mouse
     if (!HTCompat::invoke_mouse_button_original(thisptr, e, mouse))
         HTRuntimeFail::disable("hook_mouse_button", "missing onMouseButton original call-through");
 }
-#else
-void hookMouseButton(void* thisptr, IPointer::SButtonEvent e) {
-    const bool cancelled = HTPlugin::guardedValue("hook_mouse_button", false, [&] {
-        Event::SCallbackInfo info;
-        onMouseButton(e, info);
-        return info.cancelled;
-    });
-    if (cancelled)
-        return;
-
-    if (!HTCompat::invoke_mouse_button_original(thisptr, e))
-        HTRuntimeFail::disable("hook_mouse_button", "missing onMouseButton original call-through");
-}
-#endif
 
 bool initializeMouseButtonHook() {
     const auto mouse_button = HTCompat::install_function_hook(

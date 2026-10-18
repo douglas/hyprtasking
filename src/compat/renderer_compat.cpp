@@ -108,7 +108,6 @@ const HTGradientValueData& fallback_border_color(bool active) {
     return active ? active_fallback : inactive_fallback;
 }
 
-#if HT_HYPRLAND_GE_0_55
 const HTGradientValueData& border_color_from_config(bool active) {
     static auto active_color =
         CConfigValue<Config::IComplexConfigValue>("general:col.active_border");
@@ -121,18 +120,6 @@ const HTGradientValueData& border_color_from_config(bool active) {
 
     return *static_cast<HTGradientValueData*>(config.ptr());
 }
-#else
-const HTGradientValueData& border_color_from_config(bool active) {
-    static auto active_color = CConfigValue<Hyprlang::CUSTOMTYPE>("general:col.active_border");
-    static auto inactive_color = CConfigValue<Hyprlang::CUSTOMTYPE>("general:col.inactive_border");
-
-    auto& config = active ? active_color : inactive_color;
-    if (config.ptr() == nullptr || config.ptr()->getData() == nullptr)
-        return fallback_border_color(active);
-
-    return *static_cast<HTGradientValueData*>(config.ptr()->getData());
-}
-#endif
 
 void hookRenderWorkspace(
     void* thisptr,
@@ -846,13 +833,8 @@ void reset_window_workspace_move_alpha(PHLWINDOW window) {
     if (window == nullptr)
         return;
 
-#if HT_HYPRLAND_GE_0_55
     window->alpha(Desktop::View::WINDOW_ALPHA_MOVE_TO_WORKSPACE)->setValueAndWarp(1.0);
     window->alpha(Desktop::View::WINDOW_ALPHA_MOVE_FROM_WORKSPACE)->setValueAndWarp(1.0);
-#else
-    window->m_movingToWorkspaceAlpha->setValueAndWarp(1.0);
-    window->m_movingFromWorkspaceAlpha->setValueAndWarp(1.0);
-#endif
 }
 
 void warp_workspace_render_offset(PHLWORKSPACE workspace) {

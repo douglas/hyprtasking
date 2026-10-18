@@ -2,14 +2,12 @@
 
 #include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/config/ConfigManager.hpp>
+#include <hyprland/src/config/shared/animation/AnimationTree.hpp>
 #include <memory>
 
 #include "../build_contract.hpp"
 #include "../globals.hpp"
 #include "../plugin/guards.hpp"
-#if HT_HYPRLAND_GE_0_55
-    #include <hyprland/src/config/shared/animation/AnimationTree.hpp>
-#endif
 #if HT_HYPRLAND_GE_0_56
     #include <hyprland/src/desktop/state/GlobalWindowController.hpp>
     #include <hyprland/src/desktop/state/ViewState.hpp>
@@ -95,17 +93,10 @@ bool HTCompat::create_float_animation(
     if (manager == nullptr)
         return false;
 
-#if HT_HYPRLAND_GE_0_55
     if (!Config::animationTree())
         return false;
 
     const auto config = Config::animationTree()->getAnimationPropertyConfig(config_name);
-#else
-    if (!g_pConfigManager)
-        return false;
-
-    const auto config = g_pConfigManager->getAnimationPropertyConfig(config_name);
-#endif
 
     manager->createAnimation(initial_value, animation, config, policy);
     return static_cast<bool>(animation);
@@ -121,17 +112,10 @@ bool HTCompat::create_vector_animation(
     if (manager == nullptr)
         return false;
 
-#if HT_HYPRLAND_GE_0_55
     if (!Config::animationTree())
         return false;
 
     const auto config = Config::animationTree()->getAnimationPropertyConfig(config_name);
-#else
-    if (!g_pConfigManager)
-        return false;
-
-    const auto config = g_pConfigManager->getAnimationPropertyConfig(config_name);
-#endif
 
     manager->createAnimation(initial_value, animation, config, policy);
     return static_cast<bool>(animation);
@@ -275,27 +259,20 @@ bool HTCompat::do_later(const std::function<void()>& callback) {
     if (!g_pEventLoopManager)
         return false;
 
-#if HT_HYPRLAND_GE_0_55
     const auto seq = std::make_shared<uint64_t>(0);
     *seq = g_pEventLoopManager->doLater([deferred = callback, seq] {
         std::erase(pending_do_later(), *seq);
         HTPlugin::guardedCallback("do_later", deferred);
     });
     pending_do_later().push_back(*seq);
-#else
-    // 0.54 has no removeDoLater, so queued callbacks cannot be cancelled.
-    g_pEventLoopManager->doLater([callback] { HTPlugin::guardedCallback("do_later", callback); });
-#endif
     return true;
 }
 
 void HTCompat::cancel_pending_do_later() {
-#if HT_HYPRLAND_GE_0_55
     if (g_pEventLoopManager) {
         for (const uint64_t seq : pending_do_later())
             g_pEventLoopManager->removeDoLater(seq);
     }
-#endif
     pending_do_later().clear();
 }
 
@@ -372,7 +349,6 @@ void HTCompat::end_drag_controller() {
     drag_controller->dragEnd();
 }
 
-#if HT_HYPRLAND_GE_0_55
 bool HTCompat::invoke_mouse_button_original(
     void* thisptr,
     IPointer::SButtonEvent event,
@@ -386,17 +362,6 @@ bool HTCompat::invoke_mouse_button_original(
     original(thisptr, event, mouse);
     return true;
 }
-#else
-bool HTCompat::invoke_mouse_button_original(void* thisptr, IPointer::SButtonEvent event) {
-    using origOnMouseButton = void (*)(void*, IPointer::SButtonEvent);
-    const auto original = hook_original<origOnMouseButton>(g_hooks.input_mouse_button.hook);
-    if (thisptr == nullptr || original == nullptr)
-        return false;
-
-    original(thisptr, event);
-    return true;
-}
-#endif
 
 bool HTCompat::listen_mouse_move(
     CHyprSignalListener& listener,

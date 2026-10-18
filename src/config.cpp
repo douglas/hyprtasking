@@ -2,6 +2,8 @@
 
 #include <cmath>
 #include <format>
+#include <hyprland/src/config/values/types/FloatValue.hpp>
+#include <hyprland/src/config/values/types/IntValue.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprlang.hpp>
 #include <optional>
@@ -11,10 +13,6 @@
 
 #include "build_contract.hpp"
 #include "logic/geometry_model.hpp"
-#if HT_HYPRLAND_GE_0_55
-    #include <hyprland/src/config/values/types/FloatValue.hpp>
-    #include <hyprland/src/config/values/types/IntValue.hpp>
-#endif
 
 namespace {
 
@@ -33,7 +31,6 @@ void log_missing_config_once(const std::string& config) {
     );
 }
 
-#if HT_HYPRLAND_GE_0_55
 template<typename T>
 struct OwnedConfigValue {
     std::string name;
@@ -44,29 +41,9 @@ struct OwnedConfigValue {
 std::unordered_map<std::string, OwnedConfigValue<Config::Values::CIntValue>> g_int_config_values;
 std::unordered_map<std::string, OwnedConfigValue<Config::Values::CFloatValue>>
     g_float_config_values;
-#else
-template<typename T>
-T legacy_value_or(std::string config, T fallback) {
-    const auto* config_value =
-        HyprlandAPI::getConfigValue(PHANDLE, HTConfig::Detail::prefixed_key(config));
-    if (config_value == nullptr) {
-        log_missing_config_once(config);
-        return fallback;
-    }
-
-    auto* static_ptr = (T* const*)config_value->getDataStaticPtr();
-    if (static_ptr == nullptr || *static_ptr == nullptr) {
-        log_missing_config_once(config);
-        return fallback;
-    }
-
-    return **static_ptr;
-}
-#endif
 
 bool add_int_config(std::string_view key, int default_value, std::string_view description) {
     const std::string name = HTConfig::Detail::prefixed_key(std::string(key));
-#if HT_HYPRLAND_GE_0_55
     auto& entry = g_int_config_values[std::string(key)];
     entry.name = name;
     entry.description = std::string(description);
@@ -80,14 +57,10 @@ bool add_int_config(std::string_view key, int default_value, std::string_view de
         return false;
     }
     return true;
-#else
-    return HyprlandAPI::addConfigValue(PHANDLE, name, Hyprlang::INT {default_value});
-#endif
 }
 
 bool add_float_config(std::string_view key, float default_value, std::string_view description) {
     const std::string name = HTConfig::Detail::prefixed_key(std::string(key));
-#if HT_HYPRLAND_GE_0_55
     auto& entry = g_float_config_values[std::string(key)];
     entry.name = name;
     entry.description = std::string(description);
@@ -101,13 +74,9 @@ bool add_float_config(std::string_view key, float default_value, std::string_vie
         return false;
     }
     return true;
-#else
-    return HyprlandAPI::addConfigValue(PHANDLE, name, Hyprlang::FLOAT {default_value});
-#endif
 }
 
 int int_config_or(std::string_view key, int fallback) {
-#if HT_HYPRLAND_GE_0_55
     const auto it = g_int_config_values.find(std::string(key));
     if (it == g_int_config_values.end() || it->second.value == nullptr) {
         log_missing_config_once(std::string(key));
@@ -115,13 +84,9 @@ int int_config_or(std::string_view key, int fallback) {
     }
 
     return static_cast<int>(it->second.value->value());
-#else
-    return legacy_value_or<Hyprlang::INT>(std::string(key), fallback);
-#endif
 }
 
 float float_config_or(std::string_view key, float fallback) {
-#if HT_HYPRLAND_GE_0_55
     const auto it = g_float_config_values.find(std::string(key));
     if (it == g_float_config_values.end() || it->second.value == nullptr) {
         log_missing_config_once(std::string(key));
@@ -129,9 +94,6 @@ float float_config_or(std::string_view key, float fallback) {
     }
 
     return static_cast<float>(it->second.value->value());
-#else
-    return legacy_value_or<Hyprlang::FLOAT>(std::string(key), fallback);
-#endif
 }
 
 std::optional<std::string> validate_runtime_config(const HTConfig::RuntimeConfig& config) {
@@ -272,10 +234,8 @@ const std::string& config_error() {
 void reset_runtime_config() {
     g_runtime_config = RuntimeConfig {};
     g_config_error.clear();
-#if HT_HYPRLAND_GE_0_55
     g_int_config_values.clear();
     g_float_config_values.clear();
-#endif
 }
 
 } // namespace HTConfig

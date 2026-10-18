@@ -60,11 +60,7 @@ SP<Layout::ITarget> drag_controller_target();
 bool drag_controller_is_tiled();
 eMouseBindMode drag_controller_mode();
 void end_drag_controller();
-#if HT_HYPRLAND_GE_0_55
 bool invoke_mouse_button_original(void* thisptr, IPointer::SButtonEvent event, SP<IPointer> mouse);
-#else
-bool invoke_mouse_button_original(void* thisptr, IPointer::SButtonEvent event);
-#endif
 
 bool listen_mouse_move(
     CHyprSignalListener& listener,

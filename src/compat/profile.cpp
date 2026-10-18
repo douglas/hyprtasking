@@ -10,8 +10,7 @@
 
 namespace {
 
-constexpr std::array<std::string_view, 4> SUPPORTED_HYPRLAND_VERSIONS = {
-    "0.54.3",
+constexpr std::array<std::string_view, 3> SUPPORTED_HYPRLAND_VERSIONS = {
     "0.55",
     "0.56.0",
     "0.56.2",
@@ -20,13 +19,9 @@ constexpr std::array<std::string_view, 4> SUPPORTED_HYPRLAND_VERSIONS = {
 constexpr HTCompat::HookSpec INPUT_MOUSE_BUTTON_HOOK = {
     .label = "onMouseButton",
     .query = "onMouseButton",
-#if HT_HYPRLAND_GE_0_55
     .signature =
         "_ZN13CInputManager13onMouseButtonEN8IPointer12SButtonEventEN9Hyprutils6Memory"
         "14CSharedPointerIS0_EE",
-#else
-    .signature = "_ZN13CInputManager13onMouseButtonEN8IPointer12SButtonEventE",
-#endif
 };
 
 constexpr HTCompat::HookSpec RENDER_WORKSPACE_HOOK = {
@@ -37,14 +32,11 @@ constexpr HTCompat::HookSpec RENDER_WORKSPACE_HOOK = {
         "_ZN6Render13IHyprRenderer15renderWorkspaceEN9Hyprutils6Memory14CSharedPointer"
         "IN7Monitor8CMonitorEEENS3_I10CWorkspaceEERKNSt6chrono10time_pointINS9_3_V212"
         "steady_clockENS9_8durationIlSt5ratioILl1ELl1000000000EEEEEERKNS1_4Math4CBoxE",
-#elif HT_HYPRLAND_GE_0_55
+#else
     .signature =
         "_ZN6Render13IHyprRenderer15renderWorkspaceEN9Hyprutils6Memory14CSharedPointerI8"
         "CMonitorEENS3_I10CWorkspaceEERKNSt6chrono10time_pointINS8_3_V212steady_clockENS"
         "8_8durationIlSt5ratioILl1ELl1000000000EEEEEERKNS1_4Math4CBoxE",
-#else
-    .signature =
-        "_ZN13CHyprRenderer15renderWorkspaceEN9Hyprutils6Memory14CSharedPointerI8CMonitorEENS2_I10CWorkspaceEERKNSt6chrono10time_pointINS7_3_V212steady_clockENS7_8durationIlSt5ratioILl1ELl1000000000EEEEEERKNS0_4Math4CBoxE",
 #endif
 };
 
@@ -117,20 +109,13 @@ constexpr HTCompat::HookSpec SHOULD_RENDER_WINDOW_HOOK = {
     .signature =
         "_ZN6Render13IHyprRenderer18shouldRenderWindowEN9Hyprutils6Memory14CSharedPointer"
         "IN7Desktop4View7CWindowEEENS3_IN7Monitor8CMonitorEEE",
-#elif HT_HYPRLAND_GE_0_55
-    .query =
-        "_ZN6Render13IHyprRenderer18shouldRenderWindowEN9Hyprutils6Memory14CS"
-        "haredPointerIN7Desktop4View7CWindowEEENS3_I8CMonitorEE",
-    .signature =
-        "_ZN6Render13IHyprRenderer18shouldRenderWindowEN9Hyprutils6Memory14CS"
-        "haredPointerIN7Desktop4View7CWindowEEENS3_I8CMonitorEE",
 #else
     .query =
-        "_ZN13CHyprRenderer18shouldRenderWindowEN9Hyprutils6Memory14CS"
-        "haredPointerIN7Desktop4View7CWindowEEENS2_I8CMonitorEE",
+        "_ZN6Render13IHyprRenderer18shouldRenderWindowEN9Hyprutils6Memory14CS"
+        "haredPointerIN7Desktop4View7CWindowEEENS3_I8CMonitorEE",
     .signature =
-        "_ZN13CHyprRenderer18shouldRenderWindowEN9Hyprutils6Memory14CS"
-        "haredPointerIN7Desktop4View7CWindowEEENS2_I8CMonitorEE",
+        "_ZN6Render13IHyprRenderer18shouldRenderWindowEN9Hyprutils6Memory14CS"
+        "haredPointerIN7Desktop4View7CWindowEEENS3_I8CMonitorEE",
 #endif
 };
 
@@ -147,28 +132,17 @@ constexpr HTCompat::HookSpec RENDER_WINDOW_SYMBOL = {
         "IN7Desktop4View7CWindowEEENS3_IN7Monitor8CMonitorEEERKNSt6chrono10time_point"
         "INSB_3_V212steady_clockENSB_8durationIlSt5ratioILl1ELl1000000000EEEEEEbNS_15"
         "eRenderPassModeEbb",
-#elif HT_HYPRLAND_GE_0_55
-    .query =
-        "_ZN6Render13IHyprRenderer12renderWindowEN9Hyprutils6Memory14CSharedPointer"
-        "IN7Desktop4View7CWindowEEENS3_I8CMonitorEERKNSt6chrono10time_pointINSA_3"
-        "_V212steady_clockENSA_8durationIlSt5ratioILl1ELl1000000000EEEEEEbNS_15"
-        "eRenderPassModeEbb",
-    .signature =
-        "_ZN6Render13IHyprRenderer12renderWindowEN9Hyprutils6Memory14CSharedPointer"
-        "IN7Desktop4View7CWindowEEENS3_I8CMonitorEERKNSt6chrono10time_pointINSA_3"
-        "_V212steady_clockENSA_8durationIlSt5ratioILl1ELl1000000000EEEEEEbNS_15"
-        "eRenderPassModeEbb",
 #else
     .query =
-        "_ZN13CHyprRenderer12renderWindowEN9Hyprutils6Memory14CSha"
-        "redPointerIN7Desktop4View7CWindowEEENS2_I8CMonitorEERKNSt"
-        "6chrono10time_pointINS9_3_V212steady_clockENS9_8durationI"
-        "lSt5ratioILl1ELl1000000000EEEEEEb15eRenderPassModebb",
+        "_ZN6Render13IHyprRenderer12renderWindowEN9Hyprutils6Memory14CSharedPointer"
+        "IN7Desktop4View7CWindowEEENS3_I8CMonitorEERKNSt6chrono10time_pointINSA_3"
+        "_V212steady_clockENSA_8durationIlSt5ratioILl1ELl1000000000EEEEEEbNS_15"
+        "eRenderPassModeEbb",
     .signature =
-        "_ZN13CHyprRenderer12renderWindowEN9Hyprutils6Memory14CSha"
-        "redPointerIN7Desktop4View7CWindowEEENS2_I8CMonitorEERKNSt"
-        "6chrono10time_pointINS9_3_V212steady_clockENS9_8durationI"
-        "lSt5ratioILl1ELl1000000000EEEEEEb15eRenderPassModebb",
+        "_ZN6Render13IHyprRenderer12renderWindowEN9Hyprutils6Memory14CSharedPointer"
+        "IN7Desktop4View7CWindowEEENS3_I8CMonitorEERKNSt6chrono10time_pointINSA_3"
+        "_V212steady_clockENSA_8durationIlSt5ratioILl1ELl1000000000EEEEEEbNS_15"
+        "eRenderPassModeEbb",
 #endif
 };
 
@@ -318,13 +292,6 @@ bool function_hook_original_ready(CFunctionHook* hook) {
 }
 
 CompatibilityResult verify_compatibility() {
-#if !HT_FUNCTION_HOOKS_SUPPORTED_ARCH
-    return {
-        .supported = false,
-        .error = "Hyprtasking function hooks are supported only on x86_64 builds"
-    };
-#endif
-
     const auto version = HyprlandAPI::getHyprlandVersion(PHANDLE);
     const auto reported_version =
         version.tag.empty() ? std::string_view {version.branch} : std::string_view {version.tag};

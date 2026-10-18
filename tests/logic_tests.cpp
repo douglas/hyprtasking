@@ -28,15 +28,14 @@ void expect(bool condition, std::string_view message) {
 
 int main() {
     using namespace HTLogic;
-    constexpr std::array<std::string_view, 4> SUPPORTED_VERSIONS = {
-        "0.54.3",
+    constexpr std::array<std::string_view, 3> SUPPORTED_VERSIONS = {
         "0.55",
         "0.56.0",
         "0.56.2",
     };
 
     {
-        const auto result = decideCompatSupport(true, "0.54.3", "0.54.3", SUPPORTED_VERSIONS);
+        const auto result = decideCompatSupport(true, "0.56.2", "0.56.2", SUPPORTED_VERSIONS);
         expect(result.supported, "compat support should accept supported build versions");
         expect(
             result.status == CompatStatus::Supported,
@@ -84,27 +83,12 @@ int main() {
         );
     }
     {
-        const auto result = decideCompatSupport(true, "0.55.0", "0.54.3", SUPPORTED_VERSIONS);
-        expect(!result.supported, "compat support should reject package and runtime drift");
-        expect(
-            result.status == CompatStatus::RuntimePackageMismatch,
-            "compat support should expose runtime/package mismatch status"
-        );
-    }
-    {
-        const auto result = decideCompatSupport(true, "0.54.2", "0.54.2", SUPPORTED_VERSIONS);
-        expect(
-            !result.supported,
-            "compat support should reject older unsupported 0.54 patch releases"
-        );
+        const auto result = decideCompatSupport(true, "0.54.3", "0.54.3", SUPPORTED_VERSIONS);
+        expect(!result.supported, "compat support should reject dropped 0.54 releases");
     }
     {
         const auto result = decideCompatSupport(true, "0.55.1", "0.55.1", SUPPORTED_VERSIONS);
         expect(result.supported, "compat support should accept supported 0.55 patch releases");
-    }
-    {
-        const auto result = decideCompatSupport(true, "0.56.2", "0.56.2", SUPPORTED_VERSIONS);
-        expect(result.supported, "compat support should accept Hyprland 0.56.2");
     }
     expect(
         versionIsSupported("v0.55.2", SUPPORTED_VERSIONS),

@@ -29,15 +29,12 @@ add_project_arguments(
   language: 'cpp')
 
 # System include type keeps warnings from Hyprland headers out of our build.
-hyprland_dep = dependency('hyprland', include_type: 'system')
+hyprland_dep = dependency('hyprland', version: '>=0.55.0', include_type: 'system')
 
 build_contract = configuration_data()
 build_contract.set('HT_BUILT_HYPRLAND_PKG_VERSION', hyprland_dep.version())
-build_contract.set('HT_SUPPORTED_HYPRLAND_TARGETS', '0.54.3, 0.55.x, 0.56.0, and 0.56.2')
 build_contract.set('HT_PROJECT_VERSION', meson.project_version())
-build_contract.set10('HT_HYPRLAND_GE_0_55', hyprland_dep.version().version_compare('>=0.55.0'))
 build_contract.set10('HT_HYPRLAND_GE_0_56', hyprland_dep.version().version_compare('>=0.56.0'))
-build_contract.set10('HT_FUNCTION_HOOKS_SUPPORTED_ARCH', host_machine.cpu_family() == 'x86_64')
 
 configure_file(
   input: 'src/build_contract.hpp.in',
