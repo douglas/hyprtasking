@@ -175,10 +175,11 @@ int luaCommit(lua_State* state) {
 // so scripts can poll it.
 int luaHealth(lua_State* state) {
     {
-        const std::string fallback = "runtime_enabled=false disable_reason=\"health unavailable\"";
-        const auto health = guardedValue("lua_health", fallback, [&fallback] {
-            return ht_manager->runtime_health_summary();
-        });
+        const auto health = guardedValue(
+            "lua_health",
+            std::string {"runtime_enabled=false disable_reason=\"health unavailable\""},
+            [] { return ht_manager->runtime_health_summary(); }
+        );
         lua_pushstring(state, health.c_str());
     }
     return 1;
