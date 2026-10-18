@@ -50,8 +50,6 @@ core_src = [
   'src/main.cpp',
   'src/manager.cpp',
   'src/overview.cpp',
-  'src/render.cpp',
-  'src/render_snapshot.cpp',
 ]
 
 layout_src = [

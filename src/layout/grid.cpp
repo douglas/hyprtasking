@@ -15,7 +15,6 @@
 #include "../logic/navigation_model.hpp"
 #include "../overview.hpp"
 #include "../plugin/guards.hpp"
-#include "../render_snapshot.hpp"
 #include "../scope_guard.hpp"
 #include "../state_guards.hpp"
 #include "../types.hpp"
@@ -37,6 +36,68 @@ template<typename T>
 T skip_invalid_geometry(std::string_view source, const std::string& reason, T fallback) {
     warn_invalid_geometry(source, reason);
     return fallback;
+}
+
+struct DraggedWindowBox {
+    PHLWINDOW window;
+    CBox box;
+};
+
+// The dragged window scaled around the cursor, when it shows on monitor.
+std::optional<DraggedWindowBox> dragged_window_box(PHLMONITOR monitor, float scale) {
+    const PHLWINDOW window = ht_manager->get_dragged_window();
+    if (window == nullptr)
+        return std::nullopt;
+
+    const Vector2D mouse_coords = HTCompat::mouse_coords();
+    if (!HTLogic::isFinitePoint(mouse_coords.x, mouse_coords.y))
+        return std::nullopt;
+
+    const CBox box = HTCompat::window_main_surface_box(window)
+                         .translate(-mouse_coords)
+                         .scale(scale)
+                         .translate(mouse_coords);
+    if (box.empty() || !HTLogic::isFinitePoint(box.x, box.y)
+        || !HTLogic::isFinitePoint(box.w, box.h))
+        return std::nullopt;
+    if (box.intersection(HTCompat::monitor_logical_box(monitor)).empty())
+        return std::nullopt;
+
+    return DraggedWindowBox {.window = window, .box = box};
+}
+
+// Note: box is relative to (0, 0), not monitor
+void render_window_at_box(
+    PHLWINDOW window,
+    PHLMONITOR monitor,
+    const Time::steady_tp& time,
+    CBox box
+) {
+    const Vector2D monitor_pos = HTCompat::monitor_position(monitor);
+    box.x -= monitor_pos.x;
+    box.y -= monitor_pos.y;
+
+    const Vector2D window_size = HTCompat::window_real_size(window);
+    const float monitor_scale = HTCompat::monitor_scale(monitor);
+    if (!HTLogic::isPositiveFinite(monitor_scale))
+        return;
+
+    const auto scale = HTLogic::windowRenderScale(box.w, box.h, window_size.x, window_size.y);
+    if (!scale.has_value())
+        return;
+
+    const Vector2D transform =
+        (monitor_pos - HTCompat::window_real_position(window) + box.pos() / *scale) * monitor_scale;
+    if (!std::isfinite(transform.x) || !std::isfinite(transform.y))
+        return;
+
+    HTRenderModifData data {};
+    data.modifs.push_back({HTRenderModifData::eRenderModifType::RMOD_TYPE_TRANSLATE, transform});
+    data.modifs.push_back({HTRenderModifData::eRenderModifType::RMOD_TYPE_SCALE, *scale});
+    HTCompat::add_renderer_hints_pass(data);
+    HTScopeGuard reset_hints([] { HTCompat::add_renderer_hints_pass(HTRenderModifData {}); });
+
+    HTCompat::render_window_original(window, monitor, time, true, HT_RENDER_PASS_MAIN, false, true);
 }
 
 } // namespace
@@ -423,13 +484,11 @@ void HTLayoutGrid::render() {
         );
         return;
     }
-    const auto render_snapshot = capture_render_snapshot(view_id, drag_window_scale());
-    const auto time = render_snapshot.has_value() ? render_snapshot->time : Time::steadyNow();
+    const auto dragged = dragged_window_box(monitor, *render_scale);
+    const auto time = Time::steadyNow();
     PHLWORKSPACE start_workspace = nullptr;
     if (par_view->closing && close_render_workspace_id != WORKSPACE_INVALID)
         start_workspace = HTCompat::workspace_by_id(close_render_workspace_id);
-    if (start_workspace == nullptr && render_snapshot.has_value())
-        start_workspace = render_snapshot->active_workspace;
     if (start_workspace == nullptr)
         start_workspace = HTCompat::active_monitor_workspace(monitor);
     const WORKSPACEID selected_workspace_id = par_view->visual_workspace_id(
@@ -440,8 +499,7 @@ void HTLayoutGrid::render() {
     // redraws the whole monitor, and the next frame is only requested while
     // something moves; surface commits and an idle timer in HTManager request
     // the rest.
-    if (has_pending_motion()
-        || (render_snapshot.has_value() && render_snapshot->dragged_window.has_value()))
+    if (has_pending_motion() || dragged.has_value())
         HTCompat::damage_monitor(monitor);
     const Vector2D transformed_size = HTCompat::monitor_transformed_size(monitor);
     if (!HTLogic::isPositiveFinite(transformed_size.x)
@@ -514,8 +572,8 @@ void HTLayoutGrid::render() {
         && start_layout->box.width > 0.01 && start_layout->box.height > 0.01)
         render_cell(start_id, start_layout->box, start_workspace);
 
-    if (render_snapshot.has_value())
-        render_dragged_window_snapshot(*render_snapshot);
+    if (dragged.has_value())
+        render_window_at_box(dragged->window, monitor, time, dragged->box);
 }
 
 void HTLayoutGrid::request_redraw() {
