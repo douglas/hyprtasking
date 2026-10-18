@@ -13,10 +13,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - track: v0.54.3
-            ref: v0.54.3
           - track: v0.55.0
             ref: v0.55.0
+          - track: v0.56.0
+            ref: v0.56.0
           - track: v0.56.2
             ref: v0.56.2
     steps:

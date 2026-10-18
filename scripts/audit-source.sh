@@ -59,8 +59,8 @@ check 'function hooks created only in approved files' \
 check 'function hooks removed only in approved files' \
   "$(src_matches 'removeFunctionHook\(' "$HOOK_FILES")"
 check 'no deprecated Hyprland plugin APIs' "$(src_matches \
-  'HyprlandAPI::(addConfigKeyword|registerCallbackDynamic|unregisterCallback|addLayout|removeLayout|addDispatcher|getConfigValue|getFunctionAddressFromSignature|addConfigValue)\(' \
-  'src/config\.cpp:.*HyprlandAPI::(getConfigValue|addConfigValue)\(')"
+  'HyprlandAPI::(addConfigKeyword|registerCallbackDynamic|unregisterCallback|addLayout|removeLayout|addDispatcher|getConfigValue|getFunctionAddressFromSignature|addConfigValue)\(')"
+check 'no Hyprland 0.54 build gates' "$(src_matches 'HT_HYPRLAND_GE_0_55')"
 check 'hook originals read only in compat wrappers' "$(src_matches '->m_original' \
   'src/compat/profile\.(cpp|hpp)|src/compat/renderer_compat\.cpp|src/compat/runtime_compat\.cpp')"
 check 'deferred callbacks never run synchronously' \
@@ -68,9 +68,9 @@ check 'deferred callbacks never run synchronously' \
 
 # Support matrix: CI and hyprpm pins track only supported Hyprland refs.
 check 'no stale Hyprland refs in workflows' \
-  "$(rg -n 'v0\.54\.[0-2]' "$REPO_DIR/.github/workflows" || true)"
+  "$(rg -n 'v0\.(4[0-9]|5[0-4])\.' "$REPO_DIR/.github/workflows" || true)"
 check 'no stale Hyprland refs in hyprpm pins' \
-  "$(rg -n 'v0\.(4[0-9]|5[0-3]|54\.[0-2])' "$REPO_DIR/hyprpm.toml" || true)"
+  "$(rg -n 'v0\.(4[0-9]|5[0-4])\.' "$REPO_DIR/hyprpm.toml" || true)"
 missing_pins=""
 for ref in "${HYPRPM_REQUIRED_REFS[@]}"; do
   rg -q "#${ref}$" "$REPO_DIR/hyprpm.toml" || missing_pins+="$ref "
