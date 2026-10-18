@@ -656,19 +656,21 @@ WORKSPACEID HTLayoutGrid::get_ws_id_from_global(Vector2D pos) {
     return WORKSPACE_INVALID;
 }
 
+// The cell itself in global layout coordinates: cell boxes are in monitor
+// pixels relative to the monitor, global coordinates are logical.
 CBox HTLayoutGrid::get_global_ws_box(WORKSPACEID workspace_id) {
+    const PHLMONITOR monitor = get_monitor();
+    const float monitor_scale = HTCompat::monitor_scale(monitor);
     const auto* layout_workspace = find_layout_workspace(workspace_id);
-    if (layout_workspace == nullptr)
+    if (monitor == nullptr || layout_workspace == nullptr
+        || !HTLogic::isPositiveFinite(monitor_scale))
         return {};
 
-    const CBox scaled_ws_box = layout_workspace->box;
-    const Vector2D top_left = local_ws_scaled_to_global(scaled_ws_box.pos(), workspace_id);
-    const Vector2D bottom_right =
-        local_ws_scaled_to_global(scaled_ws_box.pos() + scaled_ws_box.size(), workspace_id);
-    if (!HTLogic::isFinitePoint(top_left.x, top_left.y)
-        || !HTLogic::isFinitePoint(bottom_right.x, bottom_right.y))
-        return {};
-    return {top_left, bottom_right - top_left};
+    const CBox& box = layout_workspace->box;
+    return {
+        box.pos() / monitor_scale + HTCompat::monitor_position(monitor),
+        box.size() / monitor_scale
+    };
 }
 
 // Where workspace_id is drawn right now; nullopt without a usable cell.
@@ -697,29 +699,26 @@ std::optional<HTLogic::CellMapping> HTLayoutGrid::cell_mapping(WORKSPACEID works
     };
 }
 
-Vector2D HTLayoutGrid::global_to_local_ws_unscaled(Vector2D pos, WORKSPACEID workspace_id) {
+// nullopt without a usable cell, so callers never act on a made-up origin.
+std::optional<Vector2D>
+HTLayoutGrid::global_to_local_ws_unscaled(Vector2D pos, WORKSPACEID workspace_id) {
     const auto mapping = cell_mapping(workspace_id);
     if (!mapping.has_value())
-        return {};
+        return std::nullopt;
 
     const auto local = HTLogic::globalToWorkspace(*mapping, {.x = pos.x, .y = pos.y});
     if (!HTLogic::isFinitePoint(local.x, local.y))
-        return {};
-    return {local.x, local.y};
+        return std::nullopt;
+    return Vector2D {local.x, local.y};
 }
 
 std::optional<Vector2D>
 HTLayoutGrid::global_to_workspace_monitor_coords(Vector2D pos, WORKSPACEID workspace_id) {
-    const PHLMONITOR monitor = get_monitor();
-    if (monitor == nullptr)
+    const auto local_coords = global_to_local_ws_unscaled(pos, workspace_id);
+    if (!local_coords.has_value())
         return std::nullopt;
 
-    const Vector2D local_coords = global_to_local_ws_unscaled(pos, workspace_id);
-    const Vector2D monitor_coords = local_coords + HTCompat::monitor_position(monitor);
-    if (!std::isfinite(monitor_coords.x) || !std::isfinite(monitor_coords.y))
-        return std::nullopt;
-
-    return monitor_coords;
+    return *local_coords + HTCompat::monitor_position(get_monitor());
 }
 
 Vector2D HTLayoutGrid::local_ws_unscaled_to_global(Vector2D pos, WORKSPACEID workspace_id) {
@@ -731,16 +730,6 @@ Vector2D HTLayoutGrid::local_ws_unscaled_to_global(Vector2D pos, WORKSPACEID wor
     if (!HTLogic::isFinitePoint(global.x, global.y))
         return {};
     return {global.x, global.y};
-}
-
-Vector2D HTLayoutGrid::local_ws_scaled_to_global(Vector2D pos, WORKSPACEID workspace_id) {
-    const PHLMONITOR monitor = get_monitor();
-    const float monitor_scale = HTCompat::monitor_scale(monitor);
-    if (monitor == nullptr || !HTLogic::isPositiveFinite(monitor_scale))
-        return {};
-
-    pos /= monitor_scale;
-    return local_ws_unscaled_to_global(pos, workspace_id);
 }
 
 WORKSPACEID HTLayoutGrid::get_ws_id_from_xy(int x, int y) {

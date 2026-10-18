@@ -36,7 +36,7 @@ class HTLayoutGrid {
     const HTWorkspace* find_layout_workspace(WORKSPACEID workspace_id) const;
     WORKSPACEID get_ws_id_from_global(Vector2D pos);
     CBox get_global_ws_box(WORKSPACEID workspace_id);
-    Vector2D global_to_local_ws_unscaled(Vector2D pos, WORKSPACEID workspace_id);
+    std::optional<Vector2D> global_to_local_ws_unscaled(Vector2D pos, WORKSPACEID workspace_id);
     std::optional<Vector2D>
     global_to_workspace_monitor_coords(Vector2D pos, WORKSPACEID workspace_id);
     Vector2D local_ws_unscaled_to_global(Vector2D pos, WORKSPACEID workspace_id);
@@ -92,7 +92,6 @@ class HTLayoutGrid {
     CBox calculate_ws_box(int x, int y, HTViewStage stage);
     void set_offset_end_callback(CallbackFun on_complete);
     std::optional<HTLogic::CellMapping> cell_mapping(WORKSPACEID workspace_id);
-    Vector2D local_ws_scaled_to_global(Vector2D pos, WORKSPACEID workspace_id);
     WORKSPACEID get_ws_id_from_xy(int x, int y);
 
     // Same as monitor_id of the parent view

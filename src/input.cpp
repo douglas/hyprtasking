@@ -241,15 +241,14 @@ void HTManager::end_window_drag() {
         return;
     const Vector2D cursor_monitor_pos = HTCompat::monitor_position(cursor_monitor);
 
-    const Vector2D warped_global_pos =
-        cursor_view->layout->global_to_local_ws_unscaled(
-            (HTCompat::window_real_position(dragged_window) - use_mouse_coords) * drag_scale
-                + use_mouse_coords,
-            drop_workspace_id
-        )
-        + cursor_monitor_pos;
-    if (!HTLogic::isFinitePoint(warped_global_pos.x, warped_global_pos.y))
+    const auto warped_local_pos = cursor_view->layout->global_to_local_ws_unscaled(
+        (HTCompat::window_real_position(dragged_window) - use_mouse_coords) * drag_scale
+            + use_mouse_coords,
+        drop_workspace_id
+    );
+    if (!warped_local_pos.has_value())
         return;
+    const Vector2D warped_global_pos = *warped_local_pos + cursor_monitor_pos;
 
     HTScopedMonitorWorkspace restore_workspace(cursor_monitor);
     if (!HTCompat::activate_monitor_workspace_internal(cursor_monitor, cursor_workspace))
