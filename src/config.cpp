@@ -162,7 +162,6 @@ namespace HTConfig {
 bool register_values() {
     bool success = true;
 
-    success = add_int_config("debug:trace", 0, "Enable Hyprtasking trace logging") && success;
     success =
         add_int_config("drag_button", BTN_LEFT, "Mouse button used for overview drag") && success;
     success = add_int_config("select_button", BTN_RIGHT, "Mouse button used for overview selection")
@@ -189,7 +188,6 @@ bool register_values() {
 
 bool refresh_runtime_config(std::string_view source) {
     RuntimeConfig config;
-    config.debug_trace = int_config_or("debug:trace", config.debug_trace);
     config.drag_button = int_config_or("drag_button", config.drag_button);
     config.select_button = int_config_or("select_button", config.select_button);
     config.gestures_enabled =

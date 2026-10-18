@@ -12,7 +12,6 @@
 #include "plugin/dispatchers.hpp"
 #include "plugin/guards.hpp"
 #include "plugin/runtime.hpp"
-#include "trace.hpp"
 
 namespace {
 
@@ -105,5 +104,4 @@ APICALL EXPORT void PLUGIN_EXIT() {
     cleanup_step("deferred_callbacks", [] { HTCompat::cancel_pending_do_later(); });
     cleanup_step("renderer_hooks", [] { HTCompat::shutdownRendererHooks(); });
     cleanup_step("manager_destroy", [] { ht_manager.reset(); });
-    cleanup_step("trace", [] { HTTrace::shutdown(); });
 }

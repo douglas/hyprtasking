@@ -16,7 +16,6 @@
 #include "../globals.hpp"
 #include "../overview.hpp"
 #include "../runtime_fail.hpp"
-#include "../trace.hpp"
 #include "guards.hpp"
 
 using Hyprutils::Signal::CHyprSignalListener;
@@ -32,14 +31,6 @@ CHyprSignalListener g_monitor_added_listener;
 CHyprSignalListener g_monitor_removed_listener;
 CHyprSignalListener g_monitor_layout_changed_listener;
 std::vector<CHyprSignalListener> g_window_set_listeners;
-
-template<class... Args>
-void trace_log(std::format_string<Args...> fmt, Args&&... args) {
-    if (!HTTrace::enabled())
-        return;
-
-    HTTrace::log(fmt, std::forward<Args>(args)...);
-}
 
 bool disable_runtime_on_setup_failure(std::string_view source, std::string_view reason) {
     HTRuntimeFail::disable(source, reason);
@@ -63,19 +54,6 @@ bool mark_listener_ready(HTListenerInfo& info, bool installed, std::string_view 
 
 void shutdownMouseButtonHook();
 
-const char* mouseButtonResultName(HTLogic::MouseButtonResult result) {
-    switch (result) {
-        case HTLogic::MouseButtonResult::Ignore:
-            return "ignore";
-        case HTLogic::MouseButtonResult::Consume:
-            return "consume";
-        case HTLogic::MouseButtonResult::PassThrough:
-            return "pass_through";
-    }
-
-    return "unknown";
-}
-
 void onMouseButton(IPointer::SButtonEvent e, Event::SCallbackInfo& info) {
     HTPlugin::guardedCallback("on_mouse_button", [&] {
         if (ht_manager == nullptr || !ht_manager->runtime_enabled())
@@ -84,14 +62,6 @@ void onMouseButton(IPointer::SButtonEvent e, Event::SCallbackInfo& info) {
         const bool pressed = e.state == WL_POINTER_BUTTON_STATE_PRESSED;
         const auto result = ht_manager->handle_mouse_button(e.button, pressed);
         info.cancelled = result == HTLogic::MouseButtonResult::Consume;
-        trace_log(
-            "[Hyprtasking][trace] mouse button={} pressed={} mouse_device={} result={} cancelled={}",
-            e.button,
-            pressed,
-            e.mouse,
-            mouseButtonResultName(result),
-            info.cancelled
-        );
     });
 }
 
@@ -179,7 +149,6 @@ void onWindowSetChanged() {
 void onConfigReloaded() {
     HTPlugin::guardedCallback("on_config_reloaded", [] {
         HTConfig::refresh_runtime_config("on_config_reloaded");
-        HTTrace::refresh();
 
         if (ht_manager == nullptr)
             return;
@@ -212,7 +181,6 @@ void initializeConfig() {
 
     HyprlandAPI::reloadConfig();
     HTConfig::refresh_runtime_config("initialize_config");
-    HTTrace::refresh();
 }
 
 void unregisterCallbacks() {
@@ -231,8 +199,6 @@ void unregisterCallbacks() {
 
 bool registerCallbacks() {
     unregisterCallbacks();
-    HTTrace::refresh();
-    trace_log("[Hyprtasking][trace] registerCallbacks installing live input listeners");
     HTConfig::refresh_runtime_config("register_callbacks");
 
     if (!initializeMouseButtonHook())

@@ -15,7 +15,6 @@ inline constexpr int MAX_GRID_ROWS = 8;
 inline constexpr int MAX_GRID_COLS = 8;
 
 struct RuntimeConfig {
-    int debug_trace = 0;
     int drag_button = BTN_LEFT;
     int select_button = BTN_RIGHT;
     bool gestures_enabled = true;

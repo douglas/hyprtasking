@@ -10,7 +10,6 @@
 #include "logic/controller_state.hpp"
 #include "logic/navigation_model.hpp"
 #include "runtime_fail.hpp"
-#include "trace.hpp"
 
 namespace {
 
@@ -376,37 +375,17 @@ bool HTView::navigate_selection(const std::string& arg) {
     if (navigate_arg.kind == HTLogic::NavigateArgKind::Direction) {
         const WORKSPACEID source_ws_id =
             HTLogic::resolveKeyboardSelectionWorkspace(keyboard_workspace_id, active_workspace_id);
-        HTTrace::log(
-            "[Hyprtasking][trace] navigate_selection dir={} active_ws={} keyboard_ws={} selected_ws={} hover_active={} hovered_ws={} source_ws={}",
-            navigate_arg.direction,
-            active_workspace_id,
-            keyboard_workspace_id,
-            selected_workspace_id,
-            hover_active,
-            hovered_workspace_id,
-            source_ws_id
-        );
 
         if (source_ws_id == WORKSPACE_INVALID)
             return false;
 
         const auto* ws_layout = layout->find_layout_workspace(source_ws_id);
         if (ws_layout == nullptr) {
-            HTTrace::log(
-                "[Hyprtasking][trace] navigate_selection no layout for source_ws={}",
-                source_ws_id
-            );
             return false;
         }
 
         const WORKSPACEID target_ws_id =
             layout->get_ws_id_in_direction(ws_layout->x, ws_layout->y, navigate_arg.direction);
-        HTTrace::log(
-            "[Hyprtasking][trace] navigate_selection source=({}, {}) target_ws={}",
-            ws_layout->x,
-            ws_layout->y,
-            target_ws_id
-        );
         if (target_ws_id == WORKSPACE_INVALID)
             return true;
 
