@@ -14,16 +14,6 @@ if [[ -z "$HYPRLAND_SOURCE" ]]; then
   exit 1
 fi
 
-version_supported() {
-  local candidate
-  for candidate in "${SUPPORTED_VERSIONS[@]}"; do
-    if [[ "$1" == "$candidate" || "$1" == "$candidate".* ]]; then
-      return 0
-    fi
-  done
-  return 1
-}
-
 # Literal pattern -> regex that tolerates whitespace changes.
 loose_regex() {
   printf '%s' "$1" | sed -E 's/[][(){}.^$+*?|\\]/\\&/g; s/[[:space:]]+/[[:space:]]+/g'
@@ -62,7 +52,7 @@ printf 'Hyprtasking compat audit\n'
 printf 'Source: %s (Hyprland %s)\n' "$HYPRLAND_SOURCE" "$TARGET_VERSION"
 printf 'Supported targets: %s\n' "$SUPPORTED_TARGETS"
 
-if ! version_supported "$TARGET_VERSION"; then
+if ! supported_target "$TARGET_VERSION" >/dev/null; then
   printf 'Unsupported Hyprland version for this plugin line: %s\n' "$TARGET_VERSION" >&2
   exit 3
 fi

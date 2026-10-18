@@ -25,19 +25,6 @@ normalize_version() {
   printf '%s' "$version"
 }
 
-# Prints the SUPPORTED_VERSIONS entry covering $1, or fails.
-support_target() {
-  local supported
-  [[ -n "$1" ]] || return 1
-  for supported in "${SUPPORTED_VERSIONS[@]}"; do
-    if [[ "$1" == "$supported" || "$1" == "$supported".* ]]; then
-      printf '%s' "$supported"
-      return 0
-    fi
-  done
-  return 1
-}
-
 runtime_version() {
   local output parsed
   output="$("${HYPRCTL_PREFIX[@]}" version 2>/dev/null)" || return 1
@@ -49,13 +36,13 @@ runtime_version() {
 }
 
 PKG_VERSION="$(normalize_version "$(pkg-config --modversion hyprland)")"
-PKG_TARGET="$(support_target "$PKG_VERSION")" ||
+PKG_TARGET="$(supported_target "$PKG_VERSION")" ||
   die 3 "Installed hyprland package is outside the supported targets ($SUPPORTED_TARGETS): $PKG_VERSION"
 
 hypr_set_prefix version || die 2 'Unable to detect a live Hyprland instance.'
 RUNTIME_VERSION="$(runtime_version)" || die 2 'Unable to query the live Hyprland runtime version.'
 [[ -n "$RUNTIME_VERSION" ]] || die 2 'Unable to determine the live Hyprland runtime version.'
-RUNTIME_TARGET="$(support_target "$RUNTIME_VERSION")" ||
+RUNTIME_TARGET="$(supported_target "$RUNTIME_VERSION")" ||
   die 3 "Running Hyprland is outside the supported targets ($SUPPORTED_TARGETS): $RUNTIME_VERSION"
 [[ "$PKG_TARGET" == "$RUNTIME_TARGET" ]] ||
   die 4 "Installed hyprland package ($PKG_VERSION) does not match the running Hyprland ($RUNTIME_VERSION)."
@@ -64,7 +51,7 @@ if [[ -n "$HYPRLAND_SOURCE" ]]; then
   [[ -f "$HYPRLAND_SOURCE/VERSION" ]] ||
     die 2 "Hyprland source tree is missing VERSION: $HYPRLAND_SOURCE"
   SOURCE_VERSION="$(normalize_version "$(< "$HYPRLAND_SOURCE/VERSION")")"
-  SOURCE_TARGET="$(support_target "$SOURCE_VERSION")" ||
+  SOURCE_TARGET="$(supported_target "$SOURCE_VERSION")" ||
     die 3 "Hyprland source tree is outside the supported targets ($SUPPORTED_TARGETS): $SOURCE_VERSION"
   [[ "$SOURCE_TARGET" == "$PKG_TARGET" ]] ||
     die 4 "Hyprland source tree ($SOURCE_VERSION) does not match installed package headers ($PKG_VERSION)."
