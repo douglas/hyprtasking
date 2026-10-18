@@ -41,8 +41,6 @@ class HTManager {
     PHTVIEW get_view_from_id(VIEWID view_id);
     HTCursorWorkspaceContext resolve_cursor_workspace(bool create_if_missing);
 
-    PHLWINDOW get_window_from_cursor();
-
     void prepare_for_unload();
     void sync_monitor_views(MONITORID removed_monitor_id = MONITOR_INVALID);
     void reset_drag_state();
@@ -65,7 +63,7 @@ class HTManager {
     std::string runtime_health_summary() const;
 
     HTLogic::MouseButtonResult handle_mouse_button(unsigned int button, bool pressed);
-    bool start_window_drag();
+    bool start_window_drag(const HTCursorWorkspaceContext& cursor_context);
     void end_window_drag();
     bool on_mouse_move();
 

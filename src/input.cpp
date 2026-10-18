@@ -54,7 +54,7 @@ HTLogic::MouseButtonResult HTManager::handle_mouse_button(unsigned int button, b
             return HTLogic::MouseButtonResult::Consume;
 
         if (is_drag_button) {
-            if (start_window_drag())
+            if (start_window_drag(cursor_context))
                 claimed_mouse_interaction = HT_MOUSE_DRAG;
         } else {
             claimed_mouse_interaction = HT_MOUSE_SELECT;
@@ -80,25 +80,15 @@ HTLogic::MouseButtonResult HTManager::handle_mouse_button(unsigned int button, b
     return HTLogic::MouseButtonResult::Consume;
 }
 
-bool HTManager::start_window_drag() {
+// cursor_context has an open, non-closing view and a workspace under the cursor.
+bool HTManager::start_window_drag(const HTCursorWorkspaceContext& cursor_context) {
     clear_dragged_window();
 
-    const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace(false);
     const PHLMONITOR cursor_monitor = cursor_context.monitor;
     const PHTVIEW cursor_view = cursor_context.view;
     const Vector2D mouse_coords = cursor_context.mouse_coords;
     const WORKSPACEID workspace_id = cursor_context.workspace_id;
-    PHLWORKSPACE cursor_workspace = cursor_context.workspace;
-    const PHLWINDOW hovered_window = get_window_from_cursor();
-
-    if (cursor_monitor == nullptr || cursor_view == nullptr
-        || !HTLogic::canStartInteraction(
-            true,
-            cursor_view->active,
-            cursor_view->closing,
-            cursor_workspace != nullptr
-        ))
-        return false;
+    const PHLWORKSPACE cursor_workspace = cursor_context.workspace;
 
     HTScopedMonitorWorkspace restore_workspace(cursor_monitor);
     if (!HTCompat::activate_monitor_workspace_internal(cursor_monitor, cursor_workspace))
@@ -109,6 +99,7 @@ bool HTManager::start_window_drag() {
         cursor_view->layout->global_to_workspace_monitor_coords(mouse_coords, workspace_id);
     if (!workspace_coords.has_value())
         return false;
+    const PHLWINDOW hovered_window = HTCompat::hover_target_window_at(*workspace_coords);
     if (!HTCompat::warp_pointer(*workspace_coords))
         return false;
 

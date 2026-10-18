@@ -12,7 +12,6 @@
 #include "logic/view_sync_model.hpp"
 #include "overview.hpp"
 #include "plugin/guards.hpp"
-#include "state_guards.hpp"
 
 HTManager::HTManager() {
     reset_swipe_state();
@@ -70,40 +69,6 @@ HTCursorWorkspaceContext HTManager::resolve_cursor_workspace(bool create_if_miss
         create_if_missing
     );
     return context;
-}
-
-PHLWINDOW HTManager::get_window_from_cursor() {
-    const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace(false);
-    const PHLMONITOR cursor_monitor = cursor_context.monitor;
-    if (cursor_monitor == nullptr)
-        return nullptr;
-
-    const PHTVIEW cursor_view = cursor_context.view;
-    if (cursor_view == nullptr)
-        return nullptr;
-    const Vector2D mouse_coords = cursor_context.mouse_coords;
-
-    if (!cursor_view->active) {
-        return HTCompat::hover_target_window_at(mouse_coords);
-    }
-    const WORKSPACEID ws_id = cursor_context.workspace_id;
-    const PHLWORKSPACE hovered_workspace = cursor_context.workspace;
-    if (hovered_workspace == nullptr)
-        return nullptr;
-
-    const auto ws_coords =
-        cursor_view->layout->global_to_workspace_monitor_coords(mouse_coords, ws_id);
-    if (!ws_coords.has_value())
-        return nullptr;
-
-    HTScopedMonitorWorkspace restore_workspace(cursor_monitor);
-    if (!HTCompat::activate_monitor_workspace_internal(cursor_monitor, hovered_workspace))
-        return nullptr;
-    HTScopedWorkspaceVisibility visible_workspace(hovered_workspace, true);
-
-    const PHLWINDOW hovered_window = HTCompat::hover_target_window_at(*ws_coords);
-
-    return hovered_window;
 }
 
 void HTManager::show_all_views() {
