@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+### Removed
+
+- Hyprland 0.54 support. Supported versions are now `0.55.x`, `0.56.0`, and
+  `0.56.2`.
+- The `debug:trace` config option and the `HYPRTASKING_TRACE` environment
+  variable.
+- JSON health output. `hyprtasking:health` and
+  `hl.plugin.hyprtasking.health()` now return one summary line.
+
+### Fixed
+
+- Guard overview animation-end callbacks and the remaining hook and deferred
+  callback paths.
+- Ignore a second managed mouse button pressed while a drag is held.
+- Reset the submap only if Hyprtasking entered it.
+- Hide only views that are open.
+- Keep a hook's pointer when removing the hook fails.
+- Hit-test keyboard selection against the open overview.
+- Start moves with the overview closed from the current workspace.
+
 ## 0.5.4 - 2026-10-16
 
 ### Changed
