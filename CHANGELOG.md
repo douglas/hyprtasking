@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 - 2026-10-18
 
 ### Removed
 
@@ -21,6 +21,21 @@
 - Keep a hook's pointer when removing the hook fails.
 - Hit-test keyboard selection against the open overview.
 - Start moves with the overview closed from the current workspace.
+- Keep exceptions from cleanup code out of destructors, where they would
+  terminate Hyprland.
+- Return cancelled swipes to where they started instead of committing them.
+- Drop a removed monitor's overview right away on Hyprland 0.55, which
+  reports the removal before updating its monitor list.
+- Stop a bogus render-scope warning when the plugin disables itself
+  mid-frame.
+
+### Changed
+
+- Stop copying texture data on every draw and the window list on every
+  overview frame.
+- Reject grid gaps that leave no room for workspace cells.
+- Test the grid geometry, coordinate mapping and navigation directly, and
+  run clang-tidy and the source audit in CI.
 
 ## 0.5.4 - 2026-10-16
 
