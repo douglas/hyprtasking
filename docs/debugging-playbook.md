@@ -86,7 +86,7 @@ Signs: blank or partial overview, the plugin disables itself after
 open/reopen/reload, or flicker when reopening quickly. Run the `render-reentry`
 manual check and `bash scripts/smoke-live.sh reload-open`.
 
-Start in `src/compat/renderer_compat.cpp`, `src/render.cpp`, and
+Start in `src/compat/renderer_compat.cpp`, `src/layout/grid.cpp`, and
 `src/overview.cpp`. Config reload always cancels active overview state and
 reinitializes grid positions; a half-open overview after reload is a lifecycle
 bug.
@@ -102,7 +102,7 @@ Signs: the plugin gets the right button data but selects the wrong workspace,
 drops on the wrong target, or resolves hover wrongly.
 
 Start in `src/input.cpp`, `src/overview.cpp`, `src/layout/`, and
-`src/logic/interaction_model.*`.
+`src/logic/logic.*`.
 
 ### E. Focus or seat aftermath failure
 
