@@ -74,6 +74,11 @@ HTLogic::MouseButtonResult HTManager::handle_mouse_button(unsigned int button, b
         );
         if (!consume_press)
             return HTLogic::MouseButtonResult::Ignore;
+        // Another managed button already owns the interaction; re-claiming would
+        // orphan its release and leave a drag attached to the cursor. The same
+        // button may re-claim, so a lost release cannot block input for good.
+        if (mouse_button_claimed && claimed_mouse_button != button)
+            return HTLogic::MouseButtonResult::Consume;
 
         claim_mouse_button(
             button,
