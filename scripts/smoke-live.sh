@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 # Live smoke checks against a running Hyprland. Modes:
 #   all          load/unload, dispatcher probes, config safety, toggle/move, reloads
-#   stress       repeated load/unload, toggle/move, reload, and reload-open cycles
+#   stress       all, with more cycles (defaults 3/3/2 instead of 1/1/1)
 #   dispatchers  check toggle/move/select/commit/health are registered
 #   safety       invalid config values are rejected while the runtime stays enabled
-#   load-unload | toggle | move | reload | reload-open   run one stage
-#   manual       confirm the plugin is loaded, then point at the manual checks
+#   load-unload | toggle | reload | reload-open   run one stage
 # Environment: HYPRLAND_INSTANCE_SIGNATURE, PLUGIN_PATH, LOAD_UNLOAD_CYCLES,
-# TOGGLE_CYCLES, RELOAD_CYCLES (stress raises cycles left at 1 to 3/3/2).
+# TOGGLE_CYCLES, RELOAD_CYCLES.
 set -euo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
@@ -21,9 +20,15 @@ if [[ -z "${PLUGIN_PATH:-}" ]]; then
 fi
 PLUGIN_PATH=$(realpath "$PLUGIN_PATH")
 MODE=${1:-all}
-LOAD_UNLOAD_CYCLES=${LOAD_UNLOAD_CYCLES:-1}
-TOGGLE_CYCLES=${TOGGLE_CYCLES:-1}
-RELOAD_CYCLES=${RELOAD_CYCLES:-1}
+if [[ "$MODE" == "stress" ]]; then
+  LOAD_UNLOAD_CYCLES=${LOAD_UNLOAD_CYCLES:-3}
+  TOGGLE_CYCLES=${TOGGLE_CYCLES:-3}
+  RELOAD_CYCLES=${RELOAD_CYCLES:-2}
+else
+  LOAD_UNLOAD_CYCLES=${LOAD_UNLOAD_CYCLES:-1}
+  TOGGLE_CYCLES=${TOGGLE_CYCLES:-1}
+  RELOAD_CYCLES=${RELOAD_CYCLES:-1}
+fi
 CAPTURED_OUTPUT=""
 
 run() {
@@ -62,7 +67,7 @@ hyprland_uses_lua_plugin_calls() {
   ((major > 0 || minor >= 56))
 }
 
-run_capture_hyprtasking() {
+run_hyprtasking() {
   local dispatcher=$1
   local arg=${2:-}
   local function=${dispatcher#hyprtasking:}
@@ -84,13 +89,14 @@ run_capture_hyprtasking() {
   run_capture_hyprctl dispatch "$dispatcher" "$arg"
 }
 
-run_hyprtasking() {
-  run_capture_hyprtasking "$@"
+# True when `hyprctl plugin list` (left in CAPTURED_OUTPUT) shows Hyprtasking.
+plugin_listed() {
+  run_capture_hyprctl plugin list
+  printf '%s\n' "$CAPTURED_OUTPUT" | rg -q '^Plugin Hyprtasking by '
 }
 
 assert_plugin_loaded() {
-  run_capture_hyprctl plugin list
-  if ! printf '%s\n' "$CAPTURED_OUTPUT" | rg -q '^Plugin Hyprtasking by '; then
+  if ! plugin_listed; then
     printf 'Hyprtasking is not loaded.\n' >&2
     exit 1
   fi
@@ -104,50 +110,34 @@ fail_with_loaded_plugin_state() {
   exit 1
 }
 
-assert_dispatcher_ready() {
-  run_capture_hyprtasking hyprtasking:toggle __smoke_probe__
+# probe NAME: calls hyprtasking:NAME with a dummy argument and fails if the
+# dispatcher is not registered.
+probe() {
+  run_hyprtasking "hyprtasking:$1" __smoke_probe__
   if [[ "$CAPTURED_OUTPUT" == *"Invalid dispatcher"* ]]; then
     fail_with_loaded_plugin_state \
-      "Hyprtasking is loaded, but its dispatchers are not registered. This usually means a stale or partially initialized instance is already resident."
+      "Hyprtasking $1 dispatcher is not registered even though the plugin is listed. This usually means a stale or partially initialized instance is already resident."
   fi
+}
 
+# probe_rejects_arg NAME: like probe, and the enabled runtime must answer the
+# dummy argument with "invalid arg".
+probe_rejects_arg() {
+  probe "$1"
   if [[ "$CAPTURED_OUTPUT" != *"invalid arg"* ]]; then
-    printf 'Unexpected hyprtasking:toggle probe response: %s\n' "$CAPTURED_OUTPUT" >&2
+    printf 'Unexpected hyprtasking:%s probe response: %s\n' "$1" "$CAPTURED_OUTPUT" >&2
     exit 1
   fi
 }
 
-assert_extended_dispatchers_ready() {
-  assert_dispatcher_ready
-
-  run_capture_hyprtasking hyprtasking:move __smoke_probe__
-  if [[ "$CAPTURED_OUTPUT" == *"Invalid dispatcher"* ]]; then
-    fail_with_loaded_plugin_state \
-      "Hyprtasking move dispatcher is not registered even though the plugin is listed."
-  fi
-
-  if [[ "$CAPTURED_OUTPUT" != *"invalid arg"* ]]; then
-    printf 'Unexpected hyprtasking:move probe response: %s\n' "$CAPTURED_OUTPUT" >&2
-    exit 1
-  fi
-
-  run_capture_hyprtasking hyprtasking:select __smoke_probe__
-  if [[ "$CAPTURED_OUTPUT" == *"Invalid dispatcher"* ]]; then
-    fail_with_loaded_plugin_state \
-      "Hyprtasking select dispatcher is not registered even though the plugin is listed."
-  fi
-
-  run_capture_hyprtasking hyprtasking:commit
-  if [[ "$CAPTURED_OUTPUT" == *"Invalid dispatcher"* ]]; then
-    fail_with_loaded_plugin_state \
-      "Hyprtasking commit dispatcher is not registered even though the plugin is listed."
-  fi
-
-  run_capture_hyprtasking hyprtasking:health
-  if [[ "$CAPTURED_OUTPUT" == *"Invalid dispatcher"* ]]; then
-    fail_with_loaded_plugin_state \
-      "Hyprtasking health dispatcher is not registered even though the plugin is listed."
-  fi
+assert_dispatchers_ready() {
+  local name
+  for name in toggle move select commit health; do
+    case "$name" in
+      toggle | move) probe_rejects_arg "$name" ;;
+      *) probe "$name" ;;
+    esac
+  done
 
   # hyprctl dispatch prints "ok"; Lua eval prints the one-line summary.
   if [[ "$CAPTURED_OUTPUT" == *"runtime_enabled=false"* ]]; then
@@ -163,17 +153,7 @@ assert_extended_dispatchers_ready() {
 
 smoke_dispatchers() {
   assert_plugin_loaded
-  assert_extended_dispatchers_ready
-}
-
-# Invalid values are rejected and the previous config kept; the runtime must
-# stay enabled. The error itself goes to the log and a notification.
-assert_config_rejected() {
-  run_capture_hyprtasking hyprtasking:toggle __smoke_probe__
-  if [[ "$CAPTURED_OUTPUT" != *"invalid arg"* ]]; then
-    printf 'Invalid config should keep runtime enabled, got: %s\n' "$CAPTURED_OUTPUT" >&2
-    exit 1
-  fi
+  assert_dispatchers_ready
 }
 
 # Sets plugin:hyprtasking:<key>. Lua config managers reject `keyword`, so
@@ -199,10 +179,6 @@ set_plugin_option() {
   run_hyprctl eval "hl.config({ plugin = { hyprtasking = ${table} } })"
 }
 
-set_safety_option() {
-  set_plugin_option "$1" "$2"
-}
-
 restore_safe_options() {
   set_plugin_option drag_button 272
   set_plugin_option select_button 273
@@ -218,40 +194,37 @@ restore_safe_options() {
   smoke_dispatchers
 }
 
+# Invalid values are rejected and the previous config kept; the runtime must
+# stay enabled, so toggle still answers the probe with "invalid arg". The
+# error itself goes to the log and a notification.
 smoke_runtime_safety() {
   assert_plugin_loaded
   restore_safe_options
 
-  set_safety_option "grid:rows" 0
-  assert_config_rejected
-
+  set_plugin_option "grid:rows" 0
+  probe_rejects_arg toggle
   restore_safe_options
 
-  set_safety_option "grid:cols" 0
-  assert_config_rejected
-
+  set_plugin_option "grid:cols" 0
+  probe_rejects_arg toggle
   restore_safe_options
 
-  set_safety_option "gestures:move_distance" 0
-  assert_config_rejected
-
+  set_plugin_option "gestures:move_distance" 0
+  probe_rejects_arg toggle
   restore_safe_options
 
-  set_safety_option "gestures:open_distance" 0
-  assert_config_rejected
-
+  set_plugin_option "gestures:open_distance" 0
+  probe_rejects_arg toggle
   restore_safe_options
 
-  set_safety_option "drag_button" 272
-  set_safety_option "select_button" 272
-  assert_config_rejected
-
+  set_plugin_option "drag_button" 272
+  set_plugin_option "select_button" 272
+  probe_rejects_arg toggle
   restore_safe_options
 
-  set_safety_option "gestures:move_fingers" 3
-  set_safety_option "gestures:open_fingers" 3
-  assert_config_rejected
-
+  set_plugin_option "gestures:move_fingers" 3
+  set_plugin_option "gestures:open_fingers" 3
+  probe_rejects_arg toggle
   restore_safe_options
 }
 
@@ -262,10 +235,9 @@ wait_for_plugin_ready() {
   local saw_plugin=0
 
   for ((i = 0; i < attempts; i++)); do
-    run_capture_hyprctl plugin list
-    if printf '%s\n' "$CAPTURED_OUTPUT" | rg -q '^Plugin Hyprtasking by '; then
+    if plugin_listed; then
       saw_plugin=1
-      run_capture_hyprtasking hyprtasking:toggle __smoke_probe__
+      run_hyprtasking hyprtasking:toggle __smoke_probe__
       if [[ "$CAPTURED_OUTPUT" != *"Invalid dispatcher"* ]]; then
         return 0
       fi
@@ -324,31 +296,6 @@ smoke_reload_open() {
   done
 }
 
-smoke_stress() {
-  local saved_load_cycles=${LOAD_UNLOAD_CYCLES}
-  local saved_toggle_cycles=${TOGGLE_CYCLES}
-  local saved_reload_cycles=${RELOAD_CYCLES}
-
-  if [[ "$LOAD_UNLOAD_CYCLES" == "1" ]]; then
-    LOAD_UNLOAD_CYCLES=3
-  fi
-  if [[ "$TOGGLE_CYCLES" == "1" ]]; then
-    TOGGLE_CYCLES=3
-  fi
-  if [[ "$RELOAD_CYCLES" == "1" ]]; then
-    RELOAD_CYCLES=2
-  fi
-
-  smoke_load_unload
-  smoke_toggle
-  smoke_reload
-  smoke_reload_open
-
-  LOAD_UNLOAD_CYCLES=${saved_load_cycles}
-  TOGGLE_CYCLES=${saved_toggle_cycles}
-  RELOAD_CYCLES=${saved_reload_cycles}
-}
-
 smoke_load_unload() {
   if [[ ! -f "$PLUGIN_PATH" ]]; then
     printf 'Plugin path does not exist: %s\n' "$PLUGIN_PATH" >&2
@@ -358,14 +305,11 @@ smoke_load_unload() {
   local cycle
   for ((cycle = 0; cycle < LOAD_UNLOAD_CYCLES; cycle++)); do
     run_capture_hyprctl plugin unload "$PLUGIN_PATH"
-    if [[ "$CAPTURED_OUTPUT" == *"plugin not loaded"* ]]; then
-      run_capture_hyprctl plugin list
-      if printf '%s\n' "$CAPTURED_OUTPUT" | rg -q '^Plugin Hyprtasking by '; then
-        printf 'Target plugin path is not the currently loaded Hyprtasking instance: %s\n' "$PLUGIN_PATH" >&2
-        printf 'A different Hyprtasking instance is already loaded.\n' >&2
-        printf 'Current plugin list:\n%s\n' "$CAPTURED_OUTPUT" >&2
-        exit 1
-      fi
+    if [[ "$CAPTURED_OUTPUT" == *"plugin not loaded"* ]] && plugin_listed; then
+      printf 'Target plugin path is not the currently loaded Hyprtasking instance: %s\n' "$PLUGIN_PATH" >&2
+      printf 'A different Hyprtasking instance is already loaded.\n' >&2
+      printf 'Current plugin list:\n%s\n' "$CAPTURED_OUTPUT" >&2
+      exit 1
     fi
 
     run_capture_hyprctl plugin load "$PLUGIN_PATH"
@@ -380,19 +324,14 @@ smoke_load_unload() {
   done
 }
 
-MANUAL_CHECKS_DOC=docs/debugging-playbook.md#manual-checks
-
 case "$MODE" in
-  all)
+  all | stress)
     smoke_load_unload
     smoke_dispatchers
     smoke_runtime_safety
     smoke_toggle
     smoke_reload
     smoke_reload_open
-    ;;
-  stress)
-    smoke_stress
     ;;
   dispatchers)
     smoke_dispatchers
@@ -403,7 +342,7 @@ case "$MODE" in
   load-unload)
     smoke_load_unload
     ;;
-  toggle|move)
+  toggle)
     smoke_toggle
     ;;
   reload)
@@ -412,12 +351,8 @@ case "$MODE" in
   reload-open)
     smoke_reload_open
     ;;
-  manual)
-    assert_plugin_loaded
-    printf 'Plugin loaded. Run the manual checks in %s\n' "$MANUAL_CHECKS_DOC"
-    ;;
   *)
-    printf 'Usage: %s [all|stress|dispatchers|safety|load-unload|toggle|move|reload|reload-open|manual]\n' "$0" >&2
+    printf 'Usage: %s [all|stress|dispatchers|safety|load-unload|toggle|reload|reload-open]\n' "$0" >&2
     exit 1
     ;;
 esac
