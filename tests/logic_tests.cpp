@@ -308,33 +308,20 @@ int main() {
     }
 
     expect(
-        decideDragStart(true, true, false, true) == DragStartAction::BeginDrag,
-        "drag start should proceed with a valid workspace target"
+        canStartInteraction(true, true, false, true),
+        "interactions should start on an open overview with a target"
     );
     expect(
-        decideDragStart(true, true, false, false) == DragStartAction::Ignore,
-        "drag start should reject non-workspace targets"
-    );
-
-    expect(
-        decideDragEnd(true, true, false, true, true, true) == DragEndAction::FinalizeDrop,
-        "drag end should finalize valid move drops"
+        !canStartInteraction(true, true, false, false),
+        "interactions should not start without a target"
     );
     expect(
-        decideDragEnd(true, true, false, true, false, true) == DragEndAction::Ignore,
-        "drag end should reject missing dragged windows"
+        !canStartInteraction(true, false, false, true),
+        "interactions should not start on a closed overview"
     );
     expect(
-        decideDragEnd(true, true, false, true, true, false) == DragEndAction::Ignore,
-        "drag end should reject non-move drag modes"
-    );
-    expect(
-        decideSelectStart(true, true, false, true) == SelectStartAction::BeginSelect,
-        "select start should begin for valid active workspace targets"
-    );
-    expect(
-        decideSelectStart(true, true, false, false) == SelectStartAction::Ignore,
-        "select start should ignore invalid workspace targets"
+        !canStartInteraction(true, true, true, true),
+        "interactions should not start while the overview closes"
     );
     expect(
         decideSelectEnd(true, true, true, false, true) == SelectEndAction::FinalizeSelect,
@@ -347,18 +334,6 @@ int main() {
     expect(
         decideSelectEnd(false, true, true, false, true) == SelectEndAction::Ignore,
         "select end should ignore releases without a pending selection"
-    );
-    expect(
-        shouldConsumeManagedMouseButton(true, true, false, true),
-        "managed overview buttons should be consumed when active"
-    );
-    expect(
-        !shouldConsumeManagedMouseButton(true, false, false, true),
-        "inactive overviews should not consume managed mouse buttons"
-    );
-    expect(
-        !shouldConsumeManagedMouseButton(true, true, false, false),
-        "unbound mouse buttons should not be consumed"
     );
 
     {

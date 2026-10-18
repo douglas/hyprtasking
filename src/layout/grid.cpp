@@ -283,27 +283,6 @@ std::optional<HTLayoutGrid::GridGeometry> HTLayoutGrid::grid_geometry() {
     const float gap_width = GAP_SIZE_LOGICAL * monitor_scale;
     const Vector2D gaps = {gap_width, gap_width};
 
-    if (ROWS <= 0 || COLS <= 0) {
-        return skip_invalid_geometry(
-            "grid_config_validation",
-            std::format("Invalid grid dimensions rows={} cols={}", ROWS, COLS),
-            std::optional<GridGeometry> {}
-        );
-    }
-    if (!HTLogic::gridCellCount(ROWS, COLS, HTConfig::MAX_GRID_ROWS, HTConfig::MAX_GRID_COLS)
-             .has_value()) {
-        return skip_invalid_geometry(
-            "grid_config_validation",
-            std::format(
-                "Grid dimensions exceed supported maximum rows={} cols={} max_rows={} max_cols={}",
-                ROWS,
-                COLS,
-                HTConfig::MAX_GRID_ROWS,
-                HTConfig::MAX_GRID_COLS
-            ),
-            std::optional<GridGeometry> {}
-        );
-    }
     if (!HTLogic::isPositiveFinite(monitor_scale) || !HTLogic::isPositiveFinite(transformed_size.x)
         || !HTLogic::isPositiveFinite(transformed_size.y)) {
         return skip_invalid_geometry(

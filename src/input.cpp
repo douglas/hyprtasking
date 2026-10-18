@@ -50,7 +50,7 @@ HTLogic::MouseButtonResult HTManager::handle_mouse_button(unsigned int button, b
     if (pressed) {
         const bool is_drag_button = button == drag_button;
         const bool is_select_button = button == select_button;
-        const bool consume_press = HTLogic::shouldConsumeManagedMouseButton(
+        const bool consume_press = HTLogic::canStartInteraction(
             has_view,
             view_active,
             view_closing,
@@ -71,27 +71,16 @@ HTLogic::MouseButtonResult HTManager::handle_mouse_button(unsigned int button, b
             cursor_context.workspace_id
         );
 
+        const bool has_workspace = cursor_context.workspace != nullptr;
         if (is_drag_button) {
-            const auto action = HTLogic::decideDragStart(
-                has_view,
-                view_active,
-                view_closing,
-                cursor_context.workspace != nullptr
-            );
-            if (action == HTLogic::DragStartAction::BeginDrag) {
+            if (has_workspace) {
                 claimed_mouse_interaction = HT_MOUSE_DRAG;
                 drag_interaction_started = start_window_drag();
             }
             return HTLogic::MouseButtonResult::Consume;
         }
 
-        const auto action = HTLogic::decideSelectStart(
-            has_view,
-            view_active,
-            view_closing,
-            cursor_context.workspace != nullptr
-        );
-        if (action == HTLogic::SelectStartAction::BeginSelect) {
+        if (has_workspace) {
             claimed_mouse_interaction = HT_MOUSE_SELECT;
             if (!begin_workspace_select()) {
                 claimed_mouse_interaction = HT_MOUSE_NONE;
@@ -132,19 +121,13 @@ bool HTManager::start_window_drag() {
     PHLWORKSPACE cursor_workspace = cursor_context.workspace;
     const PHLWINDOW hovered_window = get_window_from_cursor();
 
-    switch (HTLogic::decideDragStart(
-        cursor_view != nullptr,
-        cursor_view != nullptr && cursor_view->active,
-        cursor_view != nullptr && cursor_view->closing,
-        cursor_workspace != nullptr
-    )) {
-        case HTLogic::DragStartAction::Ignore:
-            return false;
-        case HTLogic::DragStartAction::BeginDrag:
-            break;
-    }
-
-    if (cursor_monitor == nullptr || cursor_view == nullptr)
+    if (cursor_monitor == nullptr || cursor_view == nullptr
+        || !HTLogic::canStartInteraction(
+            true,
+            cursor_view->active,
+            cursor_view->closing,
+            cursor_workspace != nullptr
+        ))
         return false;
 
     HTScopedMonitorWorkspace restore_workspace(cursor_monitor);
@@ -241,24 +224,11 @@ void HTManager::end_window_drag() {
         if (!drop_completed)
             abort_drag_controller();
     });
-    const bool has_view = cursor_view != nullptr;
     const SP<Layout::ITarget> target = HTCompat::drag_controller_target();
     const PHLWINDOW dragged_window = target == nullptr ? nullptr : target->window();
-    const bool move_mode = HTCompat::drag_controller_mode() == MBIND_MOVE;
-
-    if (HTLogic::decideDragEnd(
-            has_view,
-            cursor_view != nullptr && cursor_view->active,
-            cursor_view != nullptr && cursor_view->closing,
-            target != nullptr,
-            dragged_window != nullptr,
-            move_mode
-        )
-        != HTLogic::DragEndAction::FinalizeDrop) {
-        return;
-    }
-
-    if (cursor_monitor == nullptr || cursor_view == nullptr || dragged_window == nullptr)
+    if (cursor_monitor == nullptr || cursor_view == nullptr || dragged_window == nullptr
+        || HTCompat::drag_controller_mode() != MBIND_MOVE
+        || !HTLogic::canStartInteraction(true, cursor_view->active, cursor_view->closing, true))
         return;
 
     const Vector2D mouse_coords = cursor_context.mouse_coords;
@@ -358,15 +328,13 @@ bool HTManager::begin_workspace_select() {
 
     selection_pending = false;
 
-    if (HTLogic::decideSelectStart(
+    if (!HTLogic::canStartInteraction(
             cursor_view != nullptr,
             cursor_view != nullptr && cursor_view->active,
             cursor_view != nullptr && cursor_view->closing,
             cursor_context.workspace != nullptr
-        )
-        != HTLogic::SelectStartAction::BeginSelect) {
+        ))
         return false;
-    }
 
     cursor_view->set_hovered_workspace(cursor_context.workspace_id);
     cursor_view->set_selected_workspace_id(cursor_context.workspace_id);

@@ -2,46 +2,8 @@
 
 namespace HTLogic {
 
-DragStartAction decideDragStart(
-    bool has_view,
-    bool view_active,
-    bool view_closing,
-    bool has_workspace_target
-) {
-    if (!has_view || !view_active || view_closing)
-        return DragStartAction::Ignore;
-    if (!has_workspace_target)
-        return DragStartAction::Ignore;
-
-    return DragStartAction::BeginDrag;
-}
-
-DragEndAction decideDragEnd(
-    bool has_view,
-    bool view_active,
-    bool view_closing,
-    bool has_target,
-    bool has_dragged_window,
-    bool move_mode
-) {
-    if (!has_view || !view_active || view_closing)
-        return DragEndAction::Ignore;
-    if (!has_target || !has_dragged_window || !move_mode)
-        return DragEndAction::Ignore;
-
-    return DragEndAction::FinalizeDrop;
-}
-
-SelectStartAction decideSelectStart(
-    bool has_view,
-    bool view_active,
-    bool view_closing,
-    bool has_workspace_target
-) {
-    if (!has_view || !view_active || view_closing || !has_workspace_target)
-        return SelectStartAction::Ignore;
-
-    return SelectStartAction::BeginSelect;
+bool canStartInteraction(bool has_view, bool view_active, bool view_closing, bool has_target) {
+    return has_view && view_active && !view_closing && has_target;
 }
 
 SelectEndAction decideSelectEnd(
@@ -53,18 +15,9 @@ SelectEndAction decideSelectEnd(
 ) {
     if (!select_pending)
         return SelectEndAction::Ignore;
-    if (!has_view || !view_active || view_closing || !has_workspace_target)
+    if (!canStartInteraction(has_view, view_active, view_closing, has_workspace_target))
         return SelectEndAction::CancelSelect;
 
     return SelectEndAction::FinalizeSelect;
-}
-
-bool shouldConsumeManagedMouseButton(
-    bool has_view,
-    bool view_active,
-    bool view_closing,
-    bool matching_button
-) {
-    return has_view && view_active && !view_closing && matching_button;
 }
 }
