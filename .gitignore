@@ -1,11 +1,3 @@
 .cache
 
-include
-
-share
-
-libhyprtasking.so
-
-build
-
 result
