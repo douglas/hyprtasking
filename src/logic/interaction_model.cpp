@@ -67,18 +67,4 @@ bool shouldConsumeManagedMouseButton(
 ) {
     return has_view && view_active && !view_closing && matching_button;
 }
-
-MouseButtonResult resolveClaimedMouseRelease(
-    bool button_claimed,
-    bool drag_started,
-    bool allow_release_passthrough
-) {
-    if (!button_claimed)
-        return MouseButtonResult::Ignore;
-    if (drag_started && allow_release_passthrough)
-        return MouseButtonResult::PassThrough;
-
-    return MouseButtonResult::Consume;
-}
-
 }

@@ -98,10 +98,6 @@ int main() {
         !versionIsSupported("0.54.2", SUPPORTED_VERSIONS),
         "compat version matching should reject unsupported patch releases"
     );
-    expect(
-        versionMatchesExactly("v0.55.0", "0.55.0"),
-        "compat version matching should normalize exact versions"
-    );
 
     {
         const auto parsed = parseNavigateArg("left");
@@ -364,22 +360,6 @@ int main() {
         !shouldConsumeManagedMouseButton(true, true, false, false),
         "unbound mouse buttons should not be consumed"
     );
-    expect(
-        resolveClaimedMouseRelease(false, false, false) == MouseButtonResult::Ignore,
-        "unclaimed mouse releases should be ignored"
-    );
-    expect(
-        resolveClaimedMouseRelease(true, false, false) == MouseButtonResult::Consume,
-        "claimed no-op releases should stay consumed"
-    );
-    expect(
-        resolveClaimedMouseRelease(true, true, false) == MouseButtonResult::Consume,
-        "claimed drag releases should stay consumed when no passthrough is requested"
-    );
-    expect(
-        resolveClaimedMouseRelease(true, true, true) == MouseButtonResult::PassThrough,
-        "successful drag releases should allow passthrough"
-    );
 
     {
         const auto blocks = assignMonitorBlocks({}, {"eDP-1", "DP-1"});
@@ -448,8 +428,6 @@ int main() {
         !shouldConsumeOpenSwipe(false, false),
         "inactive idle views should not consume open swipes"
     );
-    expect(shouldConsumeMoveSwipe(true), "existing move swipes should stay consumed");
-    expect(!shouldConsumeMoveSwipe(false), "idle move swipes should not be consumed");
 
     expect(
         resolveOpenSwipeStart(SwipeDirection::Vertical, false, false, false, -1.0f)

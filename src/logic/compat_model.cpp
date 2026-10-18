@@ -19,10 +19,6 @@ std::string normalizeVersion(std::string_view version) {
     return std::string(version);
 }
 
-bool versionMatchesExactly(std::string_view left, std::string_view right) {
-    return normalizeVersion(left) == normalizeVersion(right);
-}
-
 bool versionMatchesSupportedTarget(std::string_view version, std::string_view supported_version) {
     const auto normalized = normalizeVersion(version);
     const auto supported = normalizeVersion(supported_version);

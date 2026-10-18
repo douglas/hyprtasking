@@ -21,10 +21,6 @@ bool shouldConsumeOpenSwipe(bool active, bool already_open_swipe) {
     return active || already_open_swipe;
 }
 
-bool shouldConsumeMoveSwipe(bool already_move_swipe) {
-    return already_move_swipe;
-}
-
 OpenSwipeStartAction
 resolveOpenSwipeStart(
     SwipeDirection direction,

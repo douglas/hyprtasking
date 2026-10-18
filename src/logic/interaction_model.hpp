@@ -26,7 +26,6 @@ enum class SelectEndAction {
 enum class MouseButtonResult {
     Ignore,
     Consume,
-    PassThrough,
 };
 
 DragStartAction decideDragStart(
@@ -66,11 +65,4 @@ bool shouldConsumeManagedMouseButton(
     bool view_closing,
     bool matching_button
 );
-
-MouseButtonResult resolveClaimedMouseRelease(
-    bool button_claimed,
-    bool drag_started,
-    bool allow_release_passthrough
-);
-
 }

@@ -301,10 +301,6 @@ void HTManager::block_runtime(std::string_view source, std::string_view reason) 
     views.clear();
 }
 
-std::string HTManager::runtime_disable_reason() const {
-    return disabled_reason;
-}
-
 std::string HTManager::runtime_health_summary() const {
     const auto active_views = std::ranges::count_if(views, [](const PHTVIEW& view) {
         return view != nullptr && view->active;

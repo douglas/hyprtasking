@@ -12,10 +12,4 @@ inline void disable(std::string_view source, std::string_view reason) {
         ht_manager->disable_runtime(source, reason);
 }
 
-template<typename T>
-inline T disable_and_return(std::string_view source, std::string_view reason, T fallback) {
-    disable(source, reason);
-    return fallback;
-}
-
 } // namespace HTRuntimeFail

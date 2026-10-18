@@ -79,9 +79,8 @@ bool initializeMouseButtonHook() {
         HTCompat::input_mouse_button_spec(),
         HTCompat::hook_destination(hookMouseButton)
     );
-    if (!mouse_button.installed) {
+    if (!mouse_button.installed)
         return disable_runtime_on_setup_failure("initialize_mouse_button_hook", mouse_button.error);
-    }
 
     return true;
 }
@@ -107,7 +106,7 @@ void onSwipeBegin(
         if (ht_manager == nullptr || !ht_manager->runtime_enabled())
             return;
 
-        ht_manager->swipe_start();
+        ht_manager->reset_swipe_state();
     });
 }
 

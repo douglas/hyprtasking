@@ -63,12 +63,11 @@ class HTManager {
     bool runtime_enabled() const;
     void disable_runtime(std::string_view source, std::string_view reason);
     void block_runtime(std::string_view source, std::string_view reason);
-    std::string runtime_disable_reason() const;
     std::string runtime_health_summary() const;
 
     HTLogic::MouseButtonResult handle_mouse_button(unsigned int button, bool pressed);
     bool start_window_drag();
-    bool end_window_drag();
+    void end_window_drag();
     bool begin_workspace_select();
     bool end_workspace_select(VIEWID view_id, WORKSPACEID target_workspace_id);
     void reset_selection_state();
@@ -83,7 +82,6 @@ class HTManager {
 
     PHTVIEW get_swipe_view();
     void reset_swipe_state();
-    void swipe_start();
     bool swipe_update(IPointer::SSwipeUpdateEvent e);
     bool swipe_end();
 

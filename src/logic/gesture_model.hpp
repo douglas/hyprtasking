@@ -19,7 +19,6 @@ enum class OpenSwipeStartAction {
 SwipeDirection detectSwipeDirection(double delta_x, double delta_y);
 float normalizedOpenDelta(float delta_y, bool open_positive);
 bool shouldConsumeOpenSwipe(bool active, bool already_open_swipe);
-bool shouldConsumeMoveSwipe(bool already_move_swipe);
 OpenSwipeStartAction
 resolveOpenSwipeStart(SwipeDirection direction, bool closing, bool active, bool navigating, float delta_y);
 bool shouldStartMoveSwipe(bool active, bool closing, bool navigating);

@@ -118,9 +118,10 @@ HTLogic::MouseButtonResult HTManager::handle_mouse_button(unsigned int button, b
         return HTLogic::MouseButtonResult::Consume;
     }
 
-    const bool allow_release_passthrough = started_drag && end_window_drag();
+    if (started_drag)
+        end_window_drag();
     reset_mouse_button_state();
-    return HTLogic::resolveClaimedMouseRelease(true, started_drag, allow_release_passthrough);
+    return HTLogic::MouseButtonResult::Consume;
 }
 
 bool HTManager::start_window_drag() {
@@ -146,24 +147,20 @@ bool HTManager::start_window_drag() {
             break;
     }
 
-    if (cursor_monitor == nullptr || cursor_view == nullptr) {
+    if (cursor_monitor == nullptr || cursor_view == nullptr)
         return false;
-    }
 
     HTScopedMonitorWorkspace restore_workspace(cursor_monitor, true);
-    if (!HTCompat::activate_monitor_workspace_internal(cursor_monitor, cursor_workspace)) {
+    if (!HTCompat::activate_monitor_workspace_internal(cursor_monitor, cursor_workspace))
         return false;
-    }
     HTScopedWorkspaceVisibility visible_workspace(cursor_workspace, true);
 
     const auto workspace_coords =
         cursor_view->layout->global_to_workspace_monitor_coords(mouse_coords, workspace_id);
-    if (!workspace_coords.has_value()) {
+    if (!workspace_coords.has_value())
         return false;
-    }
-    if (!HTCompat::warp_pointer(*workspace_coords)) {
+    if (!HTCompat::warp_pointer(*workspace_coords))
         return false;
-    }
 
     bool reset_mouse_bind_mode = false;
     CScopeGuard reset_drag_mode([&reset_mouse_bind_mode] {
@@ -183,9 +180,8 @@ bool HTManager::start_window_drag() {
     if (HTCompat::drag_controller_target() == nullptr && hovered_window != nullptr)
         HTCompat::begin_drag_window(hovered_window, MBIND_MOVE);
 
-    if (!HTCompat::warp_pointer(mouse_coords)) {
+    if (!HTCompat::warp_pointer(mouse_coords))
         return false;
-    }
     HTCompat::simulate_mouse_movement();
 
     SP<Layout::ITarget> target = HTCompat::drag_controller_target();
@@ -194,22 +190,19 @@ bool HTManager::start_window_drag() {
             target = HTCompat::drag_controller_target();
         }
     }
-    if (target == nullptr) {
+    if (target == nullptr)
         return false;
-    }
 
     const PHLWINDOW dragged_window = target->window();
     if (dragged_window != nullptr) {
         if (HTCompat::drag_controller_is_tiled()) {
             const auto inverse_drag_scale =
                 HTLogic::inverseDragWindowScale(cursor_view->layout->drag_window_scale());
-            if (!inverse_drag_scale.has_value()) {
+            if (!inverse_drag_scale.has_value())
                 return false;
-            }
             const PHLMONITOR dragged_monitor = HTCompat::window_monitor(dragged_window);
-            if (dragged_monitor == nullptr) {
+            if (dragged_monitor == nullptr)
                 return false;
-            }
             const Vector2D dragged_monitor_pos = HTCompat::monitor_position(dragged_monitor);
 
             const Vector2D pre_pos = cursor_view->layout->local_ws_unscaled_to_global(
@@ -240,7 +233,7 @@ bool HTManager::start_window_drag() {
     return true;
 }
 
-bool HTManager::end_window_drag() {
+void HTManager::end_window_drag() {
     const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace(false);
     const PHLMONITOR cursor_monitor = cursor_context.monitor;
     const PHTVIEW cursor_view = cursor_context.view;
@@ -265,12 +258,11 @@ bool HTManager::end_window_drag() {
             move_mode
         )
         != HTLogic::DragEndAction::FinalizeDrop) {
-        return false;
+        return;
     }
 
-    if (cursor_monitor == nullptr || cursor_view == nullptr || dragged_window == nullptr) {
-        return false;
-    }
+    if (cursor_monitor == nullptr || cursor_view == nullptr || dragged_window == nullptr)
+        return;
 
     const Vector2D mouse_coords = cursor_context.mouse_coords;
     Vector2D use_mouse_coords = mouse_coords;
@@ -283,7 +275,7 @@ bool HTManager::end_window_drag() {
         HTLogic::resolveDropWorkspace(hovered_workspace_id, dragged_workspace_id);
     if (!drop_decision.valid) {
         Log::logger->log(LOG, "[Hyprtasking] tried to drop on null workspace??");
-        return false;
+        return;
     }
 
     PHLWORKSPACE cursor_workspace = HTCompat::resolve_workspace_target(
@@ -298,7 +290,7 @@ bool HTManager::end_window_drag() {
             "[Hyprtasking] drop target workspace {} could not be resolved",
             drop_decision.workspace_id
         );
-        return false;
+        return;
     }
 
     if (drop_decision.snap_to_workspace) {
@@ -324,13 +316,11 @@ bool HTManager::end_window_drag() {
         use_mouse_coords,
         HTCompat::workspace_id(cursor_workspace)
     );
-    if (!workspace_coords.has_value()) {
-        return false;
-    }
+    if (!workspace_coords.has_value())
+        return;
     const auto drag_scale = HTLogic::dragWindowScale(cursor_view->layout->drag_window_scale());
-    if (!drag_scale.has_value()) {
-        return false;
-    }
+    if (!drag_scale.has_value())
+        return;
     const Vector2D cursor_monitor_pos = HTCompat::monitor_position(cursor_monitor);
 
     const Vector2D warped_global_pos =
@@ -341,35 +331,28 @@ bool HTManager::end_window_drag() {
         )
         + cursor_monitor_pos;
     if (!HTLogic::isFinitePoint(warped_global_pos.x, warped_global_pos.y))
-        return false;
+        return;
     const Vector2D tp_pos = warped_global_pos;
 
     HTScopedMonitorWorkspace restore_workspace(cursor_monitor, true);
-    if (!HTCompat::activate_monitor_workspace_internal(cursor_monitor, cursor_workspace)) {
-        return false;
-    }
+    if (!HTCompat::activate_monitor_workspace_internal(cursor_monitor, cursor_workspace))
+        return;
     HTScopedWorkspaceVisibility visible_workspace(cursor_workspace, true);
 
     HTCompat::move_window_to_workspace(dragged_window, cursor_workspace);
     HTCompat::set_window_real_position(dragged_window, tp_pos);
 
-    if (!HTCompat::warp_pointer(*workspace_coords)) {
-        return false;
-    }
+    if (!HTCompat::warp_pointer(*workspace_coords))
+        return;
     HTCompat::set_mouse_bind_mode(MBIND_INVALID);
-    if (!HTCompat::warp_pointer(mouse_coords)) {
-        return false;
-    }
+    if (!HTCompat::warp_pointer(mouse_coords))
+        return;
 
     // otherwise the window leaves blur (?) artifacts on all
     // workspaces
     HTCompat::reset_window_workspace_move_alpha(dragged_window);
     restore_workspace.dismiss();
     drop_completed = true;
-
-    // Do not return true and cancel the event! Mouse release requires some stuff to be done for
-    // floating windows to be unfocused properly
-    return false;
 }
 
 bool HTManager::begin_workspace_select() {
@@ -458,10 +441,6 @@ bool HTManager::on_mouse_move() {
     return false;
 }
 
-void HTManager::swipe_start() {
-    reset_swipe_state();
-}
-
 bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
     const auto& config = HTConfig::runtime_config();
     if (!config.gestures_enabled) {
@@ -543,7 +522,7 @@ bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
             }
         }
     } else if (e.fingers == move_fingers) {
-        if (HTLogic::shouldConsumeMoveSwipe(swipe_state == HT_SWIPE_MOVE))
+        if (swipe_state == HT_SWIPE_MOVE)
             res = true;
 
         if (swipe_state != HT_SWIPE_MOVE) {

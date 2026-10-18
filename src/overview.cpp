@@ -380,9 +380,8 @@ bool HTView::navigate_selection(const std::string& arg) {
             return false;
 
         const auto* ws_layout = layout->find_layout_workspace(source_ws_id);
-        if (ws_layout == nullptr) {
+        if (ws_layout == nullptr)
             return false;
-        }
 
         const WORKSPACEID target_ws_id =
             layout->get_ws_id_in_direction(ws_layout->x, ws_layout->y, navigate_arg.direction);
