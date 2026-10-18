@@ -1,15 +1,61 @@
 # Compat Contract
 
-Hyprtasking is maintained for Hyprland `0.54.3` and the `0.55.x` patch series.
+Hyprtasking hard-gates runtime activation to explicit, audited Hyprland
+versions.
 
-The current runtime shape is diagrammed in [`architecture.md`](architecture.md).
-The update workflow is:
+| Version | CI coverage |
+| --- | --- |
+| `0.55.x` | offline compat gate on `v0.55.0`; local runtime smoke checked on `0.55.2` |
+| `0.56.0` | offline compat gate |
+| `0.56.2` | offline compat gate; live rendering smoke checked |
 
-1. Build against the installed Arch `hyprland` package headers only.
-2. Run `bash scripts/check-version-contract.sh` to confirm the installed package and live runtime are aligned on the same supported exact version.
-3. Run `HYPRLAND_SOURCE=/path/to/Hyprland bash scripts/release-check.sh` to audit a matching Hyprland source tree.
-4. If `scripts/audit-compat.sh` or `scripts/audit-compat-surface.sh` fails, patch the relevant file under `src/compat/`.
-5. Re-run the same command until the version contract, audits, build, tests, smoke checks, and manual scenario output are clean.
+The runtime shape is diagrammed in [`architecture.md`](architecture.md).
+
+## Update Workflow
+
+1. Build against the installed `hyprland` package headers only. A Hyprland
+   source tree is for auditing, never for building.
+2. Confirm the installed package and the live runtime are on the same supported
+   version: `bash scripts/check-version-contract.sh`.
+3. Audit each supported source tree:
+
+   ```bash
+   RELEASE_MODE=offline HYPRLAND_SOURCE=/path/to/Hyprland bash scripts/release-check.sh
+   ```
+
+4. If `scripts/audit-compat.sh` reports drift, patch the matching file under
+   `src/compat/` and update `scripts/compat-contracts.tsv`.
+5. Re-run until the audits, build, tests, and smoke checks are clean, then run
+   the [manual checks](debugging-playbook.md#manual-checks).
+
+Audits pass before promote: a compatibility change only lands on `main` once
+`scripts/audit-compat.sh` passes for every supported source tree,
+`scripts/audit-source.sh` passes, and the release check is clean. When mouse
+hook behavior changes, also run the `hook-sunset` manual check on every
+supported target. Investigate the next Hyprland release on a preview branch.
+
+To add or drop a supported version, update `scripts/support-matrix.sh`, the
+`hyprpm.toml` commit pins, the `.github/workflows/offline-compat-gate.yml`
+matrix, and the supported-version list the plugin itself checks.
+
+## Contract File
+
+`scripts/compat-contracts.tsv` is the single, hand-edited list of Hyprland
+contracts. Each row has a label, the Hyprland path, the likely plugin
+touchpoint, and the patterns that must match. Every `|||` segment is required;
+`@@@` separates alternatives for a path or pattern that moved between supported
+versions, such as the `0.56` moves into `src/output/`, `src/pointer/`, and
+`src/state/`.
+
+`bash scripts/audit-compat.sh /path/to/Hyprland` prints each contract it checks
+and exits with:
+
+- `2`: a required Hyprland source file is missing
+- `3`: the source tree is not a supported version
+- `4`: a supported version, but one or more contracts drifted
+
+`bash scripts/audit-source.sh` fails if a compat-sensitive symbol used under
+`src/compat/` is missing from the contract file.
 
 ## Ownership
 
@@ -44,76 +90,19 @@ flowchart TD
     renderer --> hyprland
 ```
 
-Contract definitions for audited Hyprland surfaces are centralized in:
-
-- `scripts/compat-contract-manifest.sh`
-- `scripts/contracts/core.generated.tsv`
-- `scripts/contracts/surface.generated.tsv`
-- `scripts/contracts/core.overrides.tsv`
-- `scripts/contracts/surface.overrides.tsv`
-
-Surface contracts may include alternatives with `@@@` for intentional
-supported-version drift. Each `|||` segment is still required, but any `@@@`
-option inside a path or pattern may satisfy that segment. This is how the audit
-tracks `0.54.3` and `0.55.x` differences such as the mouse-button hook
-signature, renderer namespace move, config animation lookup, workspace-move
-alpha storage, and public accessor placement for monitor, workspace, and window
-geometry.
-
-Contract baselines are regenerated with:
-
-- `bash scripts/generate-compat-contract.sh /path/to/Hyprland`
-- `bash scripts/update-supported-hyprland.sh /path/to/Hyprland`
-
-Compat symbol coverage is enforced with:
-
-- `bash scripts/audit-compat-coverage.sh`
-
-## Audited Contracts
-
-The compat audit currently checks these Hyprland-side contracts:
-
-| Contract | Hyprland location | Likely plugin touchpoint |
-| --- | --- | --- |
-| public version API | `src/plugins/PluginAPI.hpp` | `src/compat/profile.cpp` |
-| version API implementation | `src/plugins/PluginAPI.cpp` | `src/compat/profile.cpp` |
-| `renderWorkspace` symbol | `src/render/Renderer.cpp` | `src/compat/profile.cpp`, `src/compat/renderer_compat.cpp` |
-| `shouldRenderWindow` symbol | `src/render/Renderer.cpp` | `src/compat/profile.cpp`, `src/compat/renderer_compat.cpp` |
-| `renderWindow` symbol | `src/render/Renderer.cpp` | `src/compat/profile.cpp`, `src/compat/renderer_compat.cpp` |
-| `isSolitaryBlocked` symbol | `src/helpers/Monitor.hpp` | `src/compat/profile.cpp` |
-| `onMouseButton` symbol | `src/managers/input/InputManager.cpp` | `src/compat/profile.cpp`, `src/plugin/runtime.cpp` |
-| plugin API version check | `src/plugins/PluginSystem.cpp` | `src/compat/profile.cpp` |
-
-## Runtime Compat Surface
-
-`scripts/audit-compat-surface.sh` now also checks these Hyprland-side contracts:
-
-| Contract | Hyprland location | Likely plugin touchpoint |
-| --- | --- | --- |
-| input mouse helpers | `src/managers/input/InputManager.hpp` | `src/compat/runtime_compat.cpp` |
-| mouse bind mode API | `src/managers/KeybindManager.hpp` | `src/compat/runtime_compat.cpp` |
-| cursor override controller | `src/managers/cursor/CursorShapeOverrideController.hpp` | `src/compat/runtime_compat.cpp` |
-| layout drag controller entrypoint | `src/layout/LayoutManager.hpp` | `src/compat/runtime_compat.cpp` |
-| drag controller state accessors | `src/layout/supplementary/DragController.hpp` | `src/compat/runtime_compat.cpp` |
-| pointer warp API | `src/managers/PointerManager.hpp` | `src/compat/renderer_compat.cpp` |
-| compositor lookup and workspace APIs | `src/Compositor.hpp` | `src/compat/runtime_compat.cpp`, `src/compat/renderer_compat.cpp` |
-| monitor focus and render fields | `src/helpers/Monitor.hpp` | `src/compat/renderer_compat.cpp` |
-| workspace render state fields | `src/desktop/Workspace.hpp` | `src/compat/renderer_compat.cpp` |
-| window animation and workspace fields | `src/desktop/view/Window.hpp` | `src/compat/runtime_compat.cpp`, `src/compat/renderer_compat.cpp` |
-| render pass clear API | `src/render/pass/Pass.hpp` | `src/compat/renderer_compat.cpp` |
-| hook removal API | `src/plugins/PluginAPI.hpp` | `src/compat/renderer_compat.cpp`, `src/plugin/runtime.cpp` |
-| renderer singleton and pass handles | `src/render/Renderer.hpp` | `src/compat/renderer_compat.cpp` |
-| config and animation config handles | `src/config/ConfigManager.hpp`, `src/config/shared/animation/AnimationTree.hpp` | `src/compat/runtime_compat.cpp` |
-
-These still usually require inspection after a Hyprland bump even if both audits
-pass:
+These still need inspection after a Hyprland bump even when the audit passes:
 
 - direct input hook behavior for `CInputManager::onMouseButton` versus the
   cancellable event-bus mouse-button path
 - event bus listener wiring in `src/compat/runtime_compat.cpp`
 - animation/config-backed helper wiring in `src/compat/runtime_compat.cpp`
-- renderer hook behavior in `src/compat/renderer_compat.cpp`, especially whether `findFunctionsByName` resolves exact signatures at runtime
-- `changeWorkspace` semantics and visibility animation behavior in `src/compat/renderer_compat.cpp`
+- renderer hook behavior in `src/compat/renderer_compat.cpp`, especially
+  whether `findFunctionsByName` resolves exact signatures at runtime
+- `changeWorkspace` semantics and visibility animation behavior in
+  `src/compat/renderer_compat.cpp`
+
+If a Hyprland update breaks runtime behavior without failing the audit, start
+with those files.
 
 ## Remaining Hooks
 
@@ -139,14 +128,12 @@ method.
 ## Config Policy
 
 The public config surface is intentionally limited to grid size, grid looping,
-mouse buttons, gestures, and trace logging. Hyprland `0.55.x` builds register
-those values with `addConfigValueV2`; `0.54.3` builds keep the legacy
-`addConfigValue` path.
+mouse buttons, and gestures, registered with `addConfigValueV2`.
 
 Runtime code consumes a typed snapshot refreshed at plugin startup, config
 reload, and runtime readiness checks that can observe transient
-`hyprctl keyword` changes. Invalid safety-sensitive settings disable
-Hyprtasking for the session and return input/render control to Hyprland.
+`hyprctl keyword` changes. Invalid values are rejected with a notification and
+the `config_error` health field, and the previous values stay in effect.
 
 ## Hyprland Best-Practice Checklist
 
@@ -156,20 +143,5 @@ Hyprtasking for the session and return input/render control to Hyprland.
   cancellable events before adding hooks.
 - Treat missing `Event::bus` listeners as startup failures instead of silently
   running with a partially wired runtime.
-- Re-run `bash scripts/manual-runtime-check.sh hook-sunset` on every supported
-  Hyprland target before keeping the direct mouse-button hook for a release.
 - Keep drift-prone Hyprland methods and fields behind `src/compat/` wrappers.
-- Keep deprecated Hyprland plugin APIs only in audited `0.54.3` config
-  registration/read compatibility paths.
-- Run build, tests, boundary/config/guideline audits, compat audits for each
-  supported source tree, live smoke, and manual fullscreen/gesture checks before
-  release.
-
-If a Hyprland update breaks runtime behavior without failing the audit, start with those files.
-
-## Track Workflow
-
-Use `main` for stable supported target fixes. Future Hyprland adaptation can
-start in a preview branch when the next release needs investigation.
-
-Track policy and automation details live in `docs/maintenance-tracks.md`.
+- Do not use deprecated Hyprland plugin APIs.
