@@ -424,6 +424,8 @@ bool HTManager::swipe_end(bool cancelled) {
             break;
     }
 
-    reset_swipe_state();
+    // move_id keeps the view navigating until its slide ends; stopping it here
+    // would drop the overview render and snap the slide.
+    reset_swipe_state(false);
     return true;
 }

@@ -50,7 +50,7 @@ class HTManager {
     HTLogic::MouseButtonResult handle_mouse_button(unsigned int button, bool pressed);
     void on_mouse_move();
 
-    void reset_swipe_state();
+    void reset_swipe_state(bool stop_navigating = true);
     bool swipe_update(IPointer::SSwipeUpdateEvent e);
     bool swipe_end(bool cancelled);
 

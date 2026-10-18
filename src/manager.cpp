@@ -243,8 +243,8 @@ PHTVIEW HTManager::get_swipe_view() {
     return get_view_from_id(swipe_view_id);
 }
 
-void HTManager::reset_swipe_state() {
-    if (const PHTVIEW swipe_view = get_swipe_view(); swipe_view != nullptr)
+void HTManager::reset_swipe_state(bool stop_navigating) {
+    if (const PHTVIEW swipe_view = get_swipe_view(); stop_navigating && swipe_view != nullptr)
         swipe_view->set_runtime_state(swipe_view->active, swipe_view->closing, false);
 
     swipe_state = HT_SWIPE_NONE;
