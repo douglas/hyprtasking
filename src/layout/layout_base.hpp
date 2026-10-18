@@ -1,13 +1,14 @@
 #pragma once
 
-#include <optional>
 #include <hyprland/src/SharedDefs.hpp>
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/helpers/AnimatedVariable.hpp>
 #include <hyprland/src/helpers/time/Time.hpp>
 #include <hyprutils/math/Box.hpp>
+#include <optional>
 #include <unordered_map>
 
+#include "../logic/geometry_model.hpp"
 #include "../types.hpp"
 
 enum class HTViewStage {
@@ -55,6 +56,7 @@ class HTLayoutBase {
     CBox get_global_window_box(PHLWINDOW window, PHLWORKSPACE workspace);
     CBox get_global_ws_box(WORKSPACEID workspace_id);
 
+    std::optional<HTLogic::CellMapping> cell_mapping(WORKSPACEID workspace_id);
     Vector2D global_to_local_ws_unscaled(Vector2D pos, WORKSPACEID workspace_id);
     std::optional<Vector2D> global_to_workspace_monitor_coords(Vector2D pos, WORKSPACEID workspace_id);
     Vector2D local_ws_scaled_to_global(Vector2D pos, WORKSPACEID workspace_id);

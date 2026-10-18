@@ -4,6 +4,7 @@
 #include <optional>
 #include <string_view>
 
+#include "../logic/geometry_model.hpp"
 #include "../types.hpp"
 #include "layout_base.hpp"
 
@@ -11,9 +12,7 @@ class HTLayoutGrid: public HTLayoutBase {
   private:
     struct GridGeometry {
         Vector2D transformed_size;
-        Vector2D gaps;
-        Vector2D start_offset;
-        double opened_scale = 1.;
+        HTLogic::GridFit fit;
     };
 
     struct LayoutShape {
@@ -30,7 +29,7 @@ class HTLayoutGrid: public HTLayoutBase {
         float scale = 0.F;
         Vector2D offset;
         Vector2D transformed_size;
-        Vector2D gaps;
+        double gap = 0;
         bool operator==(const LayoutInputs&) const = default;
     };
 

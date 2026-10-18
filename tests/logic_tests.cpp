@@ -465,5 +465,112 @@ int main() {
         expect(result.has_value() && !*result, "high swipe progress should close the overview");
     }
 
+    // Grid fit: every opened cell lies on the monitor, keeps its aspect ratio
+    // and the grid is centred, for several grid sizes and monitor shapes.
+    {
+        const std::array<std::array<double, 2>, 3> monitors = {
+            {{2560, 1440}, {1080, 1920}, {1333, 777}}
+        };
+        const std::array<std::array<int, 2>, 4> grids = {{{1, 1}, {3, 3}, {2, 5}, {8, 8}}};
+        for (const auto& [width, height] : monitors) {
+            for (const auto& [rows, cols] : grids) {
+                const auto fit = fitGrid(width, height, rows, cols, 8.0);
+                expect(fit.has_value(), "grid fit should succeed for normal monitors");
+                const auto first = gridCellBox(*fit, {width, height}, 0, 0, fit->opened_scale, {});
+                const auto last =
+                    gridCellBox(*fit, {width, height}, cols - 1, rows - 1, fit->opened_scale, {});
+                expect(first.x >= 0 && first.y >= 0, "opened grid should start on the monitor");
+                expect(
+                    last.x + last.w <= width + 1e-6 && last.y + last.h <= height + 1e-6,
+                    "opened grid should end on the monitor"
+                );
+                expect(
+                    std::abs(first.w / first.h - width / height) < 1e-9,
+                    "opened cells should keep the monitor aspect ratio"
+                );
+                expect(
+                    std::abs(first.x - (width - (last.x + last.w))) < 1e-6
+                        && std::abs(first.y - (height - (last.y + last.h))) < 1e-6,
+                    "opened grid should be centred"
+                );
+            }
+        }
+    }
+    expect(!fitGrid(100, 100, 3, 3, 101).has_value(), "gaps larger than the monitor should fail");
+    expect(!fitGrid(100, 100, 8, 8, 12).has_value(), "gaps leaving no room for cells should fail");
+    expect(!fitGrid(0, 100, 3, 3, 8).has_value(), "zero-size monitors should fail");
+    expect(!fitGrid(NAN, 100, 3, 3, 8).has_value(), "non-finite monitor sizes should fail");
+    expect(!fitGrid(100, 100, 3, 3, NAN).has_value(), "non-finite gaps should fail");
+    {
+        const auto fit = fitGrid(1920, 1080, 3, 3, 8.0);
+        const auto closed = gridCellBox(*fit, {1920, 1080}, 1, 2, 1.0, {-100, -200});
+        expect(closed.w == 1920 && closed.h == 1080, "closed cells should be monitor-sized");
+        expect(
+            std::abs(closed.x - (1928 + 8 - 100 + fit->offset.x)) < 1e-9
+                && std::abs(closed.y - (2 * 1088 + 8 - 200 + fit->offset.y)) < 1e-9,
+            "cells should step by size plus gap and follow the grid offset"
+        );
+    }
+
+    // Workspace <-> global coordinates round-trip, and the cell origin maps to
+    // the workspace origin.
+    {
+        const CellMapping mapping {
+            .cell = {.x = 640, .y = 360},
+            .width_scale = 0.3,
+            .monitor_scale = 1.5,
+            .monitor = {.x = 2560, .y = 0},
+        };
+        for (const Point local : {Point {0, 0}, Point {123.5, 456.25}, Point {-10, 2000}}) {
+            const Point back = globalToWorkspace(mapping, workspaceToGlobal(mapping, local));
+            expect(
+                std::abs(back.x - local.x) < 1e-9 && std::abs(back.y - local.y) < 1e-9,
+                "workspace/global coordinates should round-trip"
+            );
+        }
+        const Point origin = workspaceToGlobal(mapping, {0, 0});
+        expect(
+            std::abs(origin.x - (2560 + 640 / 1.5)) < 1e-9 && std::abs(origin.y - 360 / 1.5) < 1e-9,
+            "the workspace origin should map to the cell origin in logical pixels"
+        );
+    }
+
+    // Grid navigation over every cell and size: edges stop without loop and
+    // wrap with it.
+    for (int rows = 1; rows <= 8; rows++) {
+        for (int cols = 1; cols <= 8; cols++) {
+            for (int y = 0; y < rows; y++) {
+                for (int x = 0; x < cols; x++) {
+                    const auto right = moveGridInDirection(x, y, "right", rows, cols, false);
+                    expect(
+                        right.has_value() == (x + 1 < cols),
+                        "moving right should stop only at the last column"
+                    );
+                    const auto down = moveGridInDirection(x, y, "down", rows, cols, true);
+                    expect(
+                        down.has_value() && down->x == x && down->y == (y + 1) % rows,
+                        "moving down with loop should wrap to the first row"
+                    );
+                    const auto left = moveGridInDirection(x, y, "left", rows, cols, true);
+                    expect(
+                        left.has_value() && left->x == (x + cols - 1) % cols && left->y == y,
+                        "moving left with loop should wrap to the last column"
+                    );
+                }
+            }
+        }
+    }
+
+    expect(parseNavigateArg(" up ").kind == NavigateArgKind::Direction, "directions may be padded");
+    for (const std::string_view bad : {"", "  ", "-3", "3x", "0", "99999999999999999999", "upp"})
+        expect(
+            parseNavigateArg(bad).kind == NavigateArgKind::Invalid,
+            "bad navigate args should be invalid"
+        );
+    {
+        const auto arg = parseNavigateArg("+3");
+        expect(arg.kind == NavigateArgKind::Invalid, "signed workspace numbers should be invalid");
+    }
+
     return 0;
 }

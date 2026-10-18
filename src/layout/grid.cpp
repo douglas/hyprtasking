@@ -279,74 +279,47 @@ std::optional<HTLayoutGrid::GridGeometry> HTLayoutGrid::grid_geometry() {
     const Vector2D transformed_size = HTCompat::monitor_transformed_size(monitor);
     constexpr float GAP_SIZE_LOGICAL = 8.F;
     const float gap_width = GAP_SIZE_LOGICAL * monitor_scale;
-    const Vector2D gaps = {gap_width, gap_width};
 
-    if (!HTLogic::isPositiveFinite(monitor_scale) || !HTLogic::isPositiveFinite(transformed_size.x)
-        || !HTLogic::isPositiveFinite(transformed_size.y)) {
+    const auto fit =
+        HTLogic::fitGrid(transformed_size.x, transformed_size.y, ROWS, COLS, gap_width);
+    if (!HTLogic::isPositiveFinite(monitor_scale) || !fit.has_value()) {
         return skip_invalid_geometry(
             "grid_geometry_validation",
             std::format(
-                "Invalid monitor geometry scale={} size={}x{}",
+                "Invalid monitor geometry scale={} size={}x{} for a {}x{} grid",
                 monitor_scale,
                 transformed_size.x,
-                transformed_size.y
+                transformed_size.y,
+                ROWS,
+                COLS
             ),
             std::optional<GridGeometry> {}
         );
     }
 
-    if (gap_width > std::min(transformed_size.x, transformed_size.y) || gap_width < 0) {
-        return skip_invalid_geometry(
-            "grid_config_validation",
-            std::format(
-                "Gap size {} induces invalid render dimensions (monitor {}x{})",
-                gap_width,
-                transformed_size.x,
-                transformed_size.y
-            ),
-            std::optional<GridGeometry> {}
-        );
-    }
-
-    double render_x = (transformed_size.x - gaps.x * (COLS + 1)) / COLS;
-    double render_y = (transformed_size.y - gaps.y * (ROWS + 1)) / ROWS;
-    const double mon_aspect = transformed_size.x / transformed_size.y;
-    Vector2D start_offset {};
-
-    // make correct aspect ratio
-    if (render_y * mon_aspect > render_x) {
-        start_offset.y = (render_y - render_x / mon_aspect) * ROWS / 2.f;
-        render_y = render_x / mon_aspect;
-    } else if (render_x / mon_aspect > render_y) {
-        start_offset.x = (render_x - render_y * mon_aspect) * COLS / 2.f;
-        render_x = render_y * mon_aspect;
-    }
-
-    return GridGeometry {
-        .transformed_size = transformed_size,
-        .gaps = gaps,
-        .start_offset = start_offset,
-        .opened_scale = render_x / transformed_size.x,
-    };
+    return GridGeometry {.transformed_size = transformed_size, .fit = *fit};
 }
 
 CBox HTLayoutGrid::cell_box(const GridGeometry& geometry, int x, int y, HTViewStage stage) const {
-    float use_scale = scale->value();
+    double use_scale = scale->value();
     Vector2D use_offset = offset->value();
     if (stage == HT_VIEW_CLOSED) {
         use_scale = 1;
         use_offset = Vector2D {0, 0};
     } else if (stage == HT_VIEW_OPENED) {
-        use_scale = geometry.opened_scale;
+        use_scale = geometry.fit.opened_scale;
         use_offset = Vector2D {0, 0};
     }
 
-    const Vector2D ws_sz = geometry.transformed_size * use_scale;
-    return CBox {
-        Vector2D {x, y} * (ws_sz + geometry.gaps) + geometry.gaps + use_offset
-            + geometry.start_offset,
-        ws_sz
-    };
+    const auto box = HTLogic::gridCellBox(
+        geometry.fit,
+        {.x = geometry.transformed_size.x, .y = geometry.transformed_size.y},
+        x,
+        y,
+        use_scale,
+        {.x = use_offset.x, .y = use_offset.y}
+    );
+    return CBox {box.x, box.y, box.w, box.h};
 }
 
 CBox HTLayoutGrid::calculate_ws_box(int x, int y, HTViewStage stage) {
@@ -406,7 +379,7 @@ void HTLayoutGrid::build_overview_layout(HTViewStage stage) {
         .scale = scale->value(),
         .offset = offset->value(),
         .transformed_size = geometry->transformed_size,
-        .gaps = geometry->gaps,
+        .gap = geometry->fit.gap,
     };
     if (layout_inputs == inputs)
         return;

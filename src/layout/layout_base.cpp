@@ -119,35 +119,42 @@ CBox HTLayoutBase::get_global_ws_box(WORKSPACEID workspace_id) {
     return {top_left, bottom_right - top_left};
 }
 
-Vector2D HTLayoutBase::global_to_local_ws_unscaled(Vector2D pos, WORKSPACEID workspace_id) {
+// Where workspace_id is drawn right now; nullopt without a usable cell.
+std::optional<HTLogic::CellMapping> HTLayoutBase::cell_mapping(WORKSPACEID workspace_id) {
     const PHLMONITOR monitor = get_monitor();
     if (monitor == nullptr)
-        return {};
+        return std::nullopt;
     const float monitor_scale = HTCompat::monitor_scale(monitor);
     if (!HTLogic::isPositiveFinite(monitor_scale))
-        return {};
+        return std::nullopt;
 
     const auto* layout_workspace = find_layout_workspace(workspace_id);
-    if (layout_workspace == nullptr)
-        return {};
-
-    CBox workspace_box = layout_workspace->box;
-    if (workspace_box.empty())
-        return {};
-    const Vector2D transformed_size = HTCompat::monitor_transformed_size(monitor);
-    const auto width_scale = HTLogic::workspaceWidthScale(workspace_box.w, transformed_size.x);
+    if (layout_workspace == nullptr || layout_workspace->box.empty())
+        return std::nullopt;
+    const CBox& box = layout_workspace->box;
+    const auto width_scale =
+        HTLogic::workspaceWidthScale(box.w, HTCompat::monitor_transformed_size(monitor).x);
     if (!width_scale.has_value())
-        return {};
-    const Vector2D monitor_pos = HTCompat::monitor_position(monitor);
+        return std::nullopt;
 
-    pos -= monitor_pos;
-    pos *= monitor_scale;
-    pos -= workspace_box.pos();
-    pos /= monitor_scale;
-    pos /= *width_scale;
-    if (!HTLogic::isFinitePoint(pos.x, pos.y))
+    const Vector2D monitor_pos = HTCompat::monitor_position(monitor);
+    return HTLogic::CellMapping {
+        .cell = {.x = box.x, .y = box.y},
+        .width_scale = *width_scale,
+        .monitor_scale = monitor_scale,
+        .monitor = {.x = monitor_pos.x, .y = monitor_pos.y},
+    };
+}
+
+Vector2D HTLayoutBase::global_to_local_ws_unscaled(Vector2D pos, WORKSPACEID workspace_id) {
+    const auto mapping = cell_mapping(workspace_id);
+    if (!mapping.has_value())
         return {};
-    return pos;
+
+    const auto local = HTLogic::globalToWorkspace(*mapping, {.x = pos.x, .y = pos.y});
+    if (!HTLogic::isFinitePoint(local.x, local.y))
+        return {};
+    return {local.x, local.y};
 }
 
 std::optional<Vector2D>
@@ -165,34 +172,14 @@ HTLayoutBase::global_to_workspace_monitor_coords(Vector2D pos, WORKSPACEID works
 }
 
 Vector2D HTLayoutBase::local_ws_unscaled_to_global(Vector2D pos, WORKSPACEID workspace_id) {
-    const PHLMONITOR monitor = get_monitor();
-    if (monitor == nullptr)
-        return {};
-    const float monitor_scale = HTCompat::monitor_scale(monitor);
-    if (!HTLogic::isPositiveFinite(monitor_scale))
+    const auto mapping = cell_mapping(workspace_id);
+    if (!mapping.has_value())
         return {};
 
-    const auto* layout_workspace = find_layout_workspace(workspace_id);
-    if (layout_workspace == nullptr)
+    const auto global = HTLogic::workspaceToGlobal(*mapping, {.x = pos.x, .y = pos.y});
+    if (!HTLogic::isFinitePoint(global.x, global.y))
         return {};
-
-    CBox workspace_box = layout_workspace->box;
-    if (workspace_box.empty())
-        return {};
-    const Vector2D transformed_size = HTCompat::monitor_transformed_size(monitor);
-    const auto width_scale = HTLogic::workspaceWidthScale(workspace_box.w, transformed_size.x);
-    if (!width_scale.has_value())
-        return {};
-    const Vector2D monitor_pos = HTCompat::monitor_position(monitor);
-
-    pos *= *width_scale;
-    pos *= monitor_scale;
-    pos += workspace_box.pos();
-    pos /= monitor_scale;
-    pos += monitor_pos;
-    if (!HTLogic::isFinitePoint(pos.x, pos.y))
-        return {};
-    return pos;
+    return {global.x, global.y};
 }
 
 Vector2D HTLayoutBase::local_ws_scaled_to_global(Vector2D pos, WORKSPACEID workspace_id) {
