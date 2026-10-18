@@ -82,7 +82,7 @@ class HTManager {
     PHTVIEW get_swipe_view();
     void reset_swipe_state();
     bool swipe_update(IPointer::SSwipeUpdateEvent e);
-    bool swipe_end();
+    bool swipe_end(bool cancelled);
 
     bool has_active_view();
     bool has_interactively_active_view();
@@ -91,6 +91,7 @@ class HTManager {
   private:
     swipe_state_t swipe_state = HT_SWIPE_NONE;
     float swipe_amt = 0.F;
+    bool swipe_started_open = false;
     VIEWID swipe_view_id = INVALID_VIEW_ID;
     PHLWINDOWREF dragged_window;
     bool selection_pending = false;

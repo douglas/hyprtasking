@@ -451,10 +451,12 @@ bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
             } else if (action == HTLogic::OpenSwipeStartAction::ShowOverview) {
                 swipe_view->show();
                 swipe_state = HT_SWIPE_OPEN;
+                swipe_started_open = false;
                 swipe_view_id = swipe_view->monitor_id;
                 swipe_amt = config.open_distance;
             } else if (action == HTLogic::OpenSwipeStartAction::HideOverview) {
                 swipe_state = HT_SWIPE_OPEN;
+                swipe_started_open = true;
                 swipe_view_id = swipe_view->monitor_id;
                 swipe_amt = 0.0;
             }
@@ -516,7 +518,8 @@ bool HTManager::swipe_update(IPointer::SSwipeUpdateEvent e) {
     return res;
 }
 
-bool HTManager::swipe_end() {
+// A cancelled gesture (e.g. a finger lifted mid-swipe) returns to where it started.
+bool HTManager::swipe_end(bool cancelled) {
     if (swipe_state == HT_SWIPE_NONE)
         return false;
 
@@ -532,10 +535,11 @@ bool HTManager::swipe_end() {
 
     switch (swipe_state) {
         case HT_SWIPE_OPEN: {
-            const auto keep_open = HTLogic::shouldKeepOverviewOpen(
-                swipe_amt,
-                HTConfig::runtime_config().open_distance
-            );
+            const auto keep_open = cancelled ? std::optional<bool> {swipe_started_open}
+                                             : HTLogic::shouldKeepOverviewOpen(
+                                                   swipe_amt,
+                                                   HTConfig::runtime_config().open_distance
+                                               );
             if (!keep_open.has_value()) {
                 reset_swipe_state();
                 return false;
@@ -553,7 +557,15 @@ bool HTManager::swipe_end() {
                 reset_swipe_state();
                 return false;
             }
-            const WORKSPACEID ws_id = swipe_view->layout->on_move_swipe_end();
+            WORKSPACEID ws_id = WORKSPACE_INVALID;
+            if (!cancelled)
+                ws_id = swipe_view->layout->on_move_swipe_end();
+            else if (
+                const PHLWORKSPACE active =
+                    HTCompat::active_monitor_workspace(swipe_view->get_monitor());
+                active != nullptr
+            )
+                ws_id = HTCompat::workspace_id(active);
             swipe_view->move_id(ws_id);
             break;
         }

@@ -115,12 +115,12 @@ void onSwipeUpdate(IPointer::SSwipeUpdateEvent e, Event::SCallbackInfo& info) {
     });
 }
 
-void onSwipeEnd([[maybe_unused]] IPointer::SSwipeEndEvent e, Event::SCallbackInfo& info) {
+void onSwipeEnd(IPointer::SSwipeEndEvent e, Event::SCallbackInfo& info) {
     HTPlugin::guardedCallback("on_swipe_end", [&] {
         if (ht_manager == nullptr || !ht_manager->runtime_enabled())
             return;
 
-        info.cancelled = ht_manager->swipe_end();
+        info.cancelled = ht_manager->swipe_end(e.cancelled);
     });
 }
 
