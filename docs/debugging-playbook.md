@@ -1,8 +1,7 @@
 # Debugging Playbook
 
 This is the maintainer playbook for diagnosing runtime failures in Hyprtasking
-on the supported Hyprland targets (`0.55.x`, `0.56.0`, `0.56.2`). Follow it in
-order.
+on the [supported Hyprland targets](compat-contract.md). Follow it in order.
 
 The shortest useful mental model is:
 
@@ -29,14 +28,8 @@ You want to know which local changes are present, which Hyprland is actually
 running, and whether Hyprtasking is loaded once, several times, or not at all.
 If the plugin is not loaded, do not reason about live behavior yet.
 
-The health call prints one line:
-
-```text
-runtime_enabled=true disable_reason="" failure_source="" config_error="" views=2 active_views=0
-```
-
-`hyprctl dispatch hyprtasking:health` writes the same line to the Hyprland log
-and a notification.
+The health call prints the one-line summary described in the
+[README](../README.md#dispatchers).
 
 ## 2. Run the Fast Local Checks
 
@@ -198,11 +191,10 @@ for an input method module grabbing keys (see
 
 ## Lessons from the overview input regression
 
-Drag and right-click selection once broke because the event-bus mouse-button
-listener never delivered the real clicks, so correct handler logic looked
-ineffective. The fix was to hook `CInputManager::onMouseButton`, run
-Hyprtasking's drag/select logic first, and only call the original when
-Hyprtasking does not handle the event.
+Drag and right-click selection once broke because the input path never
+delivered real clicks, so correct handler logic looked ineffective. The
+`CInputManager::onMouseButton` hook that fixed it is described in
+[Remaining Hooks](compat-contract.md#remaining-hooks).
 
 - Prove the loaded binary before reasoning about behavior.
 - When a patch "should" work and does nothing, ask whether the code path ran

@@ -23,18 +23,8 @@ causes the next keypress to be dropped.
 `hyprtasking` submap automatically when the overview opens and exits it when the
 overview closes, so bare keys are only bound while the overview is visible.
 
-Correct configuration:
-
-```
-submap = hyprtasking
-bind = , LEFT, hyprtasking:select, left
-bind = , RIGHT, hyprtasking:select, right
-bind = , UP, hyprtasking:select, up
-bind = , DOWN, hyprtasking:select, down
-bind = , RETURN, hyprtasking:commit,
-bind = , ESCAPE, hyprtasking:toggle, cursor
-submap = reset
-```
+Use the submap block from the
+[README configuration example](../README.md#configuration).
 
 **Quick diagnostic:** Temporarily unbind the suspected bare key and test:
 
@@ -131,19 +121,13 @@ After this, retry your command (for example
 
 If arrow keys and Enter do not navigate while the overview is open:
 
-1. Verify the submap bindings are in your config (see the submap block above)
+1. Verify the submap bindings are in your config (see
+   [the README](../README.md#configuration))
 2. Verify the plugin is loaded: `hyprctl plugin list`
 3. Check that the submap activates: open the overview, then run
    `hyprctl activesubmap` — it should say `hyprtasking`
-4. If the submap does not activate, reload the plugin binary:
-
-```bash
-hyprctl plugin unload /path/to/libhyprtasking.so
-hyprctl plugin load /path/to/libhyprtasking.so
-```
-
-`hyprctl reload` only reloads the config, not the plugin binary. If you
-rebuilt the plugin, you must unload and reload it.
+4. If the submap does not activate,
+   [reload the plugin binary](#reloading-the-plugin-binary).
 
 If arrow navigation skips multiple workspaces per keypress (for example
 `1 -> 3` on one `RIGHT` press), your `hyprtasking` binds are likely duplicated.
@@ -169,15 +153,10 @@ hyprctl plugin list
 hyprctl keyword source ~/.config/hypr/personal-hyprtasking.conf
 ```
 
-On this branch, keyboard selection dispatchers are `hyprtasking:select` and
-`hyprtasking:commit`. If your config still uses
-`hyprtasking:navigate` or `hyprtasking:commit_selection`, switch them to
-`hyprtasking:select` and `hyprtasking:commit`.
-If your config used conditional wrapper dispatchers to guard bare arrow keys,
-replace that block with the `hyprtasking` submap shown above.
-
-If these are mixed, update either the loaded plugin or the bind profile.
-Use the "Binding recipes" snippets in `README.md` to switch safely.
+Keyboard selection uses `hyprtasking:select` and `hyprtasking:commit` inside
+the `hyprtasking` submap. Update either the loaded plugin or the bind profile
+so they match, using the
+[README configuration example](../README.md#configuration).
 
 ## Gestures open the overview but also move workspaces
 
@@ -199,8 +178,8 @@ hyprctl getoption plugin:hyprtasking:gestures:move_fingers
 hyprctl getoption plugin:hyprtasking:gestures:open_positive
 ```
 
-If values are correct but behavior is stale after rebuild, unload/reload the
-plugin binary; `hyprctl reload` alone does not reload the `.so`.
+If values are correct but behavior is stale after a rebuild,
+[reload the plugin binary](#reloading-the-plugin-binary).
 
 ## Overview closes during config reload
 
@@ -218,31 +197,19 @@ message which includes the reason and a state snapshot. Then check health:
 hyprctl eval 'hl.plugin.hyprtasking.health()'
 ```
 
-It prints one line:
-
-```text
-runtime_enabled=false disable_reason="..." failure_source="..." config_error="" views=2 active_views=0
-```
-
-`hyprctl dispatch hyprtasking:health` writes the same line to the Hyprland log
-and a notification.
+It prints the [health line](../README.md#dispatchers); check
+`disable_reason` and `failure_source`.
 
 Common causes:
 
 - Hyprland version mismatch (check with `bash scripts/check-version-contract.sh`)
 - Plugin loaded multiple times (check with `hyprctl plugin list`)
 
-Invalid config values (for example `grid:rows = 0`, `grid:cols = 0`, or
-`gestures:move_distance = 0`) do not disable the runtime. They are rejected,
-the previous values are kept, and the error is shown in a notification and in
-the `config_error` health field. Fix the options and reload the config.
+Invalid config values do not disable the runtime; they are
+[rejected](../README.md#config-options) and reported in `config_error`. Fix the
+options and reload the config.
 
-For other disable reasons, reload the plugin binary:
-
-```bash
-hyprctl plugin unload /path/to/libhyprtasking.so
-hyprctl plugin load /path/to/libhyprtasking.so
-```
+For other disable reasons, [reload the plugin binary](#reloading-the-plugin-binary).
 
 See [`debugging-playbook.md`](debugging-playbook.md) for the full maintainer
 debugging workflow.
@@ -258,17 +225,18 @@ load, the package version and runtime likely drifted out of the supported set.
    `hyprctl eval 'hl.plugin.hyprtasking.health()'`
 3. Rebuild/reload the plugin against the currently installed headers:
    `meson setup build --reconfigure --buildtype=release && ninja -C build`
-4. Reload the plugin binary (not just config):
-   `hyprctl plugin unload /path/to/libhyprtasking.so` then
-   `hyprctl plugin load /path/to/libhyprtasking.so`
+4. [Reload the plugin binary](#reloading-the-plugin-binary), not just the
+   config.
 
-## Brief border blink during close transition
+## Reloading the plugin binary
 
-Some setups show a very short border-color flicker when closing the overview,
-especially when switching between empty and non-empty workspaces.
+`hyprctl reload` only reloads the config, not the plugin binary. After a
+rebuild, or when the runtime is in a bad state, unload and load the `.so`:
 
-This behavior is also reproducible in the baseline `hyprtasking-yerlotic` v0.1
-build, so it is not a regression introduced by the current branch.
+```bash
+hyprctl plugin unload /path/to/libhyprtasking.so
+hyprctl plugin load /path/to/libhyprtasking.so
+```
 
 ## Related docs
 

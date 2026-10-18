@@ -1,7 +1,7 @@
 # Architecture
 
-Hyprtasking is intentionally narrow on the supported `0.55.x`, `0.56.0`, and
-`0.56.2` Hyprland targets.
+Hyprtasking is intentionally narrow on the
+[supported Hyprland targets](compat-contract.md).
 The public surface is the overview itself, mouse interaction, gestures, the
 core dispatchers, runtime health, and audited compat wrappers.
 
@@ -89,9 +89,8 @@ state is canceled before rendering continues.
 
 Config is read into a typed runtime snapshot at startup, config reload, and
 runtime readiness checks that can observe transient `hyprctl keyword` changes.
-Invalid values, including non-positive grid dimensions, duplicate mouse
-buttons, duplicate gesture finger counts, and non-positive gesture distances,
-are rejected and the previous values stay in effect.
+Invalid values are handled as described in the
+[README](../README.md#config-options).
 
 The release gate (`scripts/release-check.sh`) is described in the
 [debugging playbook](debugging-playbook.md#7-release-gate).

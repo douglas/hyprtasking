@@ -3,11 +3,11 @@
 Hyprtasking hard-gates runtime activation to explicit, audited Hyprland
 versions.
 
-| Version | CI coverage |
+| Version | Offline compat gate ref |
 | --- | --- |
-| `0.55.x` | offline compat gate on `v0.55.0`; local runtime smoke checked on `0.55.2` |
-| `0.56.0` | offline compat gate |
-| `0.56.2` | offline compat gate; live rendering smoke checked |
+| `0.55.x` | `v0.55.0` |
+| `0.56.0` | `v0.56.0` |
+| `0.56.2` | `v0.56.2` |
 
 The runtime shape is diagrammed in [`architecture.md`](architecture.md).
 
@@ -36,7 +36,9 @@ supported target. Investigate the next Hyprland release on a preview branch.
 
 To add or drop a supported version, update `scripts/support-matrix.sh`, the
 `hyprpm.toml` commit pins, the `.github/workflows/offline-compat-gate.yml`
-matrix, and the supported-version list the plugin itself checks.
+matrix, and the supported-version list the plugin itself checks in
+`src/compat/profile.cpp`. `scripts/audit-source.sh` fails if the workflow matrix
+and `scripts/support-matrix.sh` disagree.
 
 ## Contract File
 
@@ -57,47 +59,17 @@ and exits with:
 `bash scripts/audit-source.sh` fails if a compat-sensitive symbol used under
 `src/compat/` is missing from the contract file.
 
-## Ownership
+## After a Hyprland Bump
 
-These files are the plugin-side compatibility boundary:
-
-- `src/compat/profile.cpp`
-  - Supported Hyprland target gating
-  - Hook/symbol contract resolution, including exact signature lookup
-  - Input hook contract resolution for `CInputManager::onMouseButton`
-  - Plugin API version compatibility assumptions
-- `src/compat/renderer_compat.cpp`
-  - Renderer hook wrappers
-  - Workspace/window/monitor render-time access
-  - Damage and render-pass helpers
-- `src/compat/runtime_compat.cpp`
-  - Focus, cursor, seat, drag-controller, and compositor action wrappers
-  - Original call-through helpers for drift-prone runtime hooks
-
-```mermaid
-flowchart TD
-    plugin[Plugin core]
-    profile[src/compat/profile.cpp]
-    runtime[src/compat/runtime_compat.cpp]
-    renderer[src/compat/renderer_compat.cpp]
-    hyprland[Hyprland internals]
-
-    plugin --> profile
-    plugin --> runtime
-    plugin --> renderer
-    profile --> hyprland
-    runtime --> hyprland
-    renderer --> hyprland
-```
-
-These still need inspection after a Hyprland bump even when the audit passes:
+Inspect these even when the audit passes:
 
 - direct input hook behavior for `CInputManager::onMouseButton` versus the
   cancellable event-bus mouse-button path
 - event bus listener wiring in `src/compat/runtime_compat.cpp`
 - animation/config-backed helper wiring in `src/compat/runtime_compat.cpp`
-- renderer hook behavior in `src/compat/renderer_compat.cpp`, especially
-  whether `findFunctionsByName` resolves exact signatures at runtime
+- renderer hook behavior in `src/compat/renderer_compat.cpp`, and whether
+  `findFunctionsByName` in `src/compat/profile.cpp` resolves exact signatures
+  at runtime
 - `changeWorkspace` semantics and visibility animation behavior in
   `src/compat/renderer_compat.cpp`
 
@@ -132,16 +104,5 @@ mouse buttons, and gestures, registered with `addConfigValueV2`.
 
 Runtime code consumes a typed snapshot refreshed at plugin startup, config
 reload, and runtime readiness checks that can observe transient
-`hyprctl keyword` changes. Invalid values are rejected with a notification and
-the `config_error` health field, and the previous values stay in effect.
-
-## Hyprland Best-Practice Checklist
-
-- Gate runtime support on exact Hyprland package/runtime versions.
-- Register dispatchers with `addDispatcherV2`.
-- Prefer `Event::bus` listeners through `src/compat/runtime_compat.cpp` for
-  cancellable events before adding hooks.
-- Treat missing `Event::bus` listeners as startup failures instead of silently
-  running with a partially wired runtime.
-- Keep drift-prone Hyprland methods and fields behind `src/compat/` wrappers.
-- Do not use deprecated Hyprland plugin APIs.
+`hyprctl keyword` changes. Invalid values are handled as described in the
+[README](../README.md#config-options).

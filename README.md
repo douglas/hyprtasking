@@ -8,31 +8,16 @@
 
 ## This Fork
 
-This repository started from the original Hyprtasking project and has diverged
-into a narrower, maintenance-first branch.
+This repository started from the original Hyprtasking project and is now a
+narrower, maintenance-first branch:
 
-The main differences from the upstream fork source are:
+- maintained only for the audited Hyprland targets above
+- Hyprland internals stay behind `src/compat/`, checked by compat and source
+  audits
+- releases go through version-contract checks, live smoke tests, and manual
+  runtime checks
 
-- this branch is maintained for explicit audited Hyprland targets instead of
-  trying to span a wide range of compositor releases
-- Hyprland-sensitive behavior is pushed behind `src/compat/`, with explicit
-  compat ownership, runtime wrappers, and audited hook contracts
-- the public runtime surface is intentionally small: grid overview, mouse
-  trigger/selection/drag/drop, gestures, directional movement, submap-backed
-  keyboard selection, and a health check
-- release validation is stricter, with version-contract checks, compat and
-  source audits, smoke tests, and manual runtime checks
-- overview stability has been hardened around renderer re-entry, focus handoff,
-  hover and keyboard selection, and runtime lifecycle edge cases
-- overview mouse interaction uses a direct `CInputManager::onMouseButton` hook,
-  which keeps drag and right-click selection reliable
-- bare key bindings for overview navigation use a Hyprland submap that the
-  plugin enters/exits automatically, which eliminates keypress interference
-  during normal workspace use
-
-If you want the original wider-compatibility project posture, read the upstream
-repository. If you want the branch that tracks the current maintenance work,
-testing, and debugging workflow described in this README, use this repository.
+For the original wider-compatibility project, see the upstream repository.
 
 https://github.com/user-attachments/assets/8d6cdfd2-2b17-4240-a117-1dbd2231ed4e
 
@@ -40,22 +25,14 @@ https://github.com/user-attachments/assets/8d6cdfd2-2b17-4240-a117-1dbd2231ed4e
 
 #### [See Configuration](#Configuration)
 
-## Roadmap
+## Features
 
-- [x] Grid overview
-- [x] Mouse controls
-    - [x] Exit into workspace (hover, click)
-    - [x] Drag and drop windows
-- [x] Keyboard controls
-    - [x] Switch workspaces with direction
-- [x] Multi-monitor support (tested)
-- [x] Monitor scaling support (tested)
-- [x] Animation support
-- [x] Configurability
-    - [x] Number of visible workspaces
-    - [x] Toggle behavior
-    - [x] Toggle keybind
-- [x] Touch and gesture support
+- Grid overview with animations, multi-monitor, and scaling support
+- Mouse controls: hover or click to enter a workspace, drag and drop windows
+- Keyboard controls: directional workspace switching and submap-backed
+  selection
+- Touchpad gestures
+- A runtime health check
 
 ## Installation
 
@@ -76,8 +53,7 @@ hyprpm enable hyprtasking
 ### Nix
 
 Add hyprtasking to your flake inputs and pin Hyprland to the supported
-target you run. This example uses `v0.56.2`; `0.55.x` and `v0.56.0` are also
-supported.
+target you run. This example uses `v0.56.2`.
 ```nix
 # flake.nix
 {
@@ -123,8 +99,8 @@ Then use `hyprctl plugin load` to load the absolute path to the `.so` file:
 hyprctl plugin load "$(realpath libhyprtasking.so)"
 ```
 
-`hyprctl reload` only reloads configuration and does not reload the plugin
-binary. After rebuilding the plugin, unload/reload the `.so` explicitly.
+After rebuilding, unload and load the `.so` again; see
+[reloading the plugin binary](docs/troubleshooting.md#reloading-the-plugin-binary).
 
 ## Maintainer Docs
 
@@ -210,37 +186,6 @@ plugin {
 }
 ```
 
-### Binding recipes
-
-Selection + Enter recipe:
-
-```ini
-bind = SUPER, tab, hyprtasking:toggle, cursor
-submap = hyprtasking
-bind = , LEFT, hyprtasking:select, left
-bind = , RIGHT, hyprtasking:select, right
-bind = , UP, hyprtasking:select, up
-bind = , DOWN, hyprtasking:select, down
-bind = , RETURN, hyprtasking:commit,
-bind = , ESCAPE, hyprtasking:toggle, cursor
-submap = reset
-```
-
-Quick mismatch check:
-
-```bash
-hyprctl plugin list
-hyprctl keyword source ~/.config/hypr/personal-hyprtasking.conf
-hyprctl eval 'hl.plugin.hyprtasking.health()'
-```
-
-If `keyword source` prints `invalid dispatcher` and your config still uses
-`hyprtasking:navigate` or `hyprtasking:commit_selection`, switch those binds to
-`hyprtasking:select` and `hyprtasking:commit`.
-Configs that depended on conditional wrapper dispatchers should instead use
-the `hyprtasking` submap shown above so bare keys only exist while the overview
-is open.
-
 ### Dispatchers
 
 - `hyprtasking:toggle, ARG` takes in 1 argument that is either `cursor` or `all`
@@ -272,11 +217,6 @@ Reload behavior is not configurable: `hyprctl reload` cancels active overview
 runtime state and reinitializes grid positions so the compositor never keeps a
 half-open overview across a config reload.
 
-Invalid config values are rejected and the previous values stay in effect. This
-covers non-positive grid dimensions, duplicate drag/select mouse buttons,
-duplicate gesture finger counts, and non-positive gesture distances. The error
-appears in a notification and in the health line's `config_error` field.
-
 ### Gesture recipes
 
 `open_fingers` and `move_fingers` should use different values to avoid one
@@ -297,16 +237,21 @@ Use `gestures:open_positive` to pick which swipe direction opens the overview:
 All options are prefixed with `plugin:hyprtasking:`.
 Visual styling uses fixed built-in defaults.
 
+Invalid config values are rejected and the previous values stay in effect. This
+covers non-positive grid dimensions, duplicate drag/select mouse buttons,
+duplicate gesture finger counts, and non-positive gesture distances. The error
+appears in a notification and in the health line's `config_error` field.
+
 | Option | Type | Description | Default |
 | --- | --- | --- | --- |
-| `drag_button` | `Hyprlang::INT` | The mouse button to use to drag windows around. Must differ from `select_button`; conflicts are rejected and the previous value is kept. | `0x110` |
-| `select_button` | `Hyprlang::INT` | The mouse button to use to select a workspace. Must differ from `drag_button`; conflicts are rejected and the previous value is kept. | `0x111` |
+| `drag_button` | `Hyprlang::INT` | The mouse button to use to drag windows around. Must differ from `select_button`. | `0x110` |
+| `select_button` | `Hyprlang::INT` | The mouse button to use to select a workspace. Must differ from `drag_button`. | `0x111` |
 | `gestures:enabled` | `Hyprlang::INT` | Whether or not to enable gestures | `true` |
 | `gestures:move_fingers` | `Hyprlang::INT` | The number of fingers to use for the "move" gesture. Keep different from `open_fingers` to avoid gesture overlap. | `3` |
-| `gestures:move_distance` | `Hyprlang::FLOAT` | How large of a swipe on the touchpad corresponds to the width of a workspace. Must be `> 0`; invalid values are rejected and the previous value is kept. | `300.f` |
+| `gestures:move_distance` | `Hyprlang::FLOAT` | How large of a swipe on the touchpad corresponds to the width of a workspace. Must be `> 0`. | `300.f` |
 | `gestures:open_fingers` | `Hyprlang::INT` | The number of fingers to use for the open/close gesture. Keep different from `move_fingers` to avoid gesture overlap. | `4` |
-| `gestures:open_distance` | `Hyprlang::FLOAT` | How large of a swipe on the touchpad is needed for the "open" gesture. Must be `> 0`; invalid values are rejected and the previous value is kept. | `300.f` |
+| `gestures:open_distance` | `Hyprlang::FLOAT` | How large of a swipe on the touchpad is needed for the "open" gesture. Must be `> 0`. | `300.f` |
 | `gestures:open_positive` | `Hyprlang::INT` | `true` if swiping up should open the overlay, `false` otherwise | `true` |
-| `grid:rows` | `Hyprlang::INT` | The number of rows to display on the grid overlay. Must be `>= 1`; invalid values are rejected and the previous value is kept. | `3` |
-| `grid:cols` | `Hyprlang::INT` | The number of columns to display on the grid overlay. Must be `>= 1`; invalid values are rejected and the previous value is kept. | `3` |
+| `grid:rows` | `Hyprlang::INT` | The number of rows to display on the grid overlay. Must be `>= 1`. | `3` |
+| `grid:cols` | `Hyprlang::INT` | The number of columns to display on the grid overlay. Must be `>= 1`. | `3` |
 | `grid:loop` | `Hyprlang::INT` | When enabled, moving right at the far right of the grid will wrap around to the leftmost workspace, etc. | `false` |
