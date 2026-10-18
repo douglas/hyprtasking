@@ -355,7 +355,7 @@ bool HTCompat::invoke_mouse_button_original(
     SP<IPointer> mouse
 ) {
     using origOnMouseButton = void (*)(void*, IPointer::SButtonEvent, SP<IPointer>);
-    const auto original = hook_original<origOnMouseButton>(g_hooks.input_mouse_button.hook);
+    const auto original = hook_original<origOnMouseButton>(g_hooks.input_mouse_button);
     if (thisptr == nullptr || original == nullptr)
         return false;
 

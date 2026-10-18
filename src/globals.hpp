@@ -13,48 +13,19 @@ inline HANDLE PHANDLE = nullptr;
 
 using origIsSolitaryBlocked = uint32_t (*)(void*, bool);
 
-struct HTHookInfo {
-    std::string signature;
-    std::string method;
-};
-
-struct HTListenerInfo {
-    bool installed = false;
-};
-
-struct HTInstalledHook {
-    CFunctionHook* hook = nullptr;
-    HTHookInfo info;
-};
-
 // Function hooks installed into Hyprland, plus the resolved renderWindow symbol.
 struct HTHookRegistry {
-    HTInstalledHook input_mouse_button;
-    HTInstalledHook render_workspace;
-    HTInstalledHook render_texture;
-    HTInstalledHook render_border;
-    HTInstalledHook render_border_lerp;
-    HTInstalledHook blur_optimizations;
-    HTInstalledHook should_render_window;
-    HTInstalledHook is_solitary_blocked;
+    CFunctionHook* input_mouse_button = nullptr;
+    CFunctionHook* render_workspace = nullptr;
+    CFunctionHook* render_texture = nullptr;
+    CFunctionHook* render_border = nullptr;
+    CFunctionHook* render_border_lerp = nullptr;
+    CFunctionHook* blur_optimizations = nullptr;
+    CFunctionHook* should_render_window = nullptr;
+    CFunctionHook* is_solitary_blocked = nullptr;
     void* render_window = nullptr;
-    HTHookInfo render_window_info;
-};
-
-// Event bus listener install state, reported by the health dispatcher.
-struct HTListenerRegistry {
-    HTListenerInfo mouse_move;
-    HTListenerInfo swipe_begin;
-    HTListenerInfo swipe_update;
-    HTListenerInfo swipe_end;
-    HTListenerInfo config_reloaded;
-    HTListenerInfo monitor_added;
-    HTListenerInfo monitor_removed;
-    HTListenerInfo monitor_layout_changed;
-    HTListenerInfo window_set_changed;
 };
 
 inline HTHookRegistry g_hooks;
-inline HTListenerRegistry g_listeners;
 
 inline std::unique_ptr<HTManager> ht_manager;

@@ -264,11 +264,7 @@ install_function_hook(CFunctionHook*& hook, const HookSpec& spec, void* destinat
         };
     }
 
-    return {
-        .installed = true,
-        .signature = lookup.signature,
-        .method = lookup.method,
-    };
+    return {.installed = true};
 }
 
 bool remove_function_hook(CFunctionHook*& hook, std::string_view label) {

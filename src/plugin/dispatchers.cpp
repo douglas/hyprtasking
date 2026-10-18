@@ -121,16 +121,11 @@ SDispatchResult dispatchCommit([[maybe_unused]] std::string arg) {
     });
 }
 
-SDispatchResult dispatchHealth(std::string arg) {
+SDispatchResult dispatchHealth([[maybe_unused]] std::string arg) {
     return guardedDispatch("dispatch_health", [&]() -> SDispatchResult {
-        const bool json = arg == "json";
-        std::string health;
-        if (ht_manager == nullptr) {
-            health = json ? "{\"runtime_enabled\":false,\"error\":\"ht_manager is null\"}"
-                          : "runtime_enabled=false disable_reason=\"ht_manager is null\"";
-        } else {
-            health = ht_manager->runtime_health_summary(json);
-        }
+        const std::string health = ht_manager == nullptr
+            ? "runtime_enabled=false disable_reason=\"ht_manager is null\""
+            : ht_manager->runtime_health_summary();
 
         Log::logger->log(LOG, "[Hyprtasking] health {}", health);
         HyprlandAPI::addNotification(
@@ -185,13 +180,10 @@ int luaCommit(lua_State* state) {
 // Returns the health summary without the notification dispatchHealth shows,
 // so scripts can poll it.
 int luaHealth(lua_State* state) {
-    const char* arg = luaL_optstring(state, 1, "");
     {
-        const std::string fallback = "{\"runtime_enabled\":false,\"error\":\"health unavailable\"}";
-        const auto health = guardedValue("lua_health", fallback, [arg, &fallback] {
-            return ht_manager == nullptr
-                ? fallback
-                : ht_manager->runtime_health_summary(std::string_view {arg} == "json");
+        const std::string fallback = "runtime_enabled=false disable_reason=\"health unavailable\"";
+        const auto health = guardedValue("lua_health", fallback, [&fallback] {
+            return ht_manager == nullptr ? fallback : ht_manager->runtime_health_summary();
         });
         lua_pushstring(state, health.c_str());
     }

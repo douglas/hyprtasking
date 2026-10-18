@@ -90,7 +90,7 @@ void end_overview_render_scope() {
 
 uint32_t solitaryBlockedOriginal(void* thisptr, bool full) {
     const auto original =
-        HTCompat::hook_original<origIsSolitaryBlocked>(g_hooks.is_solitary_blocked.hook);
+        HTCompat::hook_original<origIsSolitaryBlocked>(g_hooks.is_solitary_blocked);
     if (thisptr == nullptr || original == nullptr) {
         disable_runtime_for_render_failure(
             "hook_is_solitary_blocked",
@@ -207,7 +207,7 @@ void hookRenderTexture(
     const CBox& box,
     Render::GL::CHyprOpenGLImpl::STextureRenderData data
 ) {
-    const auto original = HTCompat::hook_original<render_texture_t>(g_hooks.render_texture.hook);
+    const auto original = HTCompat::hook_original<render_texture_t>(g_hooks.render_texture);
     if (original == nullptr) {
         disable_runtime_for_render_failure("hook_render_texture", "missing renderTexture original call-through");
         return;
@@ -297,7 +297,7 @@ void hookRenderBorder(
     const Config::CGradientValueData& gradient,
     Render::GL::CHyprOpenGLImpl::SBorderRenderData data
 ) {
-    const auto original = HTCompat::hook_original<render_border_t>(g_hooks.render_border.hook);
+    const auto original = HTCompat::hook_original<render_border_t>(g_hooks.render_border);
     if (original == nullptr) {
         disable_runtime_for_render_failure(
             "hook_render_border",
@@ -319,8 +319,7 @@ void hookRenderBorderLerp(
     float lerp,
     Render::GL::CHyprOpenGLImpl::SBorderRenderData data
 ) {
-    const auto original =
-        HTCompat::hook_original<render_border_lerp_t>(g_hooks.render_border_lerp.hook);
+    const auto original = HTCompat::hook_original<render_border_lerp_t>(g_hooks.render_border_lerp);
     if (original == nullptr) {
         disable_runtime_for_render_failure(
             "hook_render_border_lerp",
@@ -335,8 +334,7 @@ void hookRenderBorderLerp(
 }
 
 bool hookBlurOptimizations(void* thisptr, PHLLS layer, PHLWINDOW window) {
-    const auto original =
-        HTCompat::hook_original<blur_optimizations_t>(g_hooks.blur_optimizations.hook);
+    const auto original = HTCompat::hook_original<blur_optimizations_t>(g_hooks.blur_optimizations);
     if (original == nullptr) {
         disable_runtime_for_render_failure(
             "hook_blur_optimizations",
@@ -395,7 +393,7 @@ namespace HTCompat {
 
 bool initializeRendererHooks() {
     const auto render_workspace = install_function_hook(
-        g_hooks.render_workspace.hook,
+        g_hooks.render_workspace,
         render_workspace_spec(),
         hook_destination(hookRenderWorkspace)
     );
@@ -403,14 +401,10 @@ bool initializeRendererHooks() {
         disable_runtime_for_render_failure("initialize_renderer_hooks", render_workspace.error);
         return false;
     }
-    g_hooks.render_workspace.info = {
-        .signature = render_workspace.signature,
-        .method = render_workspace.method,
-    };
 
 #if HT_HYPRLAND_GE_0_56
     const auto render_texture = install_function_hook(
-        g_hooks.render_texture.hook,
+        g_hooks.render_texture,
         render_texture_spec(),
         hook_destination(hookRenderTexture)
     );
@@ -419,13 +413,9 @@ bool initializeRendererHooks() {
         shutdownRendererHooks();
         return false;
     }
-    g_hooks.render_texture.info = {
-        .signature = render_texture.signature,
-        .method = render_texture.method,
-    };
 
     const auto render_border = install_function_hook(
-        g_hooks.render_border.hook,
+        g_hooks.render_border,
         render_border_spec(),
         hook_destination(hookRenderBorder)
     );
@@ -434,13 +424,9 @@ bool initializeRendererHooks() {
         shutdownRendererHooks();
         return false;
     }
-    g_hooks.render_border.info = {
-        .signature = render_border.signature,
-        .method = render_border.method,
-    };
 
     const auto render_border_lerp = install_function_hook(
-        g_hooks.render_border_lerp.hook,
+        g_hooks.render_border_lerp,
         render_border_lerp_spec(),
         hook_destination(hookRenderBorderLerp)
     );
@@ -449,13 +435,9 @@ bool initializeRendererHooks() {
         shutdownRendererHooks();
         return false;
     }
-    g_hooks.render_border_lerp.info = {
-        .signature = render_border_lerp.signature,
-        .method = render_border_lerp.method,
-    };
 
     const auto blur_optimizations = install_function_hook(
-        g_hooks.blur_optimizations.hook,
+        g_hooks.blur_optimizations,
         blur_optimizations_spec(),
         hook_destination(hookBlurOptimizations)
     );
@@ -464,14 +446,10 @@ bool initializeRendererHooks() {
         shutdownRendererHooks();
         return false;
     }
-    g_hooks.blur_optimizations.info = {
-        .signature = blur_optimizations.signature,
-        .method = blur_optimizations.method,
-    };
 #endif
 
     const auto should_render_window = install_function_hook(
-        g_hooks.should_render_window.hook,
+        g_hooks.should_render_window,
         should_render_window_spec(),
         hook_destination(hookShouldRenderWindow)
     );
@@ -480,10 +458,6 @@ bool initializeRendererHooks() {
         shutdownRendererHooks();
         return false;
     }
-    g_hooks.should_render_window.info = {
-        .signature = should_render_window.signature,
-        .method = should_render_window.method,
-    };
 
     const auto render_window_symbol = resolve_hook_address(render_window_spec());
     if (render_window_symbol.address == nullptr) {
@@ -495,10 +469,6 @@ bool initializeRendererHooks() {
         return false;
     }
     g_hooks.render_window = render_window_symbol.address;
-    g_hooks.render_window_info = {
-        .signature = render_window_symbol.signature,
-        .method = render_window_symbol.method,
-    };
     Log::logger->log(
         LOG,
         "[Hyprtasking] Resolved {} via {}",
@@ -507,7 +477,7 @@ bool initializeRendererHooks() {
     );
 
     const auto solitary_blocked_hook = install_function_hook(
-        g_hooks.is_solitary_blocked.hook,
+        g_hooks.is_solitary_blocked,
         solitary_blocked_spec(),
         hook_destination(hookIsSolitaryBlocked)
     );
@@ -519,39 +489,27 @@ bool initializeRendererHooks() {
         shutdownRendererHooks();
         return false;
     }
-    g_hooks.is_solitary_blocked.info = {
-        .signature = solitary_blocked_hook.signature,
-        .method = solitary_blocked_hook.method,
-    };
 
     return true;
 }
 
 void shutdownRendererHooks() {
     remove_overview_render_passes();
-    remove_function_hook(g_hooks.render_workspace.hook, "renderWorkspace");
-    remove_function_hook(g_hooks.render_texture.hook, "renderTexture");
-    remove_function_hook(g_hooks.render_border.hook, "renderBorder");
-    remove_function_hook(g_hooks.render_border_lerp.hook, "renderBorder (lerp)");
-    remove_function_hook(g_hooks.blur_optimizations.hook, "shouldUseNewBlurOptimizations");
-    remove_function_hook(g_hooks.should_render_window.hook, "shouldRenderWindow");
-    remove_function_hook(g_hooks.is_solitary_blocked.hook, "isSolitaryBlocked");
+    remove_function_hook(g_hooks.render_workspace, "renderWorkspace");
+    remove_function_hook(g_hooks.render_texture, "renderTexture");
+    remove_function_hook(g_hooks.render_border, "renderBorder");
+    remove_function_hook(g_hooks.render_border_lerp, "renderBorder (lerp)");
+    remove_function_hook(g_hooks.blur_optimizations, "shouldUseNewBlurOptimizations");
+    remove_function_hook(g_hooks.should_render_window, "shouldRenderWindow");
+    remove_function_hook(g_hooks.is_solitary_blocked, "isSolitaryBlocked");
     g_hooks.render_window = nullptr;
-    g_hooks.render_workspace.info = {};
-    g_hooks.render_texture.info = {};
-    g_hooks.render_border.info = {};
-    g_hooks.render_border_lerp.info = {};
-    g_hooks.blur_optimizations.info = {};
-    g_hooks.should_render_window.info = {};
-    g_hooks.render_window_info = {};
-    g_hooks.is_solitary_blocked.info = {};
 }
 
 bool should_render_window_original(void* renderer, PHLWINDOW window, PHLMONITOR monitor) {
-    if (renderer == nullptr || g_hooks.should_render_window.hook == nullptr || window == nullptr
+    if (renderer == nullptr || g_hooks.should_render_window == nullptr || window == nullptr
         || monitor == nullptr)
         return false;
-    const auto original = hook_original<should_render_window_t>(g_hooks.should_render_window.hook);
+    const auto original = hook_original<should_render_window_t>(g_hooks.should_render_window);
     if (original == nullptr) {
         disable_runtime_for_render_failure(
             "should_render_window_original",
@@ -579,7 +537,7 @@ bool render_workspace_original(
     const Time::steady_tp& now,
     const CBox& geometry
 ) {
-    const auto original = hook_original<render_workspace_t>(g_hooks.render_workspace.hook);
+    const auto original = hook_original<render_workspace_t>(g_hooks.render_workspace);
     if (thisptr == nullptr || original == nullptr)
         return false;
 

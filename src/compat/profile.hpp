@@ -22,8 +22,6 @@ struct HookLookupResult {
 
 struct HookInstallResult {
     bool installed = false;
-    std::string signature;
-    std::string method;
     std::string error;
 };
 
