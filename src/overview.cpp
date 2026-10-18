@@ -292,10 +292,18 @@ void HTView::move_id(WORKSPACEID ws_id) {
     if (other_workspace == nullptr)
         return;
 
+    // The workspace may have changed outside Hyprtasking since the last move,
+    // so start the closed-overview slide from where the monitor is now.
+    if (!active && !navigating)
+        layout->init_position();
+
     if (!HTCompat::activate_monitor_workspace_user(monitor, other_workspace))
         return;
 
-    set_keyboard_workspace(ws_id);
+    // Keyboard selection only lives while the overview is open; keeping it
+    // after a closed move would make the next move start from a stale workspace.
+    if (active)
+        set_keyboard_workspace(ws_id);
     clear_hover_workspace();
 
     const bool was_active = active;
