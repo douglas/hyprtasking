@@ -358,7 +358,9 @@ bool HTView::navigate_selection(const std::string& arg) {
         return false;
 
     const WORKSPACEID active_workspace_id = HTCompat::workspace_id(active_workspace);
-    layout->build_overview_layout(HT_VIEW_CLOSED);
+    // The overview is open, so build the boxes it is showing: select_workspace
+    // hit-tests the cursor against them to pick the hover to suppress.
+    layout->build_overview_layout(HT_VIEW_ANIMATING);
     auto select_workspace = [&](WORKSPACEID target_ws_id) {
         set_keyboard_workspace(target_ws_id);
         const HTCursorWorkspaceContext cursor_context = ht_manager == nullptr
