@@ -448,15 +448,17 @@ bool HTCompat::listen_window_set_changed(
     return true;
 }
 
-std::vector<PHLWINDOW> HTCompat::compositor_windows() {
+// By reference: the overview walks this list every frame.
+const std::vector<PHLWINDOW>& HTCompat::compositor_windows() {
+    static const std::vector<PHLWINDOW> none;
 #if HT_HYPRLAND_GE_0_56
     if (!Desktop::viewState())
-        return {};
+        return none;
 
     return Desktop::viewState()->windows();
 #else
     if (!g_pCompositor)
-        return {};
+        return none;
 
     return g_pCompositor->m_windows;
 #endif

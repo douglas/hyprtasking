@@ -95,7 +95,7 @@ bool listen_window_set_changed(
     const std::function<void()>& callback
 );
 
-std::vector<PHLWINDOW> compositor_windows();
+const std::vector<PHLWINDOW>& compositor_windows();
 // Fires after each commit of the window's main surface; empty if it has none.
 CHyprSignalListener
 listen_window_surface_commit(PHLWINDOW window, const std::function<void()>& callback);

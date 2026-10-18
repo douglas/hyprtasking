@@ -211,8 +211,9 @@ void hookRenderTexture(
         return;
     }
 
+    // Every path calls this exactly once, so hand over the texture and data.
     const auto call_original = [&](const CBox& render_box) {
-        original(thisptr, texture, render_box, data);
+        original(thisptr, std::move(texture), render_box, std::move(data));
     };
     if (!overview_render_modif_active()) {
         call_original(box);
