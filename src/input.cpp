@@ -134,24 +134,24 @@ bool HTManager::start_window_drag(const HTCursorWorkspaceContext& cursor_context
     if (target == nullptr)
         return false;
 
-    const PHLWINDOW dragged_window = target->window();
-    if (dragged_window != nullptr) {
+    const PHLWINDOW target_window = target->window();
+    if (target_window != nullptr) {
         if (HTCompat::drag_controller_is_tiled()) {
             const auto inverse_drag_scale =
                 HTLogic::inverseDragWindowScale(cursor_view->layout->drag_window_scale());
             if (!inverse_drag_scale.has_value())
                 return false;
-            const PHLMONITOR dragged_monitor = HTCompat::window_monitor(dragged_window);
+            const PHLMONITOR dragged_monitor = HTCompat::window_monitor(target_window);
             if (dragged_monitor == nullptr)
                 return false;
             const Vector2D dragged_monitor_pos = HTCompat::monitor_position(dragged_monitor);
 
             const Vector2D pre_pos = cursor_view->layout->local_ws_unscaled_to_global(
-                HTCompat::window_real_position(dragged_window) - dragged_monitor_pos,
+                HTCompat::window_real_position(target_window) - dragged_monitor_pos,
                 workspace_id
             );
             const Vector2D post_pos = cursor_view->layout->local_ws_unscaled_to_global(
-                HTCompat::window_real_position_goal(dragged_window) - dragged_monitor_pos,
+                HTCompat::window_real_position_goal(target_window) - dragged_monitor_pos,
                 workspace_id
             );
             const Vector2D mapped_pre_pos =
@@ -159,14 +159,14 @@ bool HTManager::start_window_drag(const HTCursorWorkspaceContext& cursor_context
             const Vector2D mapped_post_pos =
                 (post_pos - mouse_coords) * *inverse_drag_scale + mouse_coords;
 
-            HTCompat::set_window_real_position(dragged_window, mapped_pre_pos);
-            HTCompat::set_window_real_position_goal(dragged_window, mapped_post_pos);
+            HTCompat::set_window_real_position(target_window, mapped_pre_pos);
+            HTCompat::set_window_real_position_goal(target_window, mapped_post_pos);
         } else {
             HTCompat::simulate_mouse_movement();
         }
     }
 
-    set_dragged_window(dragged_window);
+    dragged_window = target_window;
     reset_mouse_bind_mode = false;
     end_drag_on_failure = false;
     restore_workspace.dismiss();

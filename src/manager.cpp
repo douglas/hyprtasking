@@ -13,10 +13,6 @@
 #include "overview.hpp"
 #include "plugin/guards.hpp"
 
-HTManager::HTManager() {
-    reset_swipe_state();
-}
-
 // The timer callback and listeners run code from this plugin's .so.
 HTManager::~HTManager() {
     surface_commit_listeners.clear();
@@ -163,10 +159,6 @@ bool HTManager::is_dragged_window(PHLWINDOW window) {
     return get_dragged_window() == window;
 }
 
-void HTManager::set_dragged_window(PHLWINDOW window) {
-    dragged_window = window;
-}
-
 void HTManager::clear_dragged_window() {
     dragged_window = {};
 }
@@ -243,7 +235,6 @@ void HTManager::reset_runtime_controls() {
 
     reset_drag_state();
     reset_swipe_state();
-    HTCompat::set_cursor_override_enabled(false);
 }
 
 PHTVIEW HTManager::get_swipe_view() {
@@ -265,9 +256,9 @@ void HTManager::reset_swipe_state() {
 
 void HTManager::abort_drag_controller() {
     const auto target = HTCompat::drag_controller_target();
-    if (const PHLWINDOW dragged_window = target == nullptr ? nullptr : target->window();
-        dragged_window != nullptr) {
-        HTCompat::reset_window_workspace_move_alpha(dragged_window);
+    if (const PHLWINDOW target_window = target == nullptr ? nullptr : target->window();
+        target_window != nullptr) {
+        HTCompat::reset_window_workspace_move_alpha(target_window);
     }
 
     if (HTCompat::drag_controller_mode() != MBIND_INVALID)

@@ -21,15 +21,7 @@ struct HTCursorWorkspaceContext {
 
 class HTManager {
   public:
-    static constexpr VIEWID INVALID_VIEW_ID = -1;
-    enum class mouse_interaction_t {
-        HT_MOUSE_NONE,
-        HT_MOUSE_DRAG,
-        HT_MOUSE_SELECT,
-    };
-    using enum mouse_interaction_t;
-
-    HTManager();
+    HTManager() = default;
     ~HTManager();
     HTManager(const HTManager&) = delete;
     HTManager& operator=(const HTManager&) = delete;
@@ -43,38 +35,23 @@ class HTManager {
 
     void prepare_for_unload();
     void sync_monitor_views(MONITORID removed_monitor_id = MONITOR_INVALID);
-    void reset_drag_state();
     void cancel_window_drag();
 
     void show_all_views();
     void hide_all_views();
     void show_cursor_view();
-    bool has_runtime_view();
     void on_window_set_changed();
-    void request_redraw(PHLMONITOR monitor);
     void refresh_runtime_activity();
     PHLWINDOW get_dragged_window();
     bool is_dragged_window(PHLWINDOW window);
-    void set_dragged_window(PHLWINDOW window);
-    void clear_dragged_window();
     bool runtime_enabled() const;
     void disable_runtime(std::string_view source, std::string_view reason);
     void block_runtime(std::string_view source, std::string_view reason);
     std::string runtime_health_summary() const;
 
     HTLogic::MouseButtonResult handle_mouse_button(unsigned int button, bool pressed);
-    bool start_window_drag(const HTCursorWorkspaceContext& cursor_context);
-    void end_window_drag();
     bool on_mouse_move();
 
-    enum class swipe_state_t {
-        HT_SWIPE_OPEN,
-        HT_SWIPE_MOVE,
-        HT_SWIPE_NONE,
-    };
-    using enum swipe_state_t;
-
-    PHTVIEW get_swipe_view();
     void reset_swipe_state();
     bool swipe_update(IPointer::SSwipeUpdateEvent e);
     bool swipe_end(bool cancelled);
@@ -84,6 +61,21 @@ class HTManager {
     bool cursor_view_active();
 
   private:
+    static constexpr VIEWID INVALID_VIEW_ID = -1;
+    enum class mouse_interaction_t {
+        HT_MOUSE_NONE,
+        HT_MOUSE_DRAG,
+        HT_MOUSE_SELECT,
+    };
+    using enum mouse_interaction_t;
+
+    enum class swipe_state_t {
+        HT_SWIPE_OPEN,
+        HT_SWIPE_MOVE,
+        HT_SWIPE_NONE,
+    };
+    using enum swipe_state_t;
+
     swipe_state_t swipe_state = HT_SWIPE_NONE;
     float swipe_amt = 0.F;
     bool swipe_started_open = false;
@@ -100,10 +92,17 @@ class HTManager {
     std::string disabled_reason;
     std::string disabled_source;
 
+    bool has_runtime_view();
+    void request_redraw(PHLMONITOR monitor);
+    void clear_dragged_window();
     void reset_runtime_controls();
+    void reset_drag_state();
     void abort_drag_controller();
     void sync_redraw_sources(bool rebuild);
     void reset_mouse_button_state();
+    bool start_window_drag(const HTCursorWorkspaceContext& cursor_context);
+    void end_window_drag();
+    PHTVIEW get_swipe_view();
 
     // 0 while no managed button is held; config rejects buttons <= 0.
     unsigned int claimed_mouse_button = 0;
