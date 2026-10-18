@@ -193,20 +193,25 @@ using render_texture_t = void (*) (
     Render::GL::CHyprOpenGLImpl::STextureRenderData
 );
 
+// The renderTexture/renderBorder/blur hooks run this as their only plugin code,
+// so it must not throw into the renderer.
 bool overview_render_modif_active() {
-    if (g_pHyprRenderer == nullptr || ht_manager == nullptr || !ht_manager->runtime_enabled())
-        return false;
+    return HTPlugin::guardedValue("overview_render_modif_active", false, [] {
+        if (g_pHyprRenderer == nullptr || ht_manager == nullptr || !ht_manager->runtime_enabled())
+            return false;
 
-    const auto& render_modif = g_pHyprRenderer->m_renderData.renderModif;
-    if (!render_modif.enabled || render_modif.modifs.empty())
-        return false;
+        const auto& render_modif = g_pHyprRenderer->m_renderData.renderModif;
+        if (!render_modif.enabled || render_modif.modifs.empty())
+            return false;
 
-    if (ht_manager->has_active_view())
-        return true;
+        if (ht_manager->has_active_view())
+            return true;
 
-    const PHLMONITOR monitor = g_pHyprRenderer->m_renderData.pMonitor.lock();
-    const PHTVIEW view = monitor == nullptr ? nullptr : ht_manager->get_view_from_monitor(monitor);
-    return view != nullptr && view->navigating;
+        const PHLMONITOR monitor = g_pHyprRenderer->m_renderData.pMonitor.lock();
+        const PHTVIEW view =
+            monitor == nullptr ? nullptr : ht_manager->get_view_from_monitor(monitor);
+        return view != nullptr && view->navigating;
+    });
 }
 
 void hookRenderTexture(

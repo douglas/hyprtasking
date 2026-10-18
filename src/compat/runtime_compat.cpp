@@ -6,6 +6,7 @@
 
 #include "../build_contract.hpp"
 #include "../globals.hpp"
+#include "../plugin/guards.hpp"
 #if HT_HYPRLAND_GE_0_55
     #include <hyprland/src/config/shared/animation/AnimationTree.hpp>
 #endif
@@ -278,12 +279,12 @@ bool HTCompat::do_later(const std::function<void()>& callback) {
     const auto seq = std::make_shared<uint64_t>(0);
     *seq = g_pEventLoopManager->doLater([deferred = callback, seq] {
         std::erase(pending_do_later(), *seq);
-        deferred();
+        HTPlugin::guardedCallback("do_later", deferred);
     });
     pending_do_later().push_back(*seq);
 #else
     // 0.54 has no removeDoLater, so queued callbacks cannot be cancelled.
-    g_pEventLoopManager->doLater(callback);
+    g_pEventLoopManager->doLater([callback] { HTPlugin::guardedCallback("do_later", callback); });
 #endif
     return true;
 }
