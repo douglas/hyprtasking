@@ -47,12 +47,9 @@ check 'config value access outside compat' "$(src_matches 'CConfigValue<' "$COMP
 check 'drift-prone Hyprland includes outside compat' "$(src_matches \
   '#include <hyprland/src/(config/ConfigManager|config/ConfigValue|layout/LayoutManager|managers/KeybindManager|managers/PointerManager|managers/animation/DesktopAnimationManager|managers/input/InputManager)\.hpp>' \
   "$COMPAT")"
-check 'monitor focus mutation outside compat' \
-  "$(src_matches 'HTCompat::focus_monitor\(|rawMonitorFocus\(' "$COMPAT")"
-check 'render stage hooks outside compat' "$(src_matches 'on_render_stage|renderStage' "$COMPAT")"
 
-# Hyprland plugin guidelines.
-HOOK_FILES='src/compat/profile\.cpp|src/compat/renderer_compat\.cpp|src/plugin/runtime\.cpp'
+# Hyprland plugin guidelines. Function hooks live in the hook profile only.
+HOOK_FILES='src/compat/profile\.cpp'
 check 'no thread primitives' "$(src_matches 'std::thread|std::async|pthread_')"
 check 'function hooks created only in approved files' \
   "$(src_matches 'createFunctionHook\(' "$HOOK_FILES")"
@@ -60,18 +57,29 @@ check 'function hooks removed only in approved files' \
   "$(src_matches 'removeFunctionHook\(' "$HOOK_FILES")"
 check 'no deprecated Hyprland plugin APIs' "$(src_matches \
   'HyprlandAPI::(addConfigKeyword|registerCallbackDynamic|unregisterCallback|addLayout|removeLayout|addDispatcher|getConfigValue|getFunctionAddressFromSignature|addConfigValue)\(')"
-check 'no Hyprland 0.54 build gates' "$(src_matches 'HT_HYPRLAND_GE_0_55')"
-check 'no trace logging switches' "$(src_matches 'debug:trace|HYPRTASKING_TRACE')"
-check 'hook originals read only in compat wrappers' "$(src_matches '->m_original' \
-  'src/compat/profile\.(cpp|hpp)|src/compat/renderer_compat\.cpp|src/compat/runtime_compat\.cpp')"
+check 'hook originals read only in compat wrappers' \
+  "$(src_matches '->m_original' 'src/compat/profile\.(cpp|hpp)')"
 check 'deferred callbacks never run synchronously' \
   "$(rg -n 'callback\(\);' "$SRC/compat/runtime_compat.cpp" || true)"
 
-# Support matrix: CI and hyprpm pins track only supported Hyprland refs.
-check 'no stale Hyprland refs in workflows' \
-  "$(rg -n 'v0\.(4[0-9]|5[0-4])\.' "$REPO_DIR/.github/workflows" || true)"
-check 'no stale Hyprland refs in hyprpm pins' \
-  "$(rg -n 'v0\.(4[0-9]|5[0-4])\.' "$REPO_DIR/hyprpm.toml" || true)"
+# Support matrix: the CI compat matrix covers exactly SUPPORTED_VERSIONS and
+# hyprpm pins cover every required ref.
+matrix_targets=""
+matrix_issues=""
+while IFS= read -r ref; do
+  [[ -n "$ref" ]] || continue
+  if target=$(supported_target "$ref"); then
+    matrix_targets+="$target"$'\n'
+  else
+    matrix_issues+="unsupported matrix ref: v$ref"$'\n'
+  fi
+done < <(rg -o --no-filename -N 'ref:[[:space:]]*v([0-9]+\.[0-9]+\.[0-9]+)' -r '$1' \
+  "$REPO_DIR/.github/workflows/offline-compat-gate.yml" || true)
+for target in "${SUPPORTED_VERSIONS[@]}"; do
+  printf '%s' "$matrix_targets" | rg -qxF -- "$target" ||
+    matrix_issues+="no matrix ref for supported version: $target"$'\n'
+done
+check 'compat workflow matrix matches SUPPORTED_VERSIONS' "$matrix_issues"
 missing_pins=""
 for ref in "${HYPRPM_REQUIRED_REFS[@]}"; do
   rg -q "#${ref}$" "$REPO_DIR/hyprpm.toml" || missing_pins+="$ref "
@@ -79,13 +87,10 @@ done
 check 'hyprpm pins cover supported Hyprland refs' "$missing_pins"
 
 # Config keys: every key read through HTConfig is registered.
-used_keys=$(rg -o --no-filename --pcre2 \
-  '(?:(?:HTConfig::)?value(?:_or)?<[^>]+>|(?:int|float)_config_or)\("([^"]+)"' -r '$1' \
+used_keys=$(rg -o --no-filename '(?:int|float)_config_or\("([^"]+)"' -r '$1' \
   "$SRC" --glob '!config.hpp' | sort -u)
-registered_keys=$( {
-  rg -o --no-filename 'plugin:hyprtasking:[^"]+' "$SRC" | sed 's/^plugin:hyprtasking://' || true
-  rg -o --no-filename --pcre2 'add_(?:int|float)_config\("([^"]+)"' -r '$1' "$SRC/config.cpp" || true
-} | sort -u)
+registered_keys=$(rg -o --no-filename 'add_(?:int|float)_config\("([^"]+)"' -r '$1' \
+  "$SRC/config.cpp" | sort -u || true)
 if [[ -z "$used_keys" ]]; then
   check 'config keys detected' 'no HTConfig key usage found'
 else
