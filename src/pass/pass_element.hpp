@@ -8,7 +8,6 @@ inline constexpr const char* HT_PASS_ELEMENT_NAME = "HTDisableSimplification";
 
 class HTPassElement: public IPassElement {
   public:
-    HTPassElement();
     ~HTPassElement() override = default;
 
     std::vector<UP<IPassElement>> draw() override;

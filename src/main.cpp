@@ -1,6 +1,4 @@
-#include <exception>
 #include <hyprland/src/plugins/PluginAPI.hpp>
-#include <hyprland/src/plugins/PluginSystem.hpp>
 #include <string_view>
 
 #include "build_contract.hpp"
@@ -37,10 +35,7 @@ APICALL EXPORT std::string PLUGIN_API_VERSION() {
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     PHANDLE = handle;
 
-    if (ht_manager == nullptr)
-        ht_manager = std::make_unique<HTManager>();
-    else
-        ht_manager->reset();
+    ht_manager = std::make_unique<HTManager>();
 
     const auto compatibility = HTCompat::verify_compatibility();
     if (!compatibility.supported) {

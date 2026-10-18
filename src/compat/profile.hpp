@@ -30,7 +30,6 @@ struct CompatibilityResult {
     std::string error;
 };
 
-std::span<const std::string_view> supported_hyprland_versions();
 const HookSpec& input_mouse_button_spec();
 const HookSpec& render_workspace_spec();
 const HookSpec& render_texture_spec();

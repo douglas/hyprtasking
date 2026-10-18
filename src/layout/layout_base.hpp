@@ -33,8 +33,7 @@ class HTLayoutBase {
   public:
     using CallbackFun = Hyprutils::Animation::CBaseAnimatedVariable::CallbackFun;
 
-    explicit HTLayoutBase(VIEWID new_view_id);
-    ~HTLayoutBase() = default;
+    explicit HTLayoutBase(VIEWID new_view_id) : view_id(new_view_id) {}
 
     std::unordered_map<WORKSPACEID, HTWorkspace> overview_layout;
 

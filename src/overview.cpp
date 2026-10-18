@@ -1,8 +1,5 @@
 #include "overview.hpp"
 
-#include <hyprutils/math/Box.hpp>
-#include <vector>
-
 #include "compat/renderer_compat.hpp"
 #include "compat/runtime_compat.hpp"
 #include "globals.hpp"

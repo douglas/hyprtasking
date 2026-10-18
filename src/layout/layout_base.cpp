@@ -7,10 +7,6 @@
 #include "../logic/geometry_model.hpp"
 #include "../state_guards.hpp"
 
-HTLayoutBase::HTLayoutBase(VIEWID new_view_id) : view_id(new_view_id) {
-    ;
-}
-
 void HTLayoutBase::begin_render() {
     rendered_workspace_cells = false;
     HTCompat::begin_overview_render_pass();

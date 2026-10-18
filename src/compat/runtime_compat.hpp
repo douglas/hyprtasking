@@ -43,9 +43,7 @@ bool create_vector_animation(
     const std::string& config_name,
     eAVarDamagePolicy policy
 );
-PHLWINDOW
-window_at(const Vector2D& position, uint16_t properties, PHLWINDOW ignore_window = nullptr);
-PHLWINDOW hover_target_window_at(const Vector2D& position, PHLWINDOW ignore_window = nullptr);
+PHLWINDOW hover_target_window_at(const Vector2D& position);
 void set_cursor_override_enabled(bool enabled);
 void damage_monitor(PHLMONITOR monitor);
 void schedule_frame_for_monitor(PHLMONITOR monitor);

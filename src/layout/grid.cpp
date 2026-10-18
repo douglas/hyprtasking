@@ -16,7 +16,6 @@
 #include "../logic/navigation_model.hpp"
 #include "../overview.hpp"
 #include "../plugin/guards.hpp"
-#include "../render.hpp"
 #include "../render_snapshot.hpp"
 #include "../state_guards.hpp"
 #include "../types.hpp"

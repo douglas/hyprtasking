@@ -40,16 +40,6 @@ bool render_window_original(
     bool ignore_position,
     bool standalone
 );
-bool render_window_original(
-    void* thisptr,
-    PHLWINDOW window,
-    PHLMONITOR monitor,
-    const Time::steady_tp& time,
-    bool decorate,
-    HTRenderPassMode mode,
-    bool ignore_position,
-    bool standalone
-);
 Vector2D monitor_position(PHLMONITOR monitor);
 MONITORID monitor_id(PHLMONITOR monitor);
 CBox monitor_logical_box(PHLMONITOR monitor);
@@ -60,7 +50,6 @@ PHLWORKSPACE active_monitor_workspace(PHLMONITOR monitor);
 PHLMONITOR workspace_monitor(PHLWORKSPACE workspace);
 MONITORID workspace_monitor_id(PHLWORKSPACE workspace);
 bool workspace_render_visible(PHLWORKSPACE workspace);
-bool workspace_render_at_rest(PHLWORKSPACE workspace);
 WORKSPACEID workspace_id(PHLWORKSPACE workspace);
 PHLWORKSPACE workspace_by_id(WORKSPACEID workspace_id);
 PHLWORKSPACE window_workspace(PHLWINDOW window);

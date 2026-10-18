@@ -1,11 +1,7 @@
 #include "runtime.hpp"
 
-#include <linux/input-event-codes.h>
-
-#include <cmath>
 #include <format>
 #include <hyprland/src/plugins/PluginAPI.hpp>
-#include <hyprlang.hpp>
 #include <hyprutils/signal/Listener.hpp>
 #include <string_view>
 

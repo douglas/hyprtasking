@@ -24,23 +24,6 @@ HTManager::~HTManager() {
     HTCompat::stop_timer(idle_redraw_timer);
 }
 
-namespace {
-
-const char* swipe_state_name(HTManager::swipe_state_t state) {
-    switch (state) {
-        case HTManager::HT_SWIPE_OPEN:
-            return "open";
-        case HTManager::HT_SWIPE_MOVE:
-            return "move";
-        case HTManager::HT_SWIPE_NONE:
-            return "none";
-    }
-
-    return "unknown";
-}
-
-} // namespace
-
 PHTVIEW HTManager::get_view_from_monitor(PHLMONITOR monitor) {
     if (monitor == nullptr)
         return nullptr;
@@ -113,7 +96,7 @@ PHLWINDOW HTManager::get_window_from_cursor() {
     if (!ws_coords.has_value())
         return nullptr;
 
-    HTScopedMonitorWorkspace restore_workspace(cursor_monitor, true);
+    HTScopedMonitorWorkspace restore_workspace(cursor_monitor);
     if (!HTCompat::activate_monitor_workspace_internal(cursor_monitor, hovered_workspace))
         return nullptr;
     HTScopedWorkspaceVisibility visible_workspace(hovered_workspace, true);
@@ -234,17 +217,7 @@ void HTManager::clear_dragged_window() {
     dragged_window = {};
 }
 
-void HTManager::reset() {
-    reset_runtime_controls();
-    runtime_disabled = false;
-    disabled_reason.clear();
-    disabled_source.clear();
-    views.clear();
-    refresh_runtime_activity();
-}
-
 void HTManager::prepare_for_unload() {
-    hide_all_views();
     reset_runtime_controls();
     runtime_disabled = true;
     disabled_source = "plugin_exit";
@@ -264,25 +237,9 @@ void HTManager::disable_runtime(std::string_view source, std::string_view reason
     runtime_disabled = true;
     disabled_reason = std::string(reason);
     disabled_source = std::string(source);
-    const std::string state_snapshot = std::format(
-        "views={}, active_view={}, cursor_view={}, selection_pending={}, swipe_state={}, swipe_amt={}, dragged_window={}",
-        views.size(),
-        has_active_view(),
-        cursor_view_active(),
-        selection_pending,
-        swipe_state_name(swipe_state),
-        swipe_amt,
-        get_dragged_window() != nullptr
-    );
     reset_runtime_controls();
 
-    Log::logger->log(
-        Log::ERR,
-        "[Hyprtasking] runtime disabled after {}: {} ({})",
-        source,
-        reason,
-        state_snapshot
-    );
+    Log::logger->log(Log::ERR, "[Hyprtasking] runtime disabled after {}: {}", source, reason);
     HyprlandAPI::addNotification(
         PHANDLE,
         "[Hyprtasking] Disabled for this session after an internal runtime failure. Run hyprctl dispatch hyprtasking:health for details.",

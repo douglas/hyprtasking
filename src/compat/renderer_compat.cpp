@@ -35,10 +35,6 @@ thread_local int g_overview_render_pass_depth = 0;
 
 using Hyprutils::Utils::CScopeGuard;
 
-void disable_runtime_for_render_failure(std::string_view source, std::string_view reason) {
-    HTRuntimeFail::disable(source, reason);
-}
-
 void render_workspace_original_or_disable(
     void* thisptr,
     PHLMONITOR monitor,
@@ -49,7 +45,7 @@ void render_workspace_original_or_disable(
     if (HTCompat::render_workspace_original(thisptr, monitor, workspace, now, geometry))
         return;
 
-    disable_runtime_for_render_failure(
+    HTRuntimeFail::disable(
         "hook_render_workspace",
         "missing renderWorkspace original call-through"
     );
@@ -57,7 +53,7 @@ void render_workspace_original_or_disable(
 
 bool begin_overview_render_scope(PHLMONITOR monitor, PHLWORKSPACE workspace) {
     if (g_overview_render_scope_depth > 0) {
-        disable_runtime_for_render_failure(
+        HTRuntimeFail::disable(
             "hook_render_workspace",
             std::format(
                 "overview render re-entry detected for monitor {} workspace {}",
@@ -92,7 +88,7 @@ uint32_t solitaryBlockedOriginal(void* thisptr, bool full) {
     const auto original =
         HTCompat::hook_original<origIsSolitaryBlocked>(g_hooks.is_solitary_blocked);
     if (thisptr == nullptr || original == nullptr) {
-        disable_runtime_for_render_failure(
+        HTRuntimeFail::disable(
             "hook_is_solitary_blocked",
             "missing isSolitaryBlocked original call-through"
         );
@@ -209,7 +205,10 @@ void hookRenderTexture(
 ) {
     const auto original = HTCompat::hook_original<render_texture_t>(g_hooks.render_texture);
     if (original == nullptr) {
-        disable_runtime_for_render_failure("hook_render_texture", "missing renderTexture original call-through");
+        HTRuntimeFail::disable(
+            "hook_render_texture",
+            "missing renderTexture original call-through"
+        );
         return;
     }
 
@@ -299,10 +298,7 @@ void hookRenderBorder(
 ) {
     const auto original = HTCompat::hook_original<render_border_t>(g_hooks.render_border);
     if (original == nullptr) {
-        disable_runtime_for_render_failure(
-            "hook_render_border",
-            "missing renderBorder original call-through"
-        );
+        HTRuntimeFail::disable("hook_render_border", "missing renderBorder original call-through");
         return;
     }
 
@@ -321,7 +317,7 @@ void hookRenderBorderLerp(
 ) {
     const auto original = HTCompat::hook_original<render_border_lerp_t>(g_hooks.render_border_lerp);
     if (original == nullptr) {
-        disable_runtime_for_render_failure(
+        HTRuntimeFail::disable(
             "hook_render_border_lerp",
             "missing renderBorder (lerp) original call-through"
         );
@@ -336,7 +332,7 @@ void hookRenderBorderLerp(
 bool hookBlurOptimizations(void* thisptr, PHLLS layer, PHLWINDOW window) {
     const auto original = HTCompat::hook_original<blur_optimizations_t>(g_hooks.blur_optimizations);
     if (original == nullptr) {
-        disable_runtime_for_render_failure(
+        HTRuntimeFail::disable(
             "hook_blur_optimizations",
             "missing shouldUseNewBlurOptimizations original call-through"
         );
@@ -398,7 +394,7 @@ bool initializeRendererHooks() {
         hook_destination(hookRenderWorkspace)
     );
     if (!render_workspace.installed) {
-        disable_runtime_for_render_failure("initialize_renderer_hooks", render_workspace.error);
+        HTRuntimeFail::disable("initialize_renderer_hooks", render_workspace.error);
         return false;
     }
 
@@ -409,7 +405,7 @@ bool initializeRendererHooks() {
         hook_destination(hookRenderTexture)
     );
     if (!render_texture.installed) {
-        disable_runtime_for_render_failure("initialize_renderer_hooks", render_texture.error);
+        HTRuntimeFail::disable("initialize_renderer_hooks", render_texture.error);
         shutdownRendererHooks();
         return false;
     }
@@ -420,7 +416,7 @@ bool initializeRendererHooks() {
         hook_destination(hookRenderBorder)
     );
     if (!render_border.installed) {
-        disable_runtime_for_render_failure("initialize_renderer_hooks", render_border.error);
+        HTRuntimeFail::disable("initialize_renderer_hooks", render_border.error);
         shutdownRendererHooks();
         return false;
     }
@@ -431,7 +427,7 @@ bool initializeRendererHooks() {
         hook_destination(hookRenderBorderLerp)
     );
     if (!render_border_lerp.installed) {
-        disable_runtime_for_render_failure("initialize_renderer_hooks", render_border_lerp.error);
+        HTRuntimeFail::disable("initialize_renderer_hooks", render_border_lerp.error);
         shutdownRendererHooks();
         return false;
     }
@@ -442,7 +438,7 @@ bool initializeRendererHooks() {
         hook_destination(hookBlurOptimizations)
     );
     if (!blur_optimizations.installed) {
-        disable_runtime_for_render_failure("initialize_renderer_hooks", blur_optimizations.error);
+        HTRuntimeFail::disable("initialize_renderer_hooks", blur_optimizations.error);
         shutdownRendererHooks();
         return false;
     }
@@ -454,14 +450,14 @@ bool initializeRendererHooks() {
         hook_destination(hookShouldRenderWindow)
     );
     if (!should_render_window.installed) {
-        disable_runtime_for_render_failure("initialize_renderer_hooks", should_render_window.error);
+        HTRuntimeFail::disable("initialize_renderer_hooks", should_render_window.error);
         shutdownRendererHooks();
         return false;
     }
 
     const auto render_window_symbol = resolve_hook_address(render_window_spec());
     if (render_window_symbol.address == nullptr) {
-        disable_runtime_for_render_failure(
+        HTRuntimeFail::disable(
             "initialize_renderer_hooks",
             std::format("No {}: {}", render_window_spec().label, render_window_symbol.error)
         );
@@ -482,10 +478,7 @@ bool initializeRendererHooks() {
         hook_destination(hookIsSolitaryBlocked)
     );
     if (!solitary_blocked_hook.installed) {
-        disable_runtime_for_render_failure(
-            "initialize_renderer_hooks",
-            solitary_blocked_hook.error
-        );
+        HTRuntimeFail::disable("initialize_renderer_hooks", solitary_blocked_hook.error);
         shutdownRendererHooks();
         return false;
     }
@@ -511,7 +504,7 @@ bool should_render_window_original(void* renderer, PHLWINDOW window, PHLMONITOR 
         return false;
     const auto original = hook_original<should_render_window_t>(g_hooks.should_render_window);
     if (original == nullptr) {
-        disable_runtime_for_render_failure(
+        HTRuntimeFail::disable(
             "should_render_window_original",
             "missing shouldRenderWindow original call-through"
         );
@@ -554,28 +547,7 @@ bool render_window_original(
     bool ignore_position,
     bool standalone
 ) {
-    return render_window_original(
-        g_pHyprRenderer.get(),
-        window,
-        monitor,
-        time,
-        decorate,
-        mode,
-        ignore_position,
-        standalone
-    );
-}
-
-bool render_window_original(
-    void* thisptr,
-    PHLWINDOW window,
-    PHLMONITOR monitor,
-    const Time::steady_tp& time,
-    bool decorate,
-    HTRenderPassMode mode,
-    bool ignore_position,
-    bool standalone
-) {
+    void* thisptr = g_pHyprRenderer.get();
     if (thisptr == nullptr || g_hooks.render_window == nullptr || window == nullptr
         || monitor == nullptr)
         return false;
@@ -933,7 +905,7 @@ void begin_overview_render_pass() {
         return;
 
     if (g_overview_render_scope_depth <= 0) {
-        disable_runtime_for_render_failure(
+        HTRuntimeFail::disable(
             "begin_overview_render_pass",
             "overview render pass started outside render scope"
         );
@@ -941,7 +913,7 @@ void begin_overview_render_pass() {
     }
 
     if (g_overview_render_pass_depth > 0) {
-        disable_runtime_for_render_failure(
+        HTRuntimeFail::disable(
             "begin_overview_render_pass",
             "nested overview render pass detected"
         );
@@ -971,7 +943,7 @@ void remove_overview_render_passes() {
 void finalize_overview_render_pass() {
     if (g_overview_render_pass_depth <= 0) {
         if (g_overview_render_scope_depth > 0) {
-            disable_runtime_for_render_failure(
+            HTRuntimeFail::disable(
                 "finalize_overview_render_pass",
                 "overview render pass finalized without a matching begin"
             );

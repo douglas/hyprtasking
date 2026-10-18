@@ -1,6 +1,3 @@
-#include <linux/input-event-codes.h>
-
-#include <cmath>
 #include <format>
 #include <hyprutils/utils/ScopeGuard.hpp>
 
@@ -150,7 +147,7 @@ bool HTManager::start_window_drag() {
     if (cursor_monitor == nullptr || cursor_view == nullptr)
         return false;
 
-    HTScopedMonitorWorkspace restore_workspace(cursor_monitor, true);
+    HTScopedMonitorWorkspace restore_workspace(cursor_monitor);
     if (!HTCompat::activate_monitor_workspace_internal(cursor_monitor, cursor_workspace))
         return false;
     HTScopedWorkspaceVisibility visible_workspace(cursor_workspace, true);
@@ -334,7 +331,7 @@ void HTManager::end_window_drag() {
         return;
     const Vector2D tp_pos = warped_global_pos;
 
-    HTScopedMonitorWorkspace restore_workspace(cursor_monitor, true);
+    HTScopedMonitorWorkspace restore_workspace(cursor_monitor);
     if (!HTCompat::activate_monitor_workspace_internal(cursor_monitor, cursor_workspace))
         return;
     HTScopedWorkspaceVisibility visible_workspace(cursor_workspace, true);

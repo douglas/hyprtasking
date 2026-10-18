@@ -10,13 +10,12 @@ class [[nodiscard]] HTScopedMonitorWorkspace {
     HTScopedMonitorWorkspace(const HTScopedMonitorWorkspace&) = delete;
     HTScopedMonitorWorkspace& operator=(const HTScopedMonitorWorkspace&) = delete;
 
-    HTScopedMonitorWorkspace(PHLMONITOR monitor, bool use_change_workspace)
-        : monitor(monitor),
-          previous_workspace(
-              monitor == nullptr ? PHLWORKSPACEREF {}
-                                 : PHLWORKSPACEREF {HTCompat::active_monitor_workspace(monitor)}
-          ),
-          use_change_workspace(use_change_workspace) {}
+    explicit HTScopedMonitorWorkspace(PHLMONITOR monitor) :
+        monitor(monitor),
+        previous_workspace(
+            monitor == nullptr ? PHLWORKSPACEREF {}
+                               : PHLWORKSPACEREF {HTCompat::active_monitor_workspace(monitor)}
+        ) {}
 
     ~HTScopedMonitorWorkspace() {
         if (!restore_on_destroy)
@@ -28,7 +27,7 @@ class [[nodiscard]] HTScopedMonitorWorkspace {
         if (workspace == nullptr)
             return;
 
-        HTCompat::restore_monitor_workspace(monitor, workspace, use_change_workspace);
+        HTCompat::restore_monitor_workspace(monitor, workspace, true);
     }
 
     void dismiss() noexcept {
@@ -38,7 +37,6 @@ class [[nodiscard]] HTScopedMonitorWorkspace {
   private:
     PHLMONITOR      monitor = nullptr;
     PHLWORKSPACEREF previous_workspace;
-    bool            use_change_workspace = false;
     bool            restore_on_destroy = true;
 };
 
@@ -58,8 +56,6 @@ class [[nodiscard]] HTScopedActiveWorkspace {
     }
 
     ~HTScopedActiveWorkspace() {
-        if (!restore_on_destroy)
-            return;
         if (monitor == nullptr)
             return;
 
@@ -70,14 +66,9 @@ class [[nodiscard]] HTScopedActiveWorkspace {
         HTCompat::restore_monitor_workspace(monitor, workspace, false);
     }
 
-    void dismiss() noexcept {
-        restore_on_destroy = false;
-    }
-
   private:
     PHLMONITOR      monitor = nullptr;
     PHLWORKSPACEREF previous_workspace;
-    bool            restore_on_destroy = true;
 };
 
 class [[nodiscard]] HTScopedWorkspaceVisibility {
@@ -118,11 +109,6 @@ class [[nodiscard]] HTScopedWorkspaceRender {
     HTScopedWorkspaceRender(PHLMONITOR monitor, PHLWORKSPACE workspace)
         : active_workspace(monitor, workspace),
           visible_workspace(workspace, true) {}
-
-    void dismiss() noexcept {
-        active_workspace.dismiss();
-        visible_workspace.dismiss();
-    }
 
   private:
     HTScopedActiveWorkspace     active_workspace;

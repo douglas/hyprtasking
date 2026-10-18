@@ -2,10 +2,6 @@
 
 #include "../build_contract.hpp"
 
-HTPassElement::HTPassElement() {
-    ;
-}
-
 std::vector<UP<IPassElement>> HTPassElement::draw() {
     return {};
 }

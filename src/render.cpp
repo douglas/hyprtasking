@@ -5,7 +5,6 @@
 #include <hyprutils/utils/ScopeGuard.hpp>
 
 #include "compat/renderer_compat.hpp"
-#include "globals.hpp"
 #include "logic/geometry_model.hpp"
 #include "types.hpp"
 

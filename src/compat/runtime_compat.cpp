@@ -177,28 +177,20 @@ std::string HTCompat::monitor_name(PHLMONITOR monitor) {
     return monitor->m_name;
 }
 
-PHLWINDOW
-HTCompat::window_at(const Vector2D& position, uint16_t properties, PHLWINDOW ignore_window) {
+PHLWINDOW HTCompat::hover_target_window_at(const Vector2D& position) {
+    constexpr uint16_t properties = Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS
+        | Desktop::View::ALLOW_FLOATING;
 #if HT_HYPRLAND_GE_0_56
     if (!Desktop::viewState())
         return nullptr;
 
-    return Desktop::viewState()->hitTest().windowAt(position, properties, ignore_window);
+    return Desktop::viewState()->hitTest().windowAt(position, properties);
 #else
     if (!g_pCompositor)
         return nullptr;
 
-    return g_pCompositor->vectorToWindowUnified(position, properties, ignore_window);
+    return g_pCompositor->vectorToWindowUnified(position, properties, nullptr);
 #endif
-}
-
-PHLWINDOW HTCompat::hover_target_window_at(const Vector2D& position, PHLWINDOW ignore_window) {
-    return window_at(
-        position,
-        Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS
-            | Desktop::View::ALLOW_FLOATING,
-        ignore_window
-    );
 }
 
 void HTCompat::set_cursor_override_enabled(bool enabled) {
