@@ -257,8 +257,8 @@ smoke_runtime_safety() {
 }
 
 wait_for_plugin_ready() {
-  local attempts=${1:-40}
-  local delay=${2:-0.1}
+  local attempts=40
+  local delay=0.1
   local i
   local saw_plugin=0
 
