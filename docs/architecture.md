@@ -1,7 +1,7 @@
 # Architecture
 
-Hyprtasking is intentionally narrow on the supported `0.54.3` and `0.55.x`
-Hyprland targets.
+Hyprtasking is intentionally narrow on the supported `0.55.x`, `0.56.0`, and
+`0.56.2` Hyprland targets.
 The public surface is the overview itself, mouse interaction, gestures, the
 core dispatchers, runtime health, and audited compat wrappers.
 
@@ -54,8 +54,8 @@ returns to the default submap when all views leave that state.
 
 Event::bus listeners are installed through `src/compat/runtime_compat.cpp` for
 mouse movement, gestures, config reloads, and monitor changes. Missing listener
-registration is treated as a startup failure and is visible in
-`hyprtasking:health json`.
+registration is treated as a startup failure and shows up in the
+`disable_reason` and `failure_source` fields of `hyprtasking:health`.
 
 ## Reload Lifecycle
 
@@ -63,7 +63,6 @@ registration is treated as a startup failure and is visible in
 flowchart TD
     reload[Hyprland config reload]
     validate[Refresh and validate runtime config snapshot]
-    trace[Refresh trace config]
     manager{Runtime enabled?}
     monitors[Sync monitor views]
     each[For each view]
@@ -73,8 +72,7 @@ flowchart TD
     damage[Damage monitor and schedule frame]
 
     reload --> validate
-    validate --> trace
-    trace --> manager
+    validate --> manager
     manager -- no --> done[Stop]
     manager -- yes --> monitors
     monitors --> each
@@ -91,37 +89,9 @@ state is canceled before rendering continues.
 
 Config is read into a typed runtime snapshot at startup, config reload, and
 runtime readiness checks that can observe transient `hyprctl keyword` changes.
-Invalid safety-sensitive values, including grid dimensions, duplicate mouse
+Invalid values, including non-positive grid dimensions, duplicate mouse
 buttons, duplicate gesture finger counts, and non-positive gesture distances,
-disable Hyprtasking for the session instead of trying to continue with
-ambiguous input or render behavior.
+are rejected and the previous values stay in effect.
 
-## Release Gate
-
-```mermaid
-flowchart LR
-    version[Version contract]
-    compat[Compat audits]
-    coverage[Compat coverage]
-    boundary[Boundary audit]
-    guidelines[Guideline audit]
-    config[Config-key audit]
-    build[Build]
-    tests[Logic tests]
-    live[Live smoke]
-    manual[Manual checklist]
-
-    version --> compat
-    compat --> coverage
-    coverage --> boundary
-    boundary --> guidelines
-    guidelines --> config
-    config --> build
-    build --> tests
-    tests --> live
-    live --> manual
-```
-
-`RELEASE_MODE=offline` runs the version-independent local stages and the
-Hyprland source audits without touching a live compositor. The full mode adds
-load/unload, dispatcher, live smoke, and manual checklist stages.
+The release gate (`scripts/release-check.sh`) is described in the
+[debugging playbook](debugging-playbook.md#7-release-gate).
