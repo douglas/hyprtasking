@@ -15,10 +15,13 @@ jobs:
       - name: Install build dependencies
         run: |
           pacman -Syu --noconfirm --needed base-devel git meson ninja hyprland lua \
-            pixman libdrm libinput systemd-libs wayland libxkbcommon clang
+            pixman libdrm libinput systemd-libs wayland libxkbcommon clang ripgrep
 
       - name: Checkout Hyprtasking
         uses: actions/checkout@v5
+
+      - name: Source audits
+        run: bash scripts/audit-source.sh
 
       - name: Build plugin with warnings as errors
         run: |

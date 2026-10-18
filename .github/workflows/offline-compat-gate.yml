@@ -35,8 +35,5 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ripgrep
 
-      - name: Compat audits
-        run: |
-          bash scripts/audit-compat.sh "$GITHUB_WORKSPACE/hyprland"
-          bash scripts/audit-compat-coverage.sh
-          bash scripts/audit-boundary.sh
+      - name: Compat audit
+        run: bash scripts/audit-compat.sh "$GITHUB_WORKSPACE/hyprland"

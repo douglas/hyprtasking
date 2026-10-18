@@ -178,31 +178,7 @@ if [[ -n "$HYPRLAND_SOURCE" && "$RELEASE_MODE" != "live" ]]; then
 fi
 
 if [[ "$RELEASE_MODE" != "live" ]]; then
-  if [[ "$RELEASE_CHECK_FORMAT" == "json" ]]; then
-    COMPAT_COVERAGE_JSON="$(
-      env AUDIT_COVERAGE_FORMAT=json bash "$SCRIPT_DIR/audit-compat-coverage.sh"
-    )"
-    run_stage compat-coverage env "AUDIT_COVERAGE_FORMAT=json" bash "$SCRIPT_DIR/audit-compat-coverage.sh"
-  else
-  run_stage compat-coverage bash "$SCRIPT_DIR/audit-compat-coverage.sh"
-  fi
-  if [[ "$RELEASE_CHECK_FORMAT" == "json" ]]; then
-    BOUNDARY_JSON="$(
-      env AUDIT_BOUNDARY_FORMAT=json bash "$SCRIPT_DIR/audit-boundary.sh"
-    )"
-    run_stage boundary env "AUDIT_BOUNDARY_FORMAT=json" bash "$SCRIPT_DIR/audit-boundary.sh"
-  else
-    run_stage boundary bash "$SCRIPT_DIR/audit-boundary.sh"
-  fi
-  run_stage guidelines bash "$SCRIPT_DIR/audit-guidelines.sh"
-  if [[ "$RELEASE_CHECK_FORMAT" == "json" ]]; then
-    CONFIG_KEYS_JSON="$(
-      env AUDIT_CONFIG_KEYS_FORMAT=json bash "$SCRIPT_DIR/audit-config-keys.sh"
-    )"
-    run_stage config-keys env "AUDIT_CONFIG_KEYS_FORMAT=json" bash "$SCRIPT_DIR/audit-config-keys.sh"
-  else
-    run_stage config-keys bash "$SCRIPT_DIR/audit-config-keys.sh"
-  fi
+  run_stage source bash "$SCRIPT_DIR/audit-source.sh"
   run_stage compile meson compile -C "$BUILD_DIR"
   run_stage test meson test -C "$BUILD_DIR"
 fi
