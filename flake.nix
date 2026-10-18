@@ -2,7 +2,8 @@
   description = "Hyprtasking";
 
   inputs = {
-    hyprland.url = "github:hyprwm/Hyprland";
+    # A supported release; consumers can override it with inputs.hyprland.follows.
+    hyprland.url = "github:hyprwm/Hyprland/v0.56.2";
     nixpkgs.follows = "hyprland/nixpkgs";
     systems.url = "github:nix-systems/default-linux";
   };
@@ -26,9 +27,9 @@
       hyprtasking = let
         hyprlandPkg = hyprland.packages.${system}.hyprland;
       in
-        pkgs.gcc14Stdenv.mkDerivation {
+        pkgs.stdenv.mkDerivation {
           pname = "hyprtasking";
-          version = "0.5.1";
+          version = "0.6.0";
 
           src = ./.;
 
