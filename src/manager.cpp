@@ -282,7 +282,6 @@ void HTManager::reset_runtime_controls() {
     HTCompat::exit_submap();
     HTCompat::set_cursor_override_enabled(false);
 
-    reset_selection_state();
     reset_mouse_button_state();
 
     for (const PHTVIEW& view : views) {
@@ -294,13 +293,6 @@ void HTManager::reset_runtime_controls() {
     reset_drag_state();
     reset_swipe_state();
     HTCompat::set_cursor_override_enabled(false);
-}
-
-void HTManager::reset_selection_state() {
-    selection_pending = false;
-    pending_mouse_selection_workspace_id = WORKSPACE_INVALID;
-    if (claimed_mouse_interaction == HT_MOUSE_SELECT)
-        reset_mouse_button_state();
 }
 
 PHTVIEW HTManager::get_swipe_view() {
@@ -332,7 +324,6 @@ void HTManager::abort_drag_controller() {
 }
 
 void HTManager::reset_drag_state() {
-    drag_interaction_started = false;
     clear_dragged_window();
     abort_drag_controller();
 
@@ -344,7 +335,7 @@ void HTManager::reset_drag_state() {
 // Closing the overview or reloading config mid-drag must hand the window back
 // to Hyprland; the release that would normally end the drag gets ignored.
 void HTManager::cancel_window_drag() {
-    if (!drag_interaction_started && get_dragged_window() == nullptr)
+    if (claimed_mouse_interaction != HT_MOUSE_DRAG && get_dragged_window() == nullptr)
         return;
 
     reset_drag_state();

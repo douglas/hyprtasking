@@ -69,7 +69,6 @@ class HTManager {
     void end_window_drag();
     bool begin_workspace_select();
     bool end_workspace_select(VIEWID view_id, WORKSPACEID target_workspace_id);
-    void reset_selection_state();
     bool on_mouse_move();
 
     enum class swipe_state_t {
@@ -94,7 +93,6 @@ class HTManager {
     bool swipe_started_open = false;
     VIEWID swipe_view_id = INVALID_VIEW_ID;
     PHLWINDOWREF dragged_window;
-    bool selection_pending = false;
     bool runtime_disabled = false;
     bool compat_blocked = false;
     static constexpr std::chrono::milliseconds IDLE_REDRAW_INTERVAL {100};
@@ -109,18 +107,13 @@ class HTManager {
     void reset_runtime_controls();
     void abort_drag_controller();
     void sync_redraw_sources(bool rebuild);
-    void claim_mouse_button(
-        unsigned int button,
-        mouse_interaction_t interaction,
-        VIEWID view_id,
-        WORKSPACEID target_workspace_id
-    );
     void reset_mouse_button_state();
 
-    bool mouse_button_claimed = false;
+    // 0 while no managed button is held; config rejects buttons <= 0.
     unsigned int claimed_mouse_button = 0;
+    // HT_MOUSE_DRAG only once a drag started, HT_MOUSE_SELECT while a
+    // selection is pending.
     mouse_interaction_t claimed_mouse_interaction = HT_MOUSE_NONE;
     VIEWID claimed_mouse_view_id = INVALID_VIEW_ID;
     WORKSPACEID pending_mouse_selection_workspace_id = WORKSPACE_INVALID;
-    bool drag_interaction_started = false;
 };

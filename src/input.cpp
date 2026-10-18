@@ -12,27 +12,11 @@
 #include "scope_guard.hpp"
 #include "state_guards.hpp"
 
-void HTManager::claim_mouse_button(
-    unsigned int button,
-    mouse_interaction_t interaction,
-    VIEWID view_id,
-    WORKSPACEID target_workspace_id
-) {
-    mouse_button_claimed = true;
-    claimed_mouse_button = button;
-    claimed_mouse_interaction = interaction;
-    claimed_mouse_view_id = view_id;
-    pending_mouse_selection_workspace_id = target_workspace_id;
-    drag_interaction_started = false;
-}
-
 void HTManager::reset_mouse_button_state() {
-    mouse_button_claimed = false;
     claimed_mouse_button = 0;
     claimed_mouse_interaction = HT_MOUSE_NONE;
     claimed_mouse_view_id = INVALID_VIEW_ID;
     pending_mouse_selection_workspace_id = WORKSPACE_INVALID;
-    drag_interaction_started = false;
 }
 
 HTLogic::MouseButtonResult HTManager::handle_mouse_button(unsigned int button, bool pressed) {
@@ -59,50 +43,32 @@ HTLogic::MouseButtonResult HTManager::handle_mouse_button(unsigned int button, b
         // Another managed button already owns the interaction; re-claiming would
         // orphan its release and leave a drag attached to the cursor. The same
         // button may re-claim, so a lost release cannot block input for good.
-        if (mouse_button_claimed && claimed_mouse_button != button)
+        if (claimed_mouse_button != 0 && claimed_mouse_button != button)
             return HTLogic::MouseButtonResult::Consume;
 
-        claim_mouse_button(
-            button,
-            HT_MOUSE_NONE,
-            cursor_view == nullptr ? INVALID_VIEW_ID : cursor_view->monitor_id,
-            cursor_context.workspace_id
-        );
+        reset_mouse_button_state();
+        claimed_mouse_button = button;
+        claimed_mouse_view_id = cursor_view->monitor_id;
 
-        const bool has_workspace = cursor_context.workspace != nullptr;
+        if (cursor_context.workspace == nullptr)
+            return HTLogic::MouseButtonResult::Consume;
+
         if (is_drag_button) {
-            if (has_workspace) {
+            if (start_window_drag())
                 claimed_mouse_interaction = HT_MOUSE_DRAG;
-                drag_interaction_started = start_window_drag();
-            }
-            return HTLogic::MouseButtonResult::Consume;
-        }
-
-        if (has_workspace) {
+        } else if (begin_workspace_select()) {
             claimed_mouse_interaction = HT_MOUSE_SELECT;
-            if (!begin_workspace_select()) {
-                claimed_mouse_interaction = HT_MOUSE_NONE;
-                pending_mouse_selection_workspace_id = WORKSPACE_INVALID;
-            }
+            pending_mouse_selection_workspace_id = cursor_context.workspace_id;
         }
         return HTLogic::MouseButtonResult::Consume;
     }
 
-    if (!mouse_button_claimed || claimed_mouse_button != button)
+    if (claimed_mouse_button == 0 || claimed_mouse_button != button)
         return HTLogic::MouseButtonResult::Ignore;
 
-    const mouse_interaction_t claimed_interaction = claimed_mouse_interaction;
-    const bool started_drag = drag_interaction_started;
-    const VIEWID claimed_view_id = claimed_mouse_view_id;
-    const WORKSPACEID target_workspace_id = pending_mouse_selection_workspace_id;
-
-    if (claimed_interaction == HT_MOUSE_SELECT) {
-        end_workspace_select(claimed_view_id, target_workspace_id);
-        reset_mouse_button_state();
-        return HTLogic::MouseButtonResult::Consume;
-    }
-
-    if (started_drag)
+    if (claimed_mouse_interaction == HT_MOUSE_SELECT)
+        end_workspace_select(claimed_mouse_view_id, pending_mouse_selection_workspace_id);
+    else if (claimed_mouse_interaction == HT_MOUSE_DRAG)
         end_window_drag();
     reset_mouse_button_state();
     return HTLogic::MouseButtonResult::Consume;
@@ -324,8 +290,6 @@ bool HTManager::begin_workspace_select() {
     const HTCursorWorkspaceContext cursor_context = resolve_cursor_workspace(false);
     const PHTVIEW cursor_view = cursor_context.view;
 
-    selection_pending = false;
-
     if (!HTLogic::canStartInteraction(
             cursor_view != nullptr,
             cursor_view != nullptr && cursor_view->active,
@@ -336,21 +300,18 @@ bool HTManager::begin_workspace_select() {
 
     cursor_view->set_hovered_workspace(cursor_context.workspace_id);
     cursor_view->set_selected_workspace_id(cursor_context.workspace_id);
-    selection_pending = true;
     return true;
 }
 
 bool HTManager::end_workspace_select(VIEWID view_id, WORKSPACEID target_workspace_id) {
     const PHTVIEW cursor_view = get_view_from_id(view_id);
     const auto action = HTLogic::decideSelectEnd(
-        selection_pending,
+        true,
         cursor_view != nullptr,
         cursor_view != nullptr && cursor_view->active,
         cursor_view != nullptr && cursor_view->closing,
         target_workspace_id != WORKSPACE_INVALID
     );
-
-    selection_pending = false;
 
     switch (action) {
         case HTLogic::SelectEndAction::Ignore:
@@ -382,6 +343,7 @@ bool HTManager::on_mouse_move() {
         return false;
     }
 
+    const bool selection_pending = claimed_mouse_interaction == HT_MOUSE_SELECT;
     if (!selection_pending) {
         if (cursor_view->hover_suppressed) {
             if (cursor_context.workspace_id == cursor_view->hover_suppressed_workspace_id)
