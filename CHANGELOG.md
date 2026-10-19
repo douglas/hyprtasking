@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.1 - 2026-10-18
 
 ### Fixed
 
@@ -14,7 +14,7 @@
 - Stop a lost mouse release from freezing hover until the next selection.
 - Update the Nix flake: pin Hyprland to `v0.56.2` (it tracked a pre-0.55
   commit), refresh the lock from that release, use the default stdenv and
-  report version 0.6.0.
+  report the project version.
 
 ### Changed
 
