@@ -4,6 +4,7 @@
 #include <hyprland/src/plugins/HookSystem.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
 
+#include "compat/log_compat.hpp"
 #include "manager.hpp"
 
 inline constexpr auto LOG = Hyprutils::CLI::LOG_DEBUG;

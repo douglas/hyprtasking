@@ -242,7 +242,7 @@ install_function_hook(CFunctionHook*& hook, const HookSpec& spec, void* destinat
     if (hook == nullptr)
         return {.error = std::format("failed creating {} hook", spec.label)};
 
-    Log::logger->log(LOG, "[Hyprtasking] Attempting hook {}", spec.signature);
+    HTCompat::log(LOG, "[Hyprtasking] Attempting hook {}", spec.signature);
 
     if (!hook->hook()) {
         remove_function_hook(hook, spec.label);
@@ -267,7 +267,7 @@ void remove_function_hook(CFunctionHook*& hook, std::string_view label) {
     // destination still needs the original, or Hyprland loses that call.
     // Hyprland removes leftover plugin hooks on unload.
     if (!HyprlandAPI::removeFunctionHook(PHANDLE, hook)) {
-        Log::logger->log(Log::WARN, "[Hyprtasking] Failed to remove hook {}", label);
+        HTCompat::log(Log::WARN, "[Hyprtasking] Failed to remove hook {}", label);
         return;
     }
 

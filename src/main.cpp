@@ -30,7 +30,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
             HTPlugin::initializeConfig();
             HTPlugin::registerDispatchers();
         });
-        Log::logger->log(
+        HTCompat::log(
             Log::ERR,
             "[Hyprtasking] Compatibility gate blocked runtime activation: {}",
             compatibility.error
@@ -61,13 +61,13 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         HTPlugin::disable_runtime_for_current_exception("plugin_init");
     }
 
-    Log::logger->log(LOG, "[Hyprtasking] Plugin initialized");
+    HTCompat::log(LOG, "[Hyprtasking] Plugin initialized");
 
     return {"Hyprtasking", "A workspace management plugin", "douglas", HT_PROJECT_VERSION};
 }
 
 APICALL EXPORT void PLUGIN_EXIT() {
-    Log::logger->log(LOG, "[Hyprtasking] Plugin exiting");
+    HTCompat::log(LOG, "[Hyprtasking] Plugin exiting");
 
     run_cleanup("manager_unload", [] { ht_manager->prepare_for_unload(); });
     run_cleanup("callbacks", [] { HTPlugin::unregisterCallbacks(); });

@@ -53,7 +53,7 @@ bool begin_overview_render_scope(PHLMONITOR monitor, PHLWORKSPACE workspace) {
 
 void end_overview_render_scope() {
     if (g_overview_render_scope_depth <= 0) {
-        Log::logger->log(
+        HTCompat::log(
             Log::WARN,
             "[Hyprtasking] finalize_overview_render_scope called with no active scope"
         );
@@ -114,7 +114,7 @@ void hookRenderWorkspace(
         HTScopeGuard render_scope([] { end_overview_render_scope(); });
         view->layout->render();
     } catch (...) {
-        Log::logger->log(
+        HTCompat::log(
             Log::ERR,
             "[Hyprtasking] hook_render_workspace failed: {}",
             HTPlugin::current_exception_what()
@@ -374,7 +374,7 @@ bool initializeRendererHooks() {
         return false;
     }
     g_hooks.render_window = render_window_symbol.address;
-    Log::logger->log(LOG, "[Hyprtasking] Resolved {}", render_window_spec().signature);
+    HTCompat::log(LOG, "[Hyprtasking] Resolved {}", render_window_spec().signature);
 
     return install(
         g_hooks.is_solitary_blocked,

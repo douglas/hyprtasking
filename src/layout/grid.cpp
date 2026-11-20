@@ -28,7 +28,7 @@ void warn_invalid_geometry(std::string_view source, const std::string& reason) {
         return;
 
     last_reason = reason;
-    Log::logger->log(Log::WARN, "[Hyprtasking] {}: {}", source, reason);
+    HTCompat::log(Log::WARN, "[Hyprtasking] {}: {}", source, reason);
 }
 
 struct DraggedWindowBox {

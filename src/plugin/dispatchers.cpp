@@ -122,7 +122,7 @@ SDispatchResult dispatchHealth([[maybe_unused]] std::string arg) {
     return guardedDispatch("dispatch_health", [&]() -> SDispatchResult {
         const std::string health = ht_manager->runtime_health_summary();
 
-        Log::logger->log(LOG, "[Hyprtasking] health {}", health);
+        HTCompat::log(LOG, "[Hyprtasking] health {}", health);
         HyprlandAPI::addNotification(
             PHANDLE,
             "[Hyprtasking] " + health,
@@ -199,7 +199,11 @@ void registerDispatchers() {
 
     const auto addLuaFunction = [](const std::string& name, PLUGIN_LUA_FN function) {
         if (!HyprlandAPI::addLuaFunction(PHANDLE, "hyprtasking", name, function))
-            Log::logger->log(Log::ERR, "[Hyprtasking] failed to register hl.plugin.hyprtasking.{}", name);
+            HTCompat::log(
+                Log::ERR,
+                "[Hyprtasking] failed to register hl.plugin.hyprtasking.{}",
+                name
+            );
     };
 
     addLuaFunction("toggle", luaToggle);
