@@ -22,10 +22,11 @@ void expect(bool condition, std::string_view message) {
 
 int main() {
     using namespace HTLogic;
-    constexpr std::array<std::string_view, 3> SUPPORTED_VERSIONS = {
+    constexpr std::array<std::string_view, 4> SUPPORTED_VERSIONS = {
         "0.55",
         "0.56.0",
         "0.56.2",
+        "0.57",
     };
     const auto compat_error =
         [&](bool hashes_match, std::string_view runtime, std::string_view package) {
@@ -35,6 +36,11 @@ int main() {
     expect(!compat_error(true, "0.56.2", "0.56.2"), "compat support should accept 0.56.2");
     expect(!compat_error(true, "0.56.0", "0.56.0"), "compat support should accept 0.56.0");
     expect(!compat_error(true, "0.55.0", "0.55.0"), "compat support should accept 0.55.0");
+    expect(!compat_error(true, "0.57.0", "0.57.0"), "compat support should accept 0.57.0");
+    expect(
+        !compat_error(true, "0.57.2", "0.57.0"),
+        "compat support should accept 0.57 patch drift between runtime and package"
+    );
     expect(
         !compat_error(true, "0.55.2", "0.55.0"),
         "compat support should accept 0.55 patch drift between runtime and package"
@@ -54,16 +60,30 @@ int main() {
         "compat support should reject mismatched package minors"
     );
     expect(
+        compat_error(true, "0.57.2", "0.56.2")
+            == "installed Hyprland package 0.56.2 does not match running Hyprland 0.57.2",
+        "compat support should reject a 0.56 package on a 0.57 runtime"
+    );
+    expect(
+        compat_error(true, "0.58.0", "0.58.0")
+            == "built against unsupported Hyprland package 0.58.0 (supported: 0.55, 0.56.0, 0.56.2, "
+               "0.57)",
+        "compat support should reject Hyprland 0.58 until it is audited"
+    );
+    expect(
         compat_error(
             true,
             "0.54.3",
             "0.54.3"
-        ) == "built against unsupported Hyprland package 0.54.3 (supported: 0.55, 0.56.0, 0.56.2)",
+        ) == "built against unsupported Hyprland package 0.54.3 (supported: 0.55, 0.56.0, 0.56.2, 0.57)",
         "compat support should reject dropped 0.54 packages"
     );
     expect(
-        compat_error(true, "0.54.2", "0.55.0")
-            == "running on unsupported Hyprland runtime 0.54.2 (supported: 0.55, 0.56.0, 0.56.2)",
+        compat_error(
+            true,
+            "0.54.2",
+            "0.55.0"
+        ) == "running on unsupported Hyprland runtime 0.54.2 (supported: 0.55, 0.56.0, 0.56.2, 0.57)",
         "compat support should reject dropped 0.54 runtimes"
     );
 
