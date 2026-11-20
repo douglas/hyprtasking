@@ -8,6 +8,7 @@
 #include <string_view>
 #include <unordered_map>
 
+#include "../compat/workspace_compat.hpp"
 #include "../logic/logic.hpp"
 #include "../types.hpp"
 
