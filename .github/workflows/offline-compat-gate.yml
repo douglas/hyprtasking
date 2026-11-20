@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ref: [v0.55.0, v0.56.0, v0.56.2]
+        ref: [v0.55.0, v0.56.0, v0.56.2, v0.57.0, v0.57.2]
     steps:
       - name: Checkout Hyprtasking
         uses: actions/checkout@v5

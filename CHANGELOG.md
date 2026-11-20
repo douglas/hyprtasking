@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Support Hyprland `0.57.x` (audited against `v0.57.0` and `v0.57.2`), with
+  all 0.57 code behind `HT_HYPRLAND_GE_0_57` and mostly in `src/compat/`. It is
+  not yet verified in a live 0.57 session, and the hyprpm pins for it wait for
+  a release commit.
+  - Pass the new render context through the `renderWorkspace`, `renderWindow`,
+    `renderTexture`, `renderBorder` and blur hooks, the pass elements and the
+    window and workspace render helpers, and update their symbols.
+  - Keep integer workspace IDs on top of the numbered/special workspace
+    variant; named and special workspaces count as no workspace.
+  - Enter and leave the submap through the config actions, and start and stop
+    window drags on the layout drag controller, because the keybind manager's
+    dispatcher table and `changeMouseBindMode` are gone.
+  - Format log messages before passing them to the logger.
+  - hyprlang dispatchers do not exist on 0.57; use the Lua functions.
+
 ## 0.6.1 - 2026-10-18
 
 ### Fixed

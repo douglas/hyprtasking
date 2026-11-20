@@ -200,7 +200,7 @@ void HTManager::end_window_drag() {
     if (snap_to_workspace) {
         const PHLWORKSPACE dragged_workspace = HTCompat::window_workspace(dragged_window);
         if (dragged_workspace == nullptr) {
-            Log::logger->log(LOG, "[Hyprtasking] tried to drop on null workspace??");
+            HTCompat::log(LOG, "[Hyprtasking] tried to drop on null workspace??");
             return;
         }
         target_workspace_id = HTCompat::workspace_id(dragged_workspace);
@@ -209,7 +209,7 @@ void HTManager::end_window_drag() {
     const PHLWORKSPACE cursor_workspace =
         HTCompat::resolve_workspace_target(cursor_monitor, target_workspace_id, !snap_to_workspace);
     if (cursor_workspace == nullptr) {
-        Log::logger->log(
+        HTCompat::log(
             LOG,
             "[Hyprtasking] drop target workspace {} could not be resolved",
             target_workspace_id
@@ -223,14 +223,14 @@ void HTManager::end_window_drag() {
         use_mouse_coords = cursor_view->layout->get_global_ws_box(drop_workspace_id)
                                .closestPoint(use_mouse_coords);
 
-        Log::logger->log(
+        HTCompat::log(
             LOG,
             "[Hyprtasking] Dragging to invalid position, snapping to last ws {}",
             drop_workspace_id
         );
     }
 
-    Log::logger->log(LOG, "[Hyprtasking] trying to drop window on ws {}", drop_workspace_id);
+    HTCompat::log(LOG, "[Hyprtasking] trying to drop window on ws {}", drop_workspace_id);
 
     const auto workspace_coords = cursor_view->layout->global_to_workspace_monitor_coords(
         use_mouse_coords,

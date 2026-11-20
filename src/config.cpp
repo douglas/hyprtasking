@@ -31,7 +31,7 @@ void log_missing_config_once(const std::string& config) {
     if (warned_configs.contains(config))
         return;
     warned_configs.insert(config);
-    Log::logger->log(
+    HTCompat::log(
         Log::WARN,
         "[Hyprtasking] Missing config key '{}', using fallback",
         prefixed_key(config)
@@ -185,7 +185,7 @@ bool refresh_runtime_config(std::string_view source) {
     if (const auto error = validate_runtime_config(config); error.has_value()) {
         if (*error != g_config_error) {
             g_config_error = *error;
-            Log::logger->log(Log::ERR, "[Hyprtasking] {}: {}", source, *error);
+            HTCompat::log(Log::ERR, "[Hyprtasking] {}: {}", source, *error);
             HyprlandAPI::addNotification(
                 PHANDLE,
                 "[Hyprtasking] Invalid config, keeping previous values: " + *error,

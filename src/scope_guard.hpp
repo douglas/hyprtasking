@@ -1,9 +1,10 @@
 #pragma once
 
 #include <exception>
-#include <hyprland/src/debug/log/Logger.hpp>
 #include <string_view>
 #include <utility>
+
+#include "compat/log_compat.hpp"
 
 // Cleanup runs from destructors, which are noexcept: an exception escaping one
 // would terminate Hyprland, so log it instead.
@@ -13,11 +14,11 @@ void run_cleanup(std::string_view name, Fn&& fn) noexcept {
         fn();
     } catch (const std::exception& e) {
         try {
-            Log::logger->log(Log::ERR, "[Hyprtasking] {} cleanup failed: {}", name, e.what());
+            HTCompat::log(Log::ERR, "[Hyprtasking] {} cleanup failed: {}", name, e.what());
         } catch (...) {} // NOLINT(bugprone-empty-catch): logging failed; nothing left to do
     } catch (...) {
         try {
-            Log::logger->log(Log::ERR, "[Hyprtasking] {} cleanup failed", name);
+            HTCompat::log(Log::ERR, "[Hyprtasking] {} cleanup failed", name);
         } catch (...) {} // NOLINT(bugprone-empty-catch): logging failed; nothing left to do
     }
 }

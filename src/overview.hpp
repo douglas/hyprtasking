@@ -3,6 +3,7 @@
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <string_view>
 
+#include "compat/workspace_compat.hpp"
 #include "layout/grid.hpp"
 
 class HTView {

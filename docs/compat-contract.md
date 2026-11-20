@@ -8,8 +8,15 @@ versions.
 | `0.55.x` | `v0.55.0` |
 | `0.56.0` | `v0.56.0` |
 | `0.56.2` | `v0.56.2` |
+| `0.57.x` | `v0.57.0`, `v0.57.2` |
 
 The runtime shape is diagrammed in [`architecture.md`](architecture.md).
+
+Version-specific code sits behind `HT_HYPRLAND_GE_0_56` and
+`HT_HYPRLAND_GE_0_57`, which `meson.build` sets from the installed `hyprland`
+package, and stays in `src/compat/` where possible. The 0.57 branches cannot be
+compiled against the 0.56.2 package, so they are checked by reading them
+against the `v0.57.x` source trees and by `scripts/audit-compat.sh`.
 
 ## Update Workflow
 

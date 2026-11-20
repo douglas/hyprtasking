@@ -134,7 +134,7 @@ void HTView::set_runtime_state(bool new_active, bool new_closing, bool new_navig
     const bool is_interactively_active = active && !closing;
 
     if (changed) {
-        Log::logger->log(
+        HTCompat::log(
             LOG,
             "[Hyprtasking] view {} runtime state -> active={} closing={} navigating={}",
             monitor_id,
@@ -390,6 +390,6 @@ void HTView::refresh_monitor() {
 
     if (!warned_missing_monitor) {
         warned_missing_monitor = true;
-        Log::logger->log(Log::WARN, "[Hyprtasking] No monitor for view {}", monitor_id);
+        HTCompat::log(Log::WARN, "[Hyprtasking] No monitor for view {}", monitor_id);
     }
 }

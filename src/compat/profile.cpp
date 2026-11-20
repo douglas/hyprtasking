@@ -10,10 +10,11 @@
 
 namespace {
 
-constexpr std::array<std::string_view, 3> SUPPORTED_HYPRLAND_VERSIONS = {
+constexpr std::array<std::string_view, 4> SUPPORTED_HYPRLAND_VERSIONS = {
     "0.55",
     "0.56.0",
     "0.56.2",
+    "0.57",
 };
 
 constexpr HTCompat::HookSpec INPUT_MOUSE_BUTTON_HOOK = {
@@ -27,7 +28,15 @@ constexpr HTCompat::HookSpec INPUT_MOUSE_BUTTON_HOOK = {
 constexpr HTCompat::HookSpec RENDER_WORKSPACE_HOOK = {
     .label = "renderWorkspace",
     .query = "renderWorkspace",
-#if HT_HYPRLAND_GE_0_56
+#if HT_HYPRLAND_GE_0_57
+    // 0.57 adds a scene-mode renderWorkspace overload, so the query name alone
+    // is ambiguous; the signature picks the monitor and geometry one.
+    .signature =
+        "_ZN6Render13IHyprRenderer15renderWorkspaceERNS_14CRenderContextEN9Hyprutils6Memory"
+        "14CSharedPointerIN7Monitor8CMonitorEEENS5_IN9Workspace12CHLWorkspaceEEERKNSt6chrono"
+        "10time_pointINSC_3_V212steady_clockENSC_8durationIlSt5ratioILl1ELl1000000000EEEEEE"
+        "RKNS3_4Math4CBoxE",
+#elif HT_HYPRLAND_GE_0_56
     .signature =
         "_ZN6Render13IHyprRenderer15renderWorkspaceEN9Hyprutils6Memory14CSharedPointer"
         "IN7Monitor8CMonitorEEENS3_I10CWorkspaceEERKNSt6chrono10time_pointINS9_3_V212"
@@ -42,7 +51,14 @@ constexpr HTCompat::HookSpec RENDER_WORKSPACE_HOOK = {
 
 constexpr HTCompat::HookSpec RENDER_TEXTURE_HOOK = {
     .label = "renderTexture",
-#if HT_HYPRLAND_GE_0_56
+#if HT_HYPRLAND_GE_0_57
+    .query =
+        "_ZN6Render2GL15CHyprOpenGLImpl13renderTextureERNS_14CRenderContextEN9Hyprutils6Memory"
+        "14CSharedPointerINS_8ITextureEEERKNS4_4Math4CBoxENS1_18STextureRenderDataE",
+    .signature =
+        "_ZN6Render2GL15CHyprOpenGLImpl13renderTextureERNS_14CRenderContextEN9Hyprutils6Memory"
+        "14CSharedPointerINS_8ITextureEEERKNS4_4Math4CBoxENS1_18STextureRenderDataE",
+#elif HT_HYPRLAND_GE_0_56
     .query =
         "_ZN6Render2GL15CHyprOpenGLImpl13renderTextureEN9Hyprutils6Memory14CSharedPointer"
         "INS_8ITextureEEERKNS2_4Math4CBoxENS1_18STextureRenderDataE",
@@ -57,7 +73,14 @@ constexpr HTCompat::HookSpec RENDER_TEXTURE_HOOK = {
 
 constexpr HTCompat::HookSpec RENDER_BORDER_HOOK = {
     .label = "renderBorder",
-#if HT_HYPRLAND_GE_0_56
+#if HT_HYPRLAND_GE_0_57
+    .query =
+        "_ZN6Render2GL15CHyprOpenGLImpl12renderBorderERNS_14CRenderContextERKN9Hyprutils4Math4"
+        "CBoxERKN6Config18CGradientValueDataENS1_17SBorderRenderDataE",
+    .signature =
+        "_ZN6Render2GL15CHyprOpenGLImpl12renderBorderERNS_14CRenderContextERKN9Hyprutils4Math4"
+        "CBoxERKN6Config18CGradientValueDataENS1_17SBorderRenderDataE",
+#elif HT_HYPRLAND_GE_0_56
     .query =
         "_ZN6Render2GL15CHyprOpenGLImpl12renderBorderERKN9Hyprutils4Math4CBoxERKN6Config18"
         "CGradientValueDataENS1_17SBorderRenderDataE",
@@ -72,7 +95,14 @@ constexpr HTCompat::HookSpec RENDER_BORDER_HOOK = {
 
 constexpr HTCompat::HookSpec RENDER_BORDER_LERP_HOOK = {
     .label = "renderBorder (lerp)",
-#if HT_HYPRLAND_GE_0_56
+#if HT_HYPRLAND_GE_0_57
+    .query =
+        "_ZN6Render2GL15CHyprOpenGLImpl12renderBorderERNS_14CRenderContextERKN9Hyprutils4Math4"
+        "CBoxERKN6Config18CGradientValueDataESC_fNS1_17SBorderRenderDataE",
+    .signature =
+        "_ZN6Render2GL15CHyprOpenGLImpl12renderBorderERNS_14CRenderContextERKN9Hyprutils4Math4"
+        "CBoxERKN6Config18CGradientValueDataESC_fNS1_17SBorderRenderDataE",
+#elif HT_HYPRLAND_GE_0_56
     .query =
         "_ZN6Render2GL15CHyprOpenGLImpl12renderBorderERKN9Hyprutils4Math4CBoxERKN6Config18"
         "CGradientValueDataESA_fNS1_17SBorderRenderDataE",
@@ -87,7 +117,14 @@ constexpr HTCompat::HookSpec RENDER_BORDER_LERP_HOOK = {
 
 constexpr HTCompat::HookSpec BLUR_OPTIMIZATIONS_HOOK = {
     .label = "shouldUseNewBlurOptimizations",
-#if HT_HYPRLAND_GE_0_56
+#if HT_HYPRLAND_GE_0_57
+    .query =
+        "_ZN6Render13IHyprRenderer29shouldUseNewBlurOptimizationsERNS_14CRenderContextEN9Hyprutils"
+        "6Memory14CSharedPointerIN7Desktop4View13CLayerSurfaceEEENS5_INS7_7CWindowEEE",
+    .signature =
+        "_ZN6Render13IHyprRenderer29shouldUseNewBlurOptimizationsERNS_14CRenderContextEN9Hyprutils"
+        "6Memory14CSharedPointerIN7Desktop4View13CLayerSurfaceEEENS5_INS7_7CWindowEEE",
+#elif HT_HYPRLAND_GE_0_56
     .query =
         "_ZN6Render13IHyprRenderer29shouldUseNewBlurOptimizationsEN9Hyprutils6Memory14CSharedPointer"
         "IN7Desktop4View13CLayerSurfaceEEENS3_INS5_7CWindowEEE",
@@ -121,7 +158,18 @@ constexpr HTCompat::HookSpec SHOULD_RENDER_WINDOW_HOOK = {
 
 constexpr HTCompat::HookSpec RENDER_WINDOW_SYMBOL = {
     .label = "renderWindow",
-#if HT_HYPRLAND_GE_0_56
+#if HT_HYPRLAND_GE_0_57
+    .query =
+        "_ZN6Render13IHyprRenderer12renderWindowERNS_14CRenderContextEN9Hyprutils6Memory14CShared"
+        "PointerIN7Desktop4View7CWindowEEENS5_IN7Monitor8CMonitorEEERKNS_25SWindowRender"
+        "PresentationERKNSt6chrono10time_pointINSG_3_V212steady_clockENSG_8durationIlSt5ratioILl1E"
+        "Ll1000000000EEEEEEbNS_15eRenderPassModeEbb",
+    .signature =
+        "_ZN6Render13IHyprRenderer12renderWindowERNS_14CRenderContextEN9Hyprutils6Memory14CShared"
+        "PointerIN7Desktop4View7CWindowEEENS5_IN7Monitor8CMonitorEEERKNS_25SWindowRender"
+        "PresentationERKNSt6chrono10time_pointINSG_3_V212steady_clockENSG_8durationIlSt5ratioILl1E"
+        "Ll1000000000EEEEEEbNS_15eRenderPassModeEbb",
+#elif HT_HYPRLAND_GE_0_56
     .query =
         "_ZN6Render13IHyprRenderer12renderWindowEN9Hyprutils6Memory14CSharedPointer"
         "IN7Desktop4View7CWindowEEENS3_IN7Monitor8CMonitorEEERKNSt6chrono10time_point"
@@ -242,7 +290,7 @@ install_function_hook(CFunctionHook*& hook, const HookSpec& spec, void* destinat
     if (hook == nullptr)
         return {.error = std::format("failed creating {} hook", spec.label)};
 
-    Log::logger->log(LOG, "[Hyprtasking] Attempting hook {}", spec.signature);
+    HTCompat::log(LOG, "[Hyprtasking] Attempting hook {}", spec.signature);
 
     if (!hook->hook()) {
         remove_function_hook(hook, spec.label);
@@ -267,7 +315,7 @@ void remove_function_hook(CFunctionHook*& hook, std::string_view label) {
     // destination still needs the original, or Hyprland loses that call.
     // Hyprland removes leftover plugin hooks on unload.
     if (!HyprlandAPI::removeFunctionHook(PHANDLE, hook)) {
-        Log::logger->log(Log::WARN, "[Hyprtasking] Failed to remove hook {}", label);
+        HTCompat::log(Log::WARN, "[Hyprtasking] Failed to remove hook {}", label);
         return;
     }
 

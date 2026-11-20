@@ -3,7 +3,7 @@
 # shellcheck disable=SC2034
 
 # Entries match a version exactly or as a prefix ("0.55" covers 0.55.x).
-SUPPORTED_VERSIONS=("0.55" "0.56.0" "0.56.2")
+SUPPORTED_VERSIONS=("0.55" "0.56.0" "0.56.2" "0.57")
 HYPRPM_REQUIRED_REFS=("v0.55.0" "v0.55.1" "v0.55.2" "v0.55.4" "v0.56.0" "v0.56.2")
 
 # supported_target VERSION: prints the SUPPORTED_VERSIONS entry covering
