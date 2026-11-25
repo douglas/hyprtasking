@@ -239,6 +239,28 @@ int main() {
             "a reconnected sole monitor should take the first workspace block"
         );
     }
+    {
+        // KVM switch / monitor disconnect: Hyprland creates FALLBACK while no
+        // physical output is connected and keeps it briefly when the output
+        // comes back. FALLBACK must never steal block 0 from the real monitor.
+        const auto initial = assignMonitorBlocks({}, {"HDMI-A-1"});
+        const auto on_fallback = assignMonitorBlocks(initial, {"FALLBACK"});
+        expect(
+            !monitorBlockIndex(on_fallback, "FALLBACK").has_value(),
+            "FALLBACK should never be assigned a workspace block"
+        );
+        const auto reconnected = assignMonitorBlocks(on_fallback, {"FALLBACK", "HDMI-A-1"});
+        expect(
+            monitorBlockIndex(reconnected, "HDMI-A-1") == 0,
+            "reconnecting after FALLBACK should keep block 0"
+        );
+        const auto headless_boot = assignMonitorBlocks({}, {"FALLBACK"});
+        const auto first_real = assignMonitorBlocks(headless_boot, {"FALLBACK", "DP-1"});
+        expect(
+            monitorBlockIndex(first_real, "DP-1") == 0,
+            "first real monitor after FALLBACK should take block 0"
+        );
+    }
 
     expect(
         idsNotIn({1, 2, 3, 4}, {1, 3}) == std::vector<long>({2, 4}),

@@ -296,15 +296,22 @@ WorkspaceID resolveVisualWorkspaceID(
     return fallback_workspace_id;
 }
 
+bool isFallbackMonitorName(std::string_view name) {
+    return name.empty() || name == "FALLBACK";
+}
+
 std::vector<std::string> assignMonitorBlocks(
     std::vector<std::string> blocks,
     const std::vector<std::string>& connected_names
 ) {
     const auto is_connected = [&](const std::string& name) {
-        return std::ranges::find(connected_names, name) != connected_names.end();
+        return !isFallbackMonitorName(name)
+            && std::ranges::find(connected_names, name) != connected_names.end();
     };
 
     for (const auto& name : connected_names) {
+        if (isFallbackMonitorName(name))
+            continue;
         if (std::ranges::find(blocks, name) != blocks.end())
             continue;
 
