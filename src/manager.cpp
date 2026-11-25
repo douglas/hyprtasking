@@ -339,11 +339,15 @@ void HTManager::sync_monitor_views(MONITORID removed_monitor_id) {
 
     std::vector<std::string> monitor_names;
     monitor_names.reserve(monitors.size());
-    for (const PHLMONITOR& monitor : monitors)
-        monitor_names.push_back(HTCompat::monitor_name(monitor));
+    for (const PHLMONITOR& monitor : monitors) {
+        if (HTCompat::monitor_id(monitor) != removed_monitor_id)
+            monitor_names.push_back(HTCompat::monitor_name(monitor));
+    }
     monitor_blocks = HTLogic::assignMonitorBlocks(std::move(monitor_blocks), monitor_names);
 
     for (const PHLMONITOR& monitor : monitors) {
+        if (HTCompat::monitor_id(monitor) == removed_monitor_id)
+            continue;
         const PHTVIEW view = get_view_from_monitor(monitor);
         if (view == nullptr)
             continue;
