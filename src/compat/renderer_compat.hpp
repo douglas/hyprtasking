@@ -11,6 +11,7 @@
 #include <hyprutils/math/Vector2D.hpp>
 
 #include "../types.hpp"
+#include "workspace_compat.hpp"
 
 namespace HTCompat {
 

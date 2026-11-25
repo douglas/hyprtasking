@@ -21,8 +21,10 @@ namespace HTCompat {
 
 using Hyprutils::Signal::CHyprSignalListener;
 
+#if !HT_HYPRLAND_GE_0_57
 SDispatchResult
 invoke_dispatcher(const std::string& dispatch_name, const std::string& dispatch_arg);
+#endif
 bool enter_submap(const std::string& name);
 bool exit_submap();
 PHLMONITOR cursor_monitor();

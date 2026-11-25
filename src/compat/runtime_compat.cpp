@@ -15,9 +15,17 @@
     #include <hyprland/src/state/WorkspaceState.hpp>
 #endif
 #include <hyprland/src/desktop/view/View.hpp>
-#include <hyprland/src/desktop/view/Window.hpp>
 #include <hyprland/src/event/EventBus.hpp>
-#include <hyprland/src/managers/KeybindManager.hpp>
+#if HT_HYPRLAND_GE_0_57
+    #include <hyprland/src/config/shared/actions/ConfigActions.hpp>
+    #include <hyprland/src/desktop/view/window/Window.hpp>
+    #include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
+    #include <hyprland/src/managers/fullscreen/FullscreenController.hpp>
+    #include <hyprland/src/workspace/HLWorkspace.hpp>
+#else
+    #include <hyprland/src/desktop/view/Window.hpp>
+    #include <hyprland/src/managers/KeybindManager.hpp>
+#endif
 #include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
 #include <hyprland/src/protocols/core/Compositor.hpp>
@@ -29,6 +37,13 @@
 #include "pointer_compat.hpp"
 #include "profile.hpp"
 
+#if HT_HYPRLAND_GE_0_57
+// 0.57 dropped the keybind manager's dispatcher table; the submap action is
+// the only dispatcher Hyprtasking invoked.
+static bool set_submap(const std::string& name) {
+    return Config::Actions::setSubmap(name).has_value();
+}
+#else
 SDispatchResult
 HTCompat::invoke_dispatcher(const std::string& dispatch_name, const std::string& dispatch_arg) {
     if (!g_pKeybindManager)
@@ -41,12 +56,17 @@ HTCompat::invoke_dispatcher(const std::string& dispatch_name, const std::string&
     return dispatcher->second(dispatch_arg);
 }
 
+static bool set_submap(const std::string& name) {
+    return HTCompat::invoke_dispatcher("submap", name).success;
+}
+#endif
+
 // Only reset a submap Hyprtasking entered, so cleanup never kicks the user out
 // of a submap of their own.
 static bool entered_submap = false;
 
 bool HTCompat::enter_submap(const std::string& name) {
-    if (!invoke_dispatcher("submap", name).success)
+    if (!set_submap(name))
         return false;
     entered_submap = true;
     return true;
@@ -55,7 +75,7 @@ bool HTCompat::enter_submap(const std::string& name) {
 bool HTCompat::exit_submap() {
     if (!entered_submap)
         return true;
-    if (!invoke_dispatcher("submap", "reset").success)
+    if (!set_submap("reset"))
         return false;
     entered_submap = false;
     return true;
@@ -265,6 +285,10 @@ void HTCompat::move_window_to_workspace(PHLWINDOW window, PHLWORKSPACE workspace
         return;
 
     Desktop::globalWindowController()->moveWindowToWorkspace(window, workspace);
+    #if HT_HYPRLAND_GE_0_57
+    // A workspace Hyprtasking created is set up once it holds the window.
+    workspace->ready();
+    #endif
 #else
     if (window == nullptr || workspace == nullptr || !g_pCompositor)
         return;
@@ -274,10 +298,37 @@ void HTCompat::move_window_to_workspace(PHLWINDOW window, PHLWORKSPACE workspace
 }
 
 void HTCompat::set_mouse_bind_mode(eMouseBindMode mode) {
+#if HT_HYPRLAND_GE_0_57
+    // 0.57 removed CKeybindManager::changeMouseBindMode. This mirrors the drag
+    // handling of its "mouse" action (and the old method) on the drag controller.
+    if (!g_layoutManager)
+        return;
+
+    if (mode == MBIND_INVALID) {
+        if (g_layoutManager->dragController()->target())
+            g_layoutManager->endDragTarget();
+        return;
+    }
+
+    if (g_layoutManager->dragController()->target() || !g_pInputManager)
+        return;
+
+    const Vector2D mouse_position = g_pInputManager->getMouseCoordsInternal();
+    const PHLWINDOW window = hover_target_window_at(mouse_position);
+    if (window == nullptr)
+        return;
+
+    if (!Fullscreen::controller()->isFullscreen(window) && mode == MBIND_MOVE
+        && window->presentation().checkInputOnDecorations(INPUT_TYPE_DRAG_START, mouse_position))
+        return;
+
+    g_layoutManager->beginDragTarget(window->layoutTarget(), mode);
+#else
     if (!g_pKeybindManager)
         return;
 
     g_pKeybindManager->changeMouseBindMode(mode);
+#endif
 }
 
 bool HTCompat::begin_drag_window(PHLWINDOW window, eMouseBindMode mode) {

@@ -184,7 +184,7 @@ void HTManager::disable_runtime(std::string_view source, std::string_view reason
     disabled_source = std::string(source);
     reset_runtime_controls();
 
-    Log::logger->log(Log::ERR, "[Hyprtasking] runtime disabled after {}: {}", source, reason);
+    HTCompat::log(Log::ERR, "[Hyprtasking] runtime disabled after {}: {}", source, reason);
     HyprlandAPI::addNotification(
         PHANDLE,
         "[Hyprtasking] Disabled for this session after an internal runtime failure. Run hyprctl dispatch hyprtasking:health for details.",
@@ -306,7 +306,7 @@ void HTManager::sync_monitor_views(MONITORID removed_monitor_id) {
 
         removed_runtime_view = removed_runtime_view || view->has_runtime_activity();
         view->cancel_runtime_state();
-        Log::logger->log(
+        HTCompat::log(
             LOG,
             "[Hyprtasking] Removing stale view for detached monitor id {}",
             view->monitor_id
@@ -328,7 +328,7 @@ void HTManager::sync_monitor_views(MONITORID removed_monitor_id) {
 
         const Vector2D monitor_size = HTCompat::monitor_transformed_size(monitor);
         views.push_back(makeShared<HTView>(HTCompat::monitor_id(monitor)));
-        Log::logger->log(
+        HTCompat::log(
             LOG,
             "[Hyprtasking] Registering view for monitor {} with resolution {}x{}",
             HTCompat::monitor_description(monitor),

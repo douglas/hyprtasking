@@ -4,7 +4,10 @@
 </div>
 
 > [!Important]
-> - Maintained for Hyprland `0.55.x`, `0.56.0`, and `0.56.2`.
+> - Maintained for Hyprland `0.55.x`, `0.56.0`, `0.56.2`, and `0.57.x`.
+> - Hyprland `0.57` has no hyprlang dispatchers, so use the Lua functions
+>   (`hl.plugin.hyprtasking.toggle(...)`) there. The `bind = ..., hyprtasking:*`
+>   examples below are hyprlang and apply to `0.55` and `0.56` only.
 
 ## This Fork
 

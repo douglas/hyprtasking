@@ -6,6 +6,7 @@
 #include <hyprland/src/config/ConfigValue.hpp>
 #include <hyprland/src/render/OpenGL.hpp>
 #include <hyprland/src/render/Renderer.hpp>
+#include <limits>
 #include <string_view>
 
 #include "../build_contract.hpp"
@@ -26,6 +27,29 @@
     #include <hyprland/src/state/WorkspacePlacementController.hpp>
     #include <hyprland/src/state/WorkspaceState.hpp>
 #endif
+#if HT_HYPRLAND_GE_0_57
+    #include <hyprland/src/desktop/view/window/Window.hpp>
+    #include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
+    #include <hyprland/src/render/Context.hpp>
+    #include <hyprland/src/workspace/HLWorkspace.hpp>
+#endif
+
+// 0.57 passes a Render::CRenderContext to the render entry points and moves the
+// render data and the render pass onto it. These keep the hook bodies shared
+// across versions; before 0.57 they expand to the global renderer state.
+//   HT_CTX_PARAM: leading hook parameter     HT_CTX_TYPE: the same in a hook typedef
+//   HT_CTX_ARG: leading original-call arg    HT_RENDER_DATA(ctx): SRenderData*
+#if HT_HYPRLAND_GE_0_57
+    #define HT_CTX_PARAM Render::CRenderContext &ctx,
+    #define HT_CTX_TYPE Render::CRenderContext&,
+    #define HT_CTX_ARG ctx,
+    #define HT_RENDER_DATA(ctx) (&(ctx).m_data)
+#else
+    #define HT_CTX_PARAM
+    #define HT_CTX_TYPE
+    #define HT_CTX_ARG
+    #define HT_RENDER_DATA(ctx) (g_pHyprRenderer ? &g_pHyprRenderer->m_renderData : nullptr)
+#endif
 
 namespace {
 
@@ -33,8 +57,14 @@ constexpr const char* CLEAR_PASS_ELEMENT_NAME = "CClearPassElement";
 // Balanced by RAII in the render hooks; Hyprland renders on one thread.
 int g_overview_render_scope_depth = 0;
 int g_overview_render_pass_depth = 0;
+#if HT_HYPRLAND_GE_0_57
+// The context of the overview render in progress. Set for the duration of the
+// renderWorkspace hook so the window and pass helpers below can reach it
+// without every caller threading it through.
+Render::CRenderContext* g_overview_render_ctx = nullptr;
+#endif
 
-bool begin_overview_render_scope(PHLMONITOR monitor, PHLWORKSPACE workspace) {
+bool begin_overview_render_scope(HT_CTX_PARAM PHLMONITOR monitor, PHLWORKSPACE workspace) {
     if (g_overview_render_scope_depth > 0) {
         HTRuntimeFail::disable(
             "hook_render_workspace",
@@ -48,23 +78,55 @@ bool begin_overview_render_scope(PHLMONITOR monitor, PHLWORKSPACE workspace) {
     }
 
     g_overview_render_scope_depth++;
+#if HT_HYPRLAND_GE_0_57
+    g_overview_render_ctx = &ctx;
+#endif
     return true;
 }
 
 void end_overview_render_scope() {
     if (g_overview_render_scope_depth <= 0) {
-        Log::logger->log(
+        HTCompat::log(
             Log::WARN,
             "[Hyprtasking] finalize_overview_render_scope called with no active scope"
         );
         g_overview_render_scope_depth = 0;
         g_overview_render_pass_depth = 0;
+#if HT_HYPRLAND_GE_0_57
+        g_overview_render_ctx = nullptr;
+#endif
         return;
     }
 
     g_overview_render_scope_depth--;
-    if (g_overview_render_scope_depth == 0)
+    if (g_overview_render_scope_depth == 0) {
         g_overview_render_pass_depth = 0;
+#if HT_HYPRLAND_GE_0_57
+        g_overview_render_ctx = nullptr;
+#endif
+    }
+}
+
+void add_pass_element(UP<IPassElement>&& element) {
+#if HT_HYPRLAND_GE_0_57
+    if (g_overview_render_ctx == nullptr)
+        return;
+
+    Render::IHyprRenderer::addPassElement(*g_overview_render_ctx, std::move(element));
+#else
+    g_pHyprRenderer->m_renderPass.add(std::move(element));
+#endif
+}
+
+void remove_passes_of_type(const char* type) {
+#if HT_HYPRLAND_GE_0_57
+    if (g_overview_render_ctx == nullptr)
+        return;
+
+    Render::IHyprRenderer::currentPass(*g_overview_render_ctx).removeAllOfType(type);
+#else
+    g_pHyprRenderer->m_renderPass.removeAllOfType(type);
+#endif
 }
 
 const HTGradientValueData& fallback_border_color(bool active) {
@@ -88,7 +150,7 @@ const HTGradientValueData& border_color_from_config(bool active) {
 
 void hookRenderWorkspace(
     void* thisptr,
-    PHLMONITOR monitor,
+    HT_CTX_PARAM PHLMONITOR monitor,
     PHLWORKSPACE workspace,
     const Time::steady_tp& now,
     const CBox& geometry
@@ -96,7 +158,7 @@ void hookRenderWorkspace(
     const auto render_original = [&] {
         HTCompat::hook_original<render_workspace_t>(g_hooks.render_workspace)(
             thisptr,
-            monitor,
+            HT_CTX_ARG monitor,
             workspace,
             now,
             geometry
@@ -106,7 +168,7 @@ void hookRenderWorkspace(
         const PHTVIEW view =
             ht_manager->runtime_enabled() ? ht_manager->get_view_from_monitor(monitor) : nullptr;
         if (view == nullptr || !(view->navigating || ht_manager->has_active_view())
-            || !begin_overview_render_scope(monitor, workspace)) {
+            || !begin_overview_render_scope(HT_CTX_ARG monitor, workspace)) {
             render_original();
             return;
         }
@@ -114,7 +176,7 @@ void hookRenderWorkspace(
         HTScopeGuard render_scope([] { end_overview_render_scope(); });
         view->layout->render();
     } catch (...) {
-        Log::logger->log(
+        HTCompat::log(
             Log::ERR,
             "[Hyprtasking] hook_render_workspace failed: {}",
             HTPlugin::current_exception_what()
@@ -124,28 +186,28 @@ void hookRenderWorkspace(
 }
 
 #if HT_HYPRLAND_GE_0_56
-using render_texture_t = void (*) (
+using render_texture_t = void (*)(
     void*,
-    SP<Render::ITexture>,
+    HT_CTX_TYPE SP<Render::ITexture>,
     const CBox&,
     Render::GL::CHyprOpenGLImpl::STextureRenderData
 );
 
 // The renderTexture/renderBorder/blur hooks run this as their only plugin code,
 // so it must not throw into the renderer.
-bool overview_render_modif_active() {
-    return HTPlugin::guardedValue("overview_render_modif_active", false, [] {
-        if (g_pHyprRenderer == nullptr || !ht_manager->runtime_enabled())
+bool overview_render_modif_active(const Render::SRenderData* render_data) {
+    return HTPlugin::guardedValue("overview_render_modif_active", false, [render_data] {
+        if (render_data == nullptr || !ht_manager->runtime_enabled())
             return false;
 
-        const auto& render_modif = g_pHyprRenderer->m_renderData.renderModif;
+        const auto& render_modif = render_data->renderModif;
         if (!render_modif.enabled || render_modif.modifs.empty())
             return false;
 
         if (ht_manager->has_active_view())
             return true;
 
-        const PHLMONITOR monitor = g_pHyprRenderer->m_renderData.pMonitor.lock();
+        const PHLMONITOR monitor = render_data->pMonitor.lock();
         const PHTVIEW view =
             monitor == nullptr ? nullptr : ht_manager->get_view_from_monitor(monitor);
         return view != nullptr && view->navigating;
@@ -154,7 +216,7 @@ bool overview_render_modif_active() {
 
 void hookRenderTexture(
     void* thisptr,
-    SP<Render::ITexture> texture,
+    HT_CTX_PARAM SP<Render::ITexture> texture,
     const CBox& box,
     Render::GL::CHyprOpenGLImpl::STextureRenderData data
 ) {
@@ -162,14 +224,15 @@ void hookRenderTexture(
 
     // Every path calls this exactly once, so hand over the texture and data.
     const auto call_original = [&](const CBox& render_box) {
-        original(thisptr, std::move(texture), render_box, std::move(data));
+        original(thisptr, HT_CTX_ARG std::move(texture), render_box, std::move(data));
     };
-    if (!overview_render_modif_active()) {
+    const auto render_data = HT_RENDER_DATA(ctx);
+    if (!overview_render_modif_active(render_data)) {
         call_original(box);
         return;
     }
 
-    const PHLMONITOR monitor = g_pHyprRenderer->m_renderData.pMonitor.lock();
+    const PHLMONITOR monitor = render_data->pMonitor.lock();
     if (monitor == nullptr) {
         call_original(box);
         return;
@@ -178,13 +241,13 @@ void hookRenderTexture(
     CRegion full_damage {0, 0, monitor->m_transformedSize.x, monitor->m_transformedSize.y};
     data.damage = &full_damage;
     data.clipRegion = {};
-    const CBox previous_clip_box = g_pHyprRenderer->m_renderData.clipBox;
-    g_pHyprRenderer->m_renderData.clipBox = {};
-    HTScopeGuard restore_clip_box {[previous_clip_box] {
-        g_pHyprRenderer->m_renderData.clipBox = previous_clip_box;
+    const CBox previous_clip_box = render_data->clipBox;
+    render_data->clipBox = {};
+    HTScopeGuard restore_clip_box {[render_data, previous_clip_box] {
+        render_data->clipBox = previous_clip_box;
     }};
 
-    auto& render_modif = g_pHyprRenderer->m_renderData.renderModif;
+    auto& render_modif = render_data->renderModif;
     if (!data.blur) {
         call_original(box);
         return;
@@ -194,67 +257,73 @@ void hookRenderTexture(
     render_modif.applyToBox(transformed_box);
     const bool previous_modif_enabled = render_modif.enabled;
     render_modif.enabled = false;
-    HTScopeGuard restore_modif {[previous_modif_enabled] {
-        g_pHyprRenderer->m_renderData.renderModif.enabled = previous_modif_enabled;
+    HTScopeGuard restore_modif {[render_data, previous_modif_enabled] {
+        render_data->renderModif.enabled = previous_modif_enabled;
     }};
     call_original(transformed_box);
 }
 
-using render_border_t = void (*) (
+using render_border_t = void (*)(
     void*,
-    const CBox&,
+    HT_CTX_TYPE const CBox&,
     const Config::CGradientValueData&,
     Render::GL::CHyprOpenGLImpl::SBorderRenderData
 );
-using render_border_lerp_t = void (*) (
+using render_border_lerp_t = void (*)(
     void*,
-    const CBox&,
+    HT_CTX_TYPE const CBox&,
     const Config::CGradientValueData&,
     const Config::CGradientValueData&,
     float,
     Render::GL::CHyprOpenGLImpl::SBorderRenderData
 );
-using blur_optimizations_t = bool (*) (void*, PHLLS, PHLWINDOW);
+using blur_optimizations_t = bool (*)(void*, HT_CTX_TYPE PHLLS, PHLWINDOW);
 
-template <typename CallOriginal>
+template<typename CallOriginal>
 void render_border_for_overview(
+    Render::SRenderData* render_data,
     const CBox& box,
     Render::GL::CHyprOpenGLImpl::SBorderRenderData& data,
     CallOriginal&& call_original
 ) {
-    if (!overview_render_modif_active()) {
+    if (!overview_render_modif_active(render_data)) {
         call_original(box, data);
         return;
     }
 
-    auto& render_modif = g_pHyprRenderer->m_renderData.renderModif;
+    auto& render_modif = render_data->renderModif;
     CBox transformed_box = box;
     render_modif.applyToBox(transformed_box);
     data.borderSize = std::round(data.borderSize * render_modif.combinedScale());
     const bool previous_modif_enabled = render_modif.enabled;
     render_modif.enabled = false;
-    HTScopeGuard restore_modif {[previous_modif_enabled] {
-        g_pHyprRenderer->m_renderData.renderModif.enabled = previous_modif_enabled;
+    HTScopeGuard restore_modif {[render_data, previous_modif_enabled] {
+        render_data->renderModif.enabled = previous_modif_enabled;
     }};
     call_original(transformed_box, data);
 }
 
 void hookRenderBorder(
     void* thisptr,
-    const CBox& box,
+    HT_CTX_PARAM const CBox& box,
     const Config::CGradientValueData& gradient,
     Render::GL::CHyprOpenGLImpl::SBorderRenderData data
 ) {
     const auto original = HTCompat::hook_original<render_border_t>(g_hooks.render_border);
 
-    render_border_for_overview(box, data, [&](const CBox& render_box, const auto& render_data) {
-        original(thisptr, render_box, gradient, render_data);
-    });
+    render_border_for_overview(
+        HT_RENDER_DATA(ctx),
+        box,
+        data,
+        [&](const CBox& render_box, const auto& border_data) {
+            original(thisptr, HT_CTX_ARG render_box, gradient, border_data);
+        }
+    );
 }
 
 void hookRenderBorderLerp(
     void* thisptr,
-    const CBox& box,
+    HT_CTX_PARAM const CBox& box,
     const Config::CGradientValueData& first_gradient,
     const Config::CGradientValueData& second_gradient,
     float lerp,
@@ -262,17 +331,29 @@ void hookRenderBorderLerp(
 ) {
     const auto original = HTCompat::hook_original<render_border_lerp_t>(g_hooks.render_border_lerp);
 
-    render_border_for_overview(box, data, [&](const CBox& render_box, const auto& render_data) {
-        original(thisptr, render_box, first_gradient, second_gradient, lerp, render_data);
-    });
+    render_border_for_overview(
+        HT_RENDER_DATA(ctx),
+        box,
+        data,
+        [&](const CBox& render_box, const auto& border_data) {
+            original(
+                thisptr,
+                HT_CTX_ARG render_box,
+                first_gradient,
+                second_gradient,
+                lerp,
+                border_data
+            );
+        }
+    );
 }
 
-bool hookBlurOptimizations(void* thisptr, PHLLS layer, PHLWINDOW window) {
-    if (overview_render_modif_active())
+bool hookBlurOptimizations(void* thisptr, HT_CTX_PARAM PHLLS layer, PHLWINDOW window) {
+    if (overview_render_modif_active(HT_RENDER_DATA(ctx)))
         return false;
     return HTCompat::hook_original<blur_optimizations_t>(g_hooks.blur_optimizations)(
         thisptr,
-        layer,
+        HT_CTX_ARG layer,
         window
     );
 }
@@ -374,7 +455,7 @@ bool initializeRendererHooks() {
         return false;
     }
     g_hooks.render_window = render_window_symbol.address;
-    Log::logger->log(LOG, "[Hyprtasking] Resolved {}", render_window_spec().signature);
+    HTCompat::log(LOG, "[Hyprtasking] Resolved {}", render_window_spec().signature);
 
     return install(
         g_hooks.is_solitary_blocked,
@@ -401,8 +482,20 @@ void render_workspace_original(
     const Time::steady_tp& now,
     const CBox& geometry
 ) {
+#if HT_HYPRLAND_GE_0_57
+    if (g_overview_render_ctx == nullptr) {
+        HTRuntimeFail::disable(
+            "render_workspace_original",
+            "workspace render requested outside an overview render"
+        );
+        return;
+    }
+#endif
     hook_original<render_workspace_t>(g_hooks.render_workspace)(
         g_pHyprRenderer.get(),
+#if HT_HYPRLAND_GE_0_57
+        *g_overview_render_ctx,
+#endif
         monitor,
         workspace,
         now,
@@ -419,10 +512,25 @@ void render_window_original(
     bool ignore_position,
     bool standalone
 ) {
+#if HT_HYPRLAND_GE_0_57
+    if (window == nullptr || g_overview_render_ctx == nullptr) {
+        HTRuntimeFail::disable(
+            "render_window_original",
+            "window render requested without a window or outside an overview render"
+        );
+        return;
+    }
+#endif
     reinterpret_cast<render_window_t>(g_hooks.render_window)(
         g_pHyprRenderer.get(),
+#if HT_HYPRLAND_GE_0_57
+        *g_overview_render_ctx,
+#endif
         window,
         monitor,
+#if HT_HYPRLAND_GE_0_57
+        window->presentation().renderPresentation(),
+#endif
         time,
         decorate,
         mode,
@@ -506,18 +614,65 @@ bool workspace_render_visible(PHLWORKSPACE workspace) {
     if (workspace == nullptr)
         return false;
 
+#if HT_HYPRLAND_GE_0_57
+    return workspace->visible();
+#else
     return workspace->m_visible;
+#endif
 }
+
+#if HT_HYPRLAND_GE_0_57
+namespace {
+
+    // Numbered workspace IDs are positive and fit the 32-bit container.
+    bool is_numbered_workspace_id(WORKSPACEID workspace_id) {
+        return workspace_id > 0
+            && workspace_id <= std::numeric_limits<::Workspace::WorkspaceIDContainer>::max();
+    }
+
+    ::Workspace::SWorkspaceNumberedID to_numbered_workspace_id(WORKSPACEID workspace_id) {
+        return ::Workspace::SWorkspaceNumberedID(
+            static_cast<::Workspace::WorkspaceIDContainer>(workspace_id)
+        );
+    }
+
+} // namespace
+#endif
+
+namespace {
+
+    // 0.57 workspaces announce themselves once fully set up (ready() is safe to
+    // repeat), so call this after a workspace was created and then activated or
+    // given a window. Before 0.57 there is nothing to announce.
+    void mark_workspace_ready([[maybe_unused]] const PHLWORKSPACE& workspace) {
+#if HT_HYPRLAND_GE_0_57
+        if (workspace != nullptr)
+            workspace->ready();
+#endif
+    }
+
+} // namespace
 
 WORKSPACEID workspace_id(PHLWORKSPACE workspace) {
     if (workspace == nullptr)
         return WORKSPACE_INVALID;
 
+#if HT_HYPRLAND_GE_0_57
+    // Named and special workspaces have no numbered ID.
+    const auto numbered_id = workspace->numberedID();
+    return numbered_id.has_value() ? static_cast<WORKSPACEID>(*numbered_id) : WORKSPACE_INVALID;
+#else
     return workspace->m_id;
+#endif
 }
 
 PHLWORKSPACE workspace_by_id(WORKSPACEID workspace_id) {
-#if HT_HYPRLAND_GE_0_56
+#if HT_HYPRLAND_GE_0_57
+    if (!is_numbered_workspace_id(workspace_id) || !State::workspaceState())
+        return nullptr;
+
+    return State::workspaceState()->query().numbered(to_numbered_workspace_id(workspace_id)).run();
+#elif HT_HYPRLAND_GE_0_56
     if (workspace_id == WORKSPACE_INVALID || !State::workspaceState())
         return nullptr;
 
@@ -541,7 +696,11 @@ WORKSPACEID window_workspace_id(PHLWINDOW window) {
     if (window == nullptr)
         return WORKSPACE_INVALID;
 
+#if HT_HYPRLAND_GE_0_57
+    return workspace_id(window->m_workspace);
+#else
     return window->workspaceID();
+#endif
 }
 
 PHLMONITOR window_monitor(PHLWINDOW window) {
@@ -629,8 +788,14 @@ void reset_window_workspace_move_alpha(PHLWINDOW window) {
     if (window == nullptr)
         return;
 
+#if HT_HYPRLAND_GE_0_57
+    auto& presentation = window->presentation();
+    presentation.alpha(Desktop::View::WINDOW_ALPHA_MOVE_TO_WORKSPACE)->setValueAndWarp(1.0);
+    presentation.alpha(Desktop::View::WINDOW_ALPHA_MOVE_FROM_WORKSPACE)->setValueAndWarp(1.0);
+#else
     window->alpha(Desktop::View::WINDOW_ALPHA_MOVE_TO_WORKSPACE)->setValueAndWarp(1.0);
     window->alpha(Desktop::View::WINDOW_ALPHA_MOVE_FROM_WORKSPACE)->setValueAndWarp(1.0);
+#endif
 }
 
 void warp_workspace_render_offset(PHLWORKSPACE workspace) {
@@ -645,6 +810,7 @@ bool activate_monitor_workspace_user(PHLMONITOR monitor, PHLWORKSPACE workspace)
         return false;
 
     monitor->changeWorkspace(workspace, false);
+    mark_workspace_ready(workspace);
     return true;
 }
 
@@ -665,6 +831,7 @@ bool restore_monitor_workspace(
     else
         monitor->m_activeWorkspace = workspace;
 
+    mark_workspace_ready(workspace);
     return true;
 }
 
@@ -680,7 +847,11 @@ void set_workspace_render_visibility(PHLWORKSPACE workspace, bool visible) {
 
     if (visible && !workspace_render_at_rest(workspace))
         HTCompat::start_workspace_visibility_animation(workspace, true);
+#if HT_HYPRLAND_GE_0_57
+    workspace->setVisible(visible);
+#else
     workspace->m_visible = visible;
+#endif
 }
 
 const HTGradientValueData& active_border_color() {
@@ -698,7 +869,15 @@ resolve_workspace_target(PHLMONITOR monitor, WORKSPACEID workspace_id, bool crea
 
     PHLWORKSPACE workspace = HTCompat::workspace_by_id(workspace_id);
     if (workspace == nullptr && create_if_missing) {
-#if HT_HYPRLAND_GE_0_56
+#if HT_HYPRLAND_GE_0_57
+        if (!State::workspaceState() || !is_numbered_workspace_id(workspace_id))
+            return nullptr;
+
+        workspace = State::workspaceState()->createNumbered(
+            to_numbered_workspace_id(workspace_id),
+            monitor
+        );
+#elif HT_HYPRLAND_GE_0_56
         if (!State::workspaceState())
             return nullptr;
 
@@ -742,21 +921,21 @@ void add_rect_pass(const CRectPassElement::SRectData& data) {
     if (!g_pHyprRenderer.get())
         return;
 
-    g_pHyprRenderer->m_renderPass.add(makeUnique<CRectPassElement>(data));
+    add_pass_element(makeUnique<CRectPassElement>(data));
 }
 
 void add_border_pass(const CBorderPassElement::SBorderData& data) {
     if (!g_pHyprRenderer.get())
         return;
 
-    g_pHyprRenderer->m_renderPass.add(makeUnique<CBorderPassElement>(data));
+    add_pass_element(makeUnique<CBorderPassElement>(data));
 }
 
 void add_renderer_hints_pass(const HTRenderModifData& data) {
     if (!g_pHyprRenderer.get())
         return;
 
-    g_pHyprRenderer->m_renderPass.add(
+    add_pass_element(
         makeUnique<CRendererHintsPassElement>(CRendererHintsPassElement::SData {data})
     );
 }
@@ -782,22 +961,24 @@ void begin_overview_render_pass() {
     }
 
     g_overview_render_pass_depth++;
-    g_pHyprRenderer->m_renderPass.add(makeUnique<HTPassElement>());
+    add_pass_element(makeUnique<HTPassElement>());
 }
 
 void remove_clear_passes() {
     if (!g_pHyprRenderer.get())
         return;
 
-    g_pHyprRenderer->m_renderPass.removeAllOfType(CLEAR_PASS_ELEMENT_NAME);
+    remove_passes_of_type(CLEAR_PASS_ELEMENT_NAME);
 }
 
 void remove_overview_render_passes() {
     if (!g_pHyprRenderer.get())
         return;
 
-    g_pHyprRenderer->m_renderPass.removeAllOfType(HT_PASS_ELEMENT_NAME);
-    g_pHyprRenderer->m_renderPass.removeAllOfType(CLEAR_PASS_ELEMENT_NAME);
+    // 0.57 keeps the pass on the render context, which resets every frame, so
+    // there is nothing left to remove once the overview render scope ended.
+    remove_passes_of_type(HT_PASS_ELEMENT_NAME);
+    remove_passes_of_type(CLEAR_PASS_ELEMENT_NAME);
     g_overview_render_scope_depth = 0;
     g_overview_render_pass_depth = 0;
 }
